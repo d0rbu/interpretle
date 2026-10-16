@@ -444,7 +444,14 @@ function Board({
               <textarea
                 aria-label="Your sentence"
                 aria-description="Enter to submit. Shift+Enter for a new line."
-                aria-describedby={text || writing ? 'custom-count' : undefined}
+                aria-describedby={
+                  [
+                    text || writing ? 'custom-count' : '',
+                    error ? 'custom-error' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
                 placeholder={`Write your own (${customRemaining(game)} left)`}
                 value={text}
                 onChange={(event) =>
@@ -470,6 +477,11 @@ function Board({
                 readOnly={submitting}
                 disabled={customRemaining(game) === 0}
               />
+              {error && (
+                <p id="custom-error" className="error" role="alert">
+                  {error}
+                </p>
+              )}
               {(text || writing || busy) && (
                 <div className="write-in-footer">
                   {busy && (
@@ -498,11 +510,6 @@ function Board({
               )}
             </article>
           </div>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
         </form>
       ) : (
         <Outcome

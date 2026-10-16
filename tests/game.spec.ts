@@ -567,7 +567,9 @@ test('loads on write-in focus, queues Enter, and charges only successful custom 
   await expect(input).toHaveAttribute('readonly', '')
   expect(await messages()).toEqual(['prepare', 'prepare'])
   await ready()
-  await expect(page.getByRole('alert')).toContainText('No attempt was used.')
+  await expect(page.locator('.write-in').getByRole('alert')).toContainText(
+    'No attempt was used.',
+  )
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
   await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
   await input.press('Enter')

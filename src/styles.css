@@ -440,6 +440,11 @@ textarea {
 .error {
   color: #a02b1e;
 }
+.write-in .error {
+  margin: 0;
+  padding: 0 16px 36px;
+  overflow-wrap: anywhere;
+}
 .reveal {
   border: 1px solid #dbe0d8;
   border-radius: 10px;
