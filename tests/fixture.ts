@@ -8,7 +8,6 @@ function passage(band: Band, index: number): Passage {
     text,
     band,
     before: 'Preceding source context. ',
-    after: ' Following source context.',
     source: {
       title: 'Test source',
       url: 'https://example.com',

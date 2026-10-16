@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import Heatmap from './components/Heatmap'
 import { loadCatalog, loadFeature } from './data/puzzles'
 import {
@@ -74,51 +74,11 @@ function Instructions({ close }: { close: () => void }) {
       </button>
       <h2 id="instructions-title">How to play</h2>
       <p>
-        Find text that strongly activates a hidden feature in a language model.
+        Find text that lights up a hidden feature in a language model. You have{' '}
+        <strong>8 attempts</strong> to reach the{' '}
+        <strong>99.9th percentile</strong> — a stronger activation than 99.9% of
+        passages where the feature activates.
       </p>
-      <ol>
-        <li>
-          Start with the free clue, near the <strong>50th percentile</strong>.
-          Its highlighted tokens are your first hint.
-        </li>
-        <li>
-          Choose one of eight passages and test it. Reading its context is free.
-        </li>
-        <li>
-          Each guess reveals token activations and the passage’s maximum. Tap a
-          highlighted token to inspect its score.
-        </li>
-        <li>
-          Reach the <strong>99.9th percentile</strong> within{' '}
-          <strong>eight attempts</strong>. You can use up to two custom
-          sentences.
-        </li>
-      </ol>
-      <p>
-        A passage’s score is its strongest token, ranked among passages where
-        the feature activates. Inactive tokens have no highlight. The model
-        reads full source context; only the displayed passage is scored.
-      </p>
-      <p>
-        Daily puzzles change at midnight UTC. Use the day number to revisit past
-        puzzles. Progress stays in this browser.
-      </p>
-      <details className="data-details">
-        <summary>About the model and data</summary>
-        <p>
-          Stored scores come from Gemma 4 E4B, layer 21, using Decode Research’s
-          SAE. Practice also includes residual coordinates. Text comes from
-          OpenAssistant, TinyStories, MBPP, and Wikipedia; each passage links to
-          its source.
-        </p>
-        <p>
-          Custom scoring downloads a model and runs on your device with WebGPU.
-          Your text is never sent to a scoring server.
-        </p>
-        <a href="/puzzles/provenance.json" target="_blank" rel="noreferrer">
-          Data provenance
-        </a>
-      </details>
       <button className="primary" onClick={close} autoFocus>
         Play
       </button>
@@ -126,20 +86,62 @@ function Instructions({ close }: { close: () => void }) {
   )
 }
 
-function Context({ passage }: { passage: Passage }) {
+function Chevron() {
   return (
-    <details className="context">
-      <summary>Context</summary>
-      <p>
-        {passage.before}
-        <strong>{passage.text}</strong>
-        {passage.after}
-      </p>
-      <a href={passage.source.url} target="_blank" rel="noreferrer">
-        {passage.source.title}
-      </a>
-      <span className="source-license"> · {passage.source.license}</span>
-    </details>
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4 6 4 4 4-4" />
+    </svg>
+  )
+}
+
+function PassageContent({
+  passage,
+  label,
+  score,
+  children,
+}: {
+  passage?: Passage
+  label?: string
+  score?: { score: number; rawMax: number }
+  children: ReactNode
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <>
+      <div className="result-heading">
+        {label && <h2>{label}</h2>}
+        <div className="passage-actions">
+          {score && (
+            <span title={`Maximum activation: ${score.rawMax.toPrecision(6)}`}>
+              {scoreLabel(score.score, score.rawMax > 0)}
+            </span>
+          )}
+          {passage && (
+            <button
+              type="button"
+              className="context-toggle"
+              aria-label={
+                expanded ? 'Hide preceding context' : 'Show preceding context'
+              }
+              aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}
+            >
+              <Chevron />
+            </button>
+          )}
+        </div>
+      </div>
+      {expanded && passage && (
+        <div className="context">
+          <p>{passage.before || 'No preceding context.'}</p>
+          <a href={passage.source.url} target="_blank" rel="noreferrer">
+            {passage.source.title}
+          </a>
+          <span> · {passage.source.license}</span>
+        </div>
+      )}
+      {children}
+    </>
   )
 }
 
@@ -155,14 +157,13 @@ function Result({
   const result = measure(feature, passage.tokens)
   return (
     <section className="result">
-      <div className="result-heading">
-        <h2>{label}</h2>
-        <span title={`Maximum activation: ${result.rawMax.toPrecision(6)}`}>
-          {scoreLabel(result.score, result.rawMax > 0)}
-        </span>
-      </div>
-      <Heatmap text={passage.text} tokens={passage.tokens} feature={feature} />
-      <Context passage={passage} />
+      <PassageContent passage={passage} label={label} score={result}>
+        <Heatmap
+          text={passage.text}
+          tokens={passage.tokens}
+          feature={feature}
+        />
+      </PassageContent>
     </section>
   )
 }
@@ -197,7 +198,6 @@ function Board({
   const phase = status(game)
   const cards = choices(game, feature)
   const best = bestScore(game)
-  const active = game.guesses.some((guess) => guess.rawMax > 0)
   useEffect(() => {
     setSaveWarning(!remember(storageKey(game), serializeGame(game)))
   }, [game])
@@ -296,7 +296,7 @@ function Board({
             : `${game.guesses.length} of ${MAX_GUESSES} attempts`}
         </span>
         <span>
-          Best: <strong>{scoreLabel(best, active)}</strong>
+          Best: <strong>{best === 0 ? '0%' : scoreLabel(best)}</strong>
         </span>
         {mode === 'practice' && (
           <button
@@ -322,26 +322,17 @@ function Board({
         <ol className="history" aria-label="Your guesses">
           {game.guesses.map((guess, index) => (
             <li key={index}>
-              <div className="result-heading">
-                <h2>Guess {index + 1}</h2>
-                <span
-                  title={`Maximum activation: ${guess.rawMax.toPrecision(6)}`}
-                >
-                  {scoreLabel(guess.score, guess.rawMax > 0)}
-                </span>
-              </div>
-              <Heatmap
-                text={guess.text}
-                tokens={guess.tokens}
-                feature={feature}
-              />
-              {guess.passageId && (
-                <Context
-                  passage={feature.passages.find(
-                    (p) => p.id === guess.passageId,
-                  )!}
+              <PassageContent
+                label={`Guess ${index + 1}`}
+                score={guess}
+                passage={feature.passages.find((p) => p.id === guess.passageId)}
+              >
+                <Heatmap
+                  text={guess.text}
+                  tokens={guess.tokens}
+                  feature={feature}
                 />
-              )}
+              </PassageContent>
             </li>
           ))}
         </ol>
@@ -350,73 +341,80 @@ function Board({
         <form onSubmit={submit}>
           <div className="choice-heading">
             <h2>Choose a passage</h2>
-            <button
-              type="button"
-              className="text-button"
-              disabled={!!busy || customRemaining(game) === 0}
-              onClick={() => {
-                setCustom(!custom)
-                setError('')
-              }}
-            >
-              {custom
-                ? 'Suggested passages'
-                : `Write your own (${customRemaining(game)} left)`}
-            </button>
           </div>
-          {custom ? (
-            <div className="custom-input">
-              <label htmlFor="custom-passage">Your sentence</label>
-              <textarea
-                id="custom-passage"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                rows={3}
-                disabled={!!busy}
-                autoFocus
-                aria-describedby="custom-note"
-              />
-              <p id="custom-note">
-                {catalog.browserModel
-                  ? `Scored locally with WebGPU. First use downloads ${(catalog.browserModel.bytes / 1e9).toFixed(1)} GB; later attempts use the cached model.`
-                  : 'Custom scoring is unavailable until the browser model is ready. Suggested passages use measured activations.'}{' '}
-                {Array.from(text).length}/{MAX_CUSTOM_LENGTH} characters.
-              </p>
-              {catalog.browserModel && !localReady && (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={loadModel}
-                  disabled={!!busy}
-                >
-                  Download &amp; load local model
-                </button>
-              )}
-              {localReady && <p className="notice">Local model ready.</p>}
-            </div>
-          ) : (
-            <div className="choices">
-              {cards.map((passage) => (
-                <article
-                  key={passage.id}
-                  className={
-                    selected === passage.id ? 'choice selected' : 'choice'
-                  }
-                >
+          <div className="choices">
+            {cards.map((passage) => (
+              <article
+                key={passage.id}
+                className={
+                  selected === passage.id ? 'choice selected' : 'choice'
+                }
+              >
+                <PassageContent passage={passage}>
                   <button
                     type="button"
                     className="passage-select"
                     aria-pressed={selected === passage.id}
                     disabled={!!busy}
-                    onClick={() => setSelected(passage.id)}
+                    onClick={() => {
+                      setSelected(passage.id)
+                      setCustom(false)
+                      setError('')
+                    }}
                   >
                     {passage.text.replace(/^\n+|\n+$/g, '')}
                   </button>
-                  <Context passage={passage} />
-                </article>
-              ))}
-            </div>
-          )}
+                </PassageContent>
+              </article>
+            ))}
+            <article className={`choice write-in${custom ? ' selected' : ''}`}>
+              {custom ? (
+                <div className="custom-input">
+                  <label htmlFor="custom-passage">Your sentence</label>
+                  <textarea
+                    id="custom-passage"
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    rows={3}
+                    disabled={!!busy}
+                    autoFocus
+                    aria-describedby="custom-note"
+                  />
+                  <p id="custom-note">
+                    {catalog.browserModel
+                      ? `Scored locally with WebGPU. First use downloads ${(catalog.browserModel.bytes / 1e9).toFixed(1)} GB; later attempts use the cached model.`
+                      : 'Custom scoring is unavailable until the browser model is ready. Suggested passages use measured activations.'}{' '}
+                    {Array.from(text).length}/{MAX_CUSTOM_LENGTH} characters.
+                  </p>
+                  {catalog.browserModel && !localReady && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={loadModel}
+                      disabled={!!busy}
+                    >
+                      Download &amp; load local model
+                    </button>
+                  )}
+                  {localReady && <p className="notice">Local model ready.</p>}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="write-in-select"
+                  disabled={!!busy || customRemaining(game) === 0}
+                  onClick={() => {
+                    setCustom(true)
+                    setSelected(null)
+                    setError('')
+                  }}
+                >
+                  <strong>Write your own</strong>{' '}
+                  <span>({customRemaining(game)} left)</span>
+                </button>
+              )}
+            </article>
+          </div>
           {error && (
             <p className="error" role="alert">
               {error}
@@ -571,21 +569,27 @@ export default function App() {
       <header>
         <div className="identity">
           <h1>interpretle</h1>
-          <select
-            aria-label="Puzzle day"
-            aria-describedby="puzzle-date"
-            value={day}
-            onChange={(event) => {
-              setDay(event.target.value)
-              setMode('daily')
-            }}
-          >
-            {days.map((date) => (
-              <option key={date} value={date}>
-                {dayNumber(date, firstDay)}
-              </option>
-            ))}
-          </select>
+          <span className="day-picker">
+            <span className="day-value" aria-hidden="true">
+              {dayNumber(day, firstDay)}
+              <Chevron />
+            </span>
+            <select
+              aria-label="Puzzle day"
+              aria-describedby="puzzle-date"
+              value={day}
+              onChange={(event) => {
+                setDay(event.target.value)
+                setMode('daily')
+              }}
+            >
+              {days.map((date) => (
+                <option key={date} value={date}>
+                  {dayNumber(date, firstDay)}
+                </option>
+              ))}
+            </select>
+          </span>
           <time id="puzzle-date" dateTime={day}>
             {dateLabel(day)}
           </time>

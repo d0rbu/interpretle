@@ -85,8 +85,13 @@ def passage(row, column, docs, cache, manifest, band):
     tokens = [dict(id=doc['ids'][index], start=utf16(doc['offsets'][index][0]),
                    end=utf16(doc['offsets'][index][1]), activation=float(activations[index - first]))
               for index in range(first, last) if eligible[index - first]]
+    context_first = max(1, first - 64)
+    # Keep the window within 64 tokens without starting inside a Unicode character.
+    while context_first < first and doc['offsets'][context_first][0] < doc['offsets'][context_first - 1][1]:
+        context_first += 1
+    context_start = doc['offsets'][context_first][0]
     return dict(id=f"{doc['id']}:{first}-{last}", text=doc['text'][start:end],
-                before=doc['text'][:start], after=doc['text'][end:],
+                before=doc['text'][context_start:start],
                 source={key: doc['source'][key] for key in ['title', 'url', 'license']},
                 tokens=tokens, band=band)
 

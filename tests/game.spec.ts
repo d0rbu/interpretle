@@ -18,6 +18,14 @@ test('opens instructions once and shows a compact dated header', async ({
   page,
 }) => {
   await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.locator('dialog p')).toHaveCount(1)
+  expect(
+    (await page.locator('dialog p').innerText()).split(/\s+/).length,
+  ).toBeLessThan(55)
+  await expect(page.getByText('About the model and data')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Data provenance' })).toHaveCount(
+    0,
+  )
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'interpretle',
@@ -30,6 +38,11 @@ test('opens instructions once and shows a compact dated header', async ({
     page.getByRole('heading', { name: 'Starting clue' }),
   ).toBeVisible()
   await expect(page.locator('.choices article')).toHaveCount(8)
+  await expect(page.locator('.passage-select')).toHaveCount(7)
+  await expect(page.locator('.choices article').last()).toContainText(
+    'Write your own',
+  )
+  await expect(page.locator('.game-status')).toContainText('Best: 0%')
   await expect(page.getByText('Find the words. Follow the signal')).toHaveCount(
     0,
   )
@@ -42,7 +55,7 @@ test('opens instructions once and shows a compact dated header', async ({
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('reveals measured token scores and saves each day independently', async ({
+test('shows preceding context and passive highlights, and saves each day independently', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
@@ -53,16 +66,38 @@ test('reveals measured token scores and saves each day independently', async ({
   const choice = page
     .locator('.choice')
     .filter({ has: page.getByRole('button', { name: card.text, exact: true }) })
-  await choice.locator('summary').click()
-  await expect(choice.locator('.context p')).toContainText(
-    'Preceding source context.',
+  await choice.getByRole('button', { name: 'Show preceding context' }).click()
+  await expect(choice.locator('.context p')).toHaveText(
+    'Preceding source context. ',
   )
   await expect(choice.locator('.context .token')).toHaveCount(0)
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
+  expect(
+    await choice.evaluate((node) =>
+      Boolean(
+        node
+          .querySelector('.context')!
+          .compareDocumentPosition(node.querySelector('.passage-select')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ),
+  ).toBe(true)
   await page.getByRole('button', { name: card.text, exact: true }).click()
   await page.getByRole('button', { name: 'Test passage' }).click()
   await expect(page.locator('.history')).toContainText('90th percentile')
-  await page.locator('.history .token').click()
-  await expect(page.locator('.history .token-readout')).toContainText('9001.0')
+  await expect(page.locator('.history button.token')).toHaveCount(0)
+  await expect(page.locator('.history .token[tabindex]')).toHaveCount(0)
+  await expect(page.locator('.history .token')).toHaveCSS(
+    'background-color',
+    /rgba?\(/,
+  )
+  await page
+    .locator('.history')
+    .getByRole('button', { name: 'Show preceding context' })
+    .click()
+  await expect(page.locator('.history .context p')).toHaveText(
+    'Preceding source context. ',
+  )
   await page
     .getByRole('combobox', { name: 'Puzzle day' })
     .selectOption('2026-10-16')
@@ -124,6 +159,69 @@ test('works without persistent storage and fits the viewport', async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
+})
+
+test('sizes the day selector to its digits and keeps the page aligned between modes', async ({
+  page,
+}) => {
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        daily: {
+          ...catalog.daily,
+          '2026-10-25': feature.id,
+          '2027-01-23': feature.id,
+        },
+      },
+    }),
+  )
+  await page.clock.setSystemTime(new Date('2027-01-23T12:00:00Z'))
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const sizes = []
+  for (const day of ['2026-10-16', '2026-10-25', '2027-01-23']) {
+    await page.getByRole('combobox', { name: 'Puzzle day' }).selectOption(day)
+    sizes.push(
+      await page.evaluate(() => {
+        const picker = document
+          .querySelector('.day-picker')!
+          .getBoundingClientRect()
+        const value = document.querySelector('.day-value')!.firstChild!
+        const range = document.createRange()
+        range.selectNodeContents(value)
+        return {
+          width: picker.width,
+          padding: picker.width - range.getBoundingClientRect().width,
+          dateGap:
+            document.querySelector('header time')!.getBoundingClientRect()
+              .left - picker.right,
+        }
+      }),
+    )
+  }
+  expect(sizes[1].width).toBeGreaterThan(sizes[0].width)
+  expect(sizes[2].width).toBeGreaterThan(sizes[1].width)
+  for (const size of sizes) {
+    expect(size.padding).toBeCloseTo(sizes[0].padding, 1)
+    expect(size.dateGap).toBeCloseTo(6, 1)
+  }
+  const alignment = await page.locator('header').boundingBox()
+  let game = createGame('daily', '2027-01-23', feature.id)
+  const { playPassage } = await import('../src/lib/game')
+  for (const band of [99, 99.9]) {
+    const card = choices(game, feature).find((p) => p.band === band)!
+    await page.getByRole('button', { name: card.text, exact: true }).click()
+    await page.getByRole('button', { name: 'Test passage' }).click()
+    game = playPassage(game, feature, card.id)
+  }
+  await expect(page.getByRole('heading', { name: 'Solved.' })).toBeVisible()
+  for (const mode of ['Practice', 'Daily']) {
+    await page.getByRole('button', { name: mode, exact: true }).click()
+    const position = await page.locator('header').boundingBox()
+    expect(position!.x).toBe(alignment!.x)
+    expect(position!.width).toBe(alignment!.width)
+  }
 })
 
 test('has no serious accessibility violations in instructions or play', async ({

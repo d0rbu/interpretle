@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { choices, createGame, measure, playPassage, status } from '../lib/game'
+import {
+  choices,
+  createGame,
+  measure,
+  playPassage,
+  sentenceCount,
+  status,
+} from '../lib/game'
 import { calibration } from '../lib/scoring'
 import { segments } from '../components/Heatmap'
 import type { Catalog, Feature } from '../lib/types'
@@ -44,6 +51,9 @@ describe('published measurements', () => {
       for (const passage of [feature.starter, ...feature.passages]) {
         expect(scores.has(passage.id)).toBe(false)
         expect(passage.tokens.length).toBeGreaterThan(0)
+        expect(passage.tokens.length).toBeLessThanOrEqual(80)
+        expect(typeof passage.before).toBe('string')
+        expect(passage).not.toHaveProperty('after')
         expect(
           passage.tokens.every(
             (token) =>
@@ -87,7 +97,8 @@ describe('published measurements', () => {
         let game = createGame('practice', `published-${aim}`, id)
         for (let round = 0; round < 8; round++) {
           const cards = choices(game, feature)
-          expect(new Set(cards.map((p) => p.id)).size).toBe(8)
+          expect(new Set(cards.map((p) => p.id)).size).toBe(7)
+          expect(cards.every((p) => sentenceCount(p.text) <= 3)).toBe(true)
           expect(
             cards.some((p) => game.guesses.some((g) => g.passageId === p.id)),
           ).toBe(false)

@@ -1,6 +1,6 @@
 # Data sources and licenses
 
-The game publishes excerpts and surrounding context from these public datasets.
+The game publishes excerpts and up to 64 preceding model tokens from these public datasets.
 Each passage links to its source and names its license. Text is split into
 displayed spans and annotated with measured activations; it is not rewritten.
 Dataset revisions are pinned in `scripts/prepare_corpus.py` and recorded in the
@@ -35,7 +35,8 @@ JumpReLU: `relu((h - b_dec) @ W_enc + b_enc)`, gated by the learned threshold.
 We use the encoder direction, not the decoder direction. BOS, padding, and
 special tokens never contribute to passage maxima. Browser offsets use UTF-16;
 overlapping offsets from byte-fallback tokens share a displayed highlight while
-retaining their individual activation values.
+retaining their individual activation values in the stored data. Context is
+trimmed only for display; extraction still uses each complete source document.
 
 Feature discovery uses the first 2,048 directions of the 65,536-direction
 Matryoshka SAE. Published targets have at least 10,000 positive reference

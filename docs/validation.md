@@ -8,8 +8,10 @@ Validated on 2026-10-16 using the pinned checkpoints and corpus revisions in
 The offline pass processed 12,504 complete documents (3,729,380 model tokens).
 Every one of the 106,782 published token activations, across 2,378 passage records
 and 15 targets, was checked against the extraction cache. Passage offsets,
-complete source context, positive-maxima calibration arrays, and pack hashes
-also matched.
+positive-maxima calibration arrays, and pack hashes also matched. The displayed
+context was checked against the preceding 64 model tokens; extraction still
+uses each complete source document. Shortening the displayed context changed
+none of the scored text, token activations, or calibration values.
 
 On an RTX 4090, the pruned model prefix matched the full model's layer-21 output
 exactly on the verification probe. Our SAE calculation matched SAE Lens across
@@ -65,8 +67,10 @@ checkpoint is supplied. Its results and persistent browser cache stay in ignored
 
 ## Interface and publication
 
-All 37 unit/data checks and 14 desktop/mobile browser checks passed, including
+All 38 unit/data checks and 16 desktop/mobile browser checks passed, including
 first-visit instructions, daily/archive persistence, the eight-attempt and
-two-custom limits, failed-inference refunds, and accessibility checks. Actual
-measured daily puzzles were also played to completion on desktop and mobile.
+two-custom limits, failed-inference refunds, and accessibility checks. They also
+cover passive highlights, preceding context, seven suggestions plus write-in,
+the day selector's intrinsic width, and stable scrollbar spacing. Actual measured
+daily puzzles were also played to completion on desktop and mobile.
 Cloudflare's deployment dry run found no backend bindings.

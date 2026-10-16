@@ -41,8 +41,11 @@ published in [the data provenance](public/puzzles/provenance.json).
 
 The model reads each complete source document. We then split its stored token
 activations into displayed passages. Only a passage's own tokens contribute to
-its heatmap and maximum; expanded context has no additional scores. For a
-positive maximum `a`, the percentile is `100 × count(reference < a) / N`, where
+its heatmap and maximum. The chevron reveals up to 64 preceding model tokens,
+without additional scores. Suggested passages favor two or three sentences,
+with a maximum of 80 model tokens; seven suggestions are followed by a write-in
+card. For a positive maximum `a`, the percentile is
+`100 × count(reference < a) / N`, where
 the reference contains **positive passage maxima** from the fixed corpus.
 Raw zero is inactive. Ties use the strict lower rank, and winning uses the
 unrounded percentile. Sampling bands are approximate; displayed scores are

@@ -12,6 +12,7 @@ import type {
 export const MAX_GUESSES = 8
 export const MAX_CUSTOM = 2
 export const MAX_CUSTOM_LENGTH = 280
+export const MAX_PASSAGE_TOKENS = 80
 export const WIN_SCORE = 99.9
 
 export function hash(text: string): number {
@@ -75,16 +76,23 @@ export const customRemaining = (game: Game) =>
   MAX_CUSTOM - game.guesses.filter((guess) => guess.kind === 'custom').length
 
 export function bandsForScore(score: number): Band[] {
-  if (score <= 0) return [0, 0, 0, 0, 50, 90, 95, 99]
-  if (score < 50) return [0, 0, 0, 50, 90, 95, 99, 99.9]
-  if (score < 90) return [0, 0, 50, 90, 95, 99, 99.9, 99.9]
-  if (score < 95) return [0, 50, 90, 95, 99, 99.9, 99.9, 99.9]
-  if (score < 99) return [0, 90, 95, 99, 99, 99.9, 99.9, 99.9]
-  return [0, 95, 99, 99, 99.9, 99.9, 99.9, 99.9]
+  if (score <= 0) return [0, 0, 0, 50, 90, 95, 99]
+  if (score < 50) return [0, 0, 50, 90, 95, 99, 99.9]
+  if (score < 90) return [0, 50, 90, 95, 99, 99.9, 99.9]
+  if (score < 95) return [0, 90, 95, 99, 99.9, 99.9, 99.9]
+  if (score < 99) return [0, 95, 99, 99, 99.9, 99.9, 99.9]
+  return [0, 95, 99, 99.9, 99.9, 99.9, 99.9]
 }
+
+// Approximate sentence boundaries without splitting decimals or code identifiers.
+export const sentenceCount = (text: string) =>
+  1 + (text.trim().match(/[.!?]["”’')\]]*\s+(?=\S)/g)?.length ?? 0)
 
 export function choices(game: Game, feature: Feature): Passage[] {
   if (status(game) !== 'playing') return []
+  const passages = feature.passages.filter(
+    (p) => p.tokens.length <= MAX_PASSAGE_TOKENS && sentenceCount(p.text) <= 3,
+  )
   const shown = new Set<string>()
   const played = new Set<string>()
   let best = 0
@@ -92,11 +100,13 @@ export function choices(game: Game, feature: Feature): Passage[] {
     const next = random(`${feature.id}:${game.seed}:${round}`)
     const selected = new Set<string>()
     const cards = bandsForScore(best).map((band) => {
-      const eligible = feature.passages.filter(
+      const eligible = passages.filter(
         (p) => p.band === band && !selected.has(p.id) && !played.has(p.id),
       )
       const fresh = eligible.filter((p) => !shown.has(p.id))
-      const pool = fresh.length ? fresh : eligible
+      const available = fresh.length ? fresh : eligible
+      const preferred = available.filter((p) => sentenceCount(p.text) >= 2)
+      const pool = preferred.length ? preferred : available
       if (!pool.length) throw new Error(`No passages remain in band ${band}.`)
       const card = pool[Math.floor(next() * pool.length)]
       selected.add(card.id)
@@ -133,9 +143,15 @@ export function playPassage(
 ): Game {
   const passage = choices(game, feature).find((item) => item.id === passageId)
   if (!passage) throw new Error('Choose a passage from the current round.')
+  return recordPassage(game, feature, passage)
+}
+
+function recordPassage(game: Game, feature: Feature, passage: Passage): Game {
+  if (game.guesses.some((guess) => guess.passageId === passage.id))
+    throw new Error('You have already tried that passage.')
   return addGuess(game, {
     kind: 'passage',
-    passageId,
+    passageId: passage.id,
     text: passage.text,
     tokens: passage.tokens,
     ...measure(feature, passage.tokens),
@@ -228,8 +244,12 @@ export function restoreGame(
     )
       return initial
     return data.moves.reduce((game: Game, move: Guess) => {
-      if (move.kind === 'passage' && typeof move.passageId === 'string')
-        return playPassage(game, feature, move.passageId)
+      if (move.kind === 'passage' && typeof move.passageId === 'string') {
+        // Published passages remain valid saved moves when the deck layout changes.
+        const passage = feature.passages.find((p) => p.id === move.passageId)
+        if (!passage) throw new Error('Unknown saved passage.')
+        return recordPassage(game, feature, passage)
+      }
       if (
         move.kind === 'custom' &&
         typeof move.text === 'string' &&

@@ -13,6 +13,9 @@
 * {
   box-sizing: border-box;
 }
+html {
+  overflow-y: scroll;
+}
 body {
   margin: 0;
 }
@@ -22,8 +25,7 @@ select {
   font: inherit;
 }
 button,
-select,
-summary {
+select {
   cursor: pointer;
 }
 button {
@@ -36,7 +38,6 @@ button:disabled {
 button,
 select,
 textarea,
-summary,
 a {
   -webkit-tap-highlight-color: transparent;
 }
@@ -75,7 +76,7 @@ header {
 .identity {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   white-space: nowrap;
 }
@@ -84,13 +85,39 @@ h1 {
   letter-spacing: -0.9px;
   font-weight: 750;
 }
-.identity select {
-  padding: 5px 20px 5px 5px;
-  border: 0;
-  background: transparent;
+.day-picker {
+  position: relative;
+  display: inline-grid;
+}
+.day-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 20px;
   font-weight: 650;
-  max-width: 88px;
+  padding: 4px 0;
+}
+.day-picker select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.day-picker:focus-within {
+  outline: 3px solid #2563aa;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.day-value svg,
+.context-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .identity time {
   color: #596159;
@@ -153,14 +180,32 @@ main {
 .result-heading {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
-.result-heading > span {
+.passage-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
   color: #475448;
   font-size: 13px;
   white-space: nowrap;
+}
+.context-toggle {
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+.context-toggle:hover {
+  background: #edf1e9;
+}
+.context-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
 }
 .heatmap-text {
   font-size: 17px;
@@ -169,48 +214,22 @@ main {
   overflow-wrap: anywhere;
 }
 .token {
-  display: inline;
   padding: 2px 0;
-  margin: 0;
-  border: 0;
   border-radius: 2px;
-  font: inherit;
-  white-space: pre-wrap;
-  color: inherit;
-}
-.token[aria-pressed='true'] {
-  box-shadow: 0 0 0 2px #50634b;
-}
-.token-readout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: #475448;
 }
 .context {
-  margin-top: 10px;
-  font-size: 12px;
+  margin-bottom: 12px;
+  padding-left: 12px;
+  border-left: 2px solid #dbe0d8;
+  font-size: 11px;
   color: #596159;
 }
-.context summary {
-  width: fit-content;
-  padding: 4px 0;
-}
 .context p {
-  margin: 8px 0;
-  max-height: 300px;
-  overflow: auto;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.context strong {
-  color: #202420;
-  font-weight: 600;
-}
-.source-license {
-  font-size: 11px;
 }
 .history {
   list-style: none;
@@ -226,10 +245,6 @@ main {
   font-size: 15px;
 }
 .choice-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   margin: 28px 0 12px;
 }
 .text-button {
@@ -247,6 +262,7 @@ main {
   gap: 10px;
 }
 .choice {
+  position: relative;
   display: flex;
   flex-direction: column;
   border: 1px solid #dbe0d8;
@@ -268,7 +284,7 @@ main {
   flex: 1;
   border: 0;
   background: transparent;
-  padding: 15px 16px 8px;
+  padding: 14px 40px 14px 16px;
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -277,9 +293,34 @@ main {
 .passage-select:hover {
   background: #f0f4ed;
 }
-.choice .context {
+.choice .result-heading {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   margin: 0;
-  padding: 0 16px 10px;
+}
+.choice .context {
+  margin: 14px 40px 0 16px;
+}
+.write-in-select {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 120px;
+  border: 0;
+  background: transparent;
+  padding: 24px;
+  font-size: 14px;
+}
+.write-in-select span {
+  color: #596159;
+  font-size: 12px;
+}
+.write-in-select:hover:not(:disabled) {
+  background: #f0f4ed;
 }
 .submit-row {
   display: flex;
@@ -314,10 +355,7 @@ main {
   font-size: 13px;
 }
 .custom-input {
-  padding: 18px;
-  background: white;
-  border: 1px solid #dbe0d8;
-  border-radius: 6px;
+  padding: 16px;
 }
 .custom-input label {
   display: block;
@@ -369,7 +407,7 @@ textarea {
   margin: 6px 0 14px;
 }
 dialog {
-  max-width: 540px;
+  max-width: 420px;
   width: calc(100% - 32px);
   max-height: calc(100dvh - 48px);
   overflow: auto;
@@ -387,21 +425,15 @@ dialog h2 {
   font-size: 22px;
   margin-bottom: 16px;
 }
-dialog p,
-dialog li {
+dialog p {
   font-size: 14px;
   line-height: 1.65;
 }
 dialog p {
   margin: 12px 0;
 }
-dialog ol {
-  padding-left: 20px;
-  margin: 16px 0;
-}
-dialog li {
-  margin: 10px 0;
-  padding-left: 4px;
+dialog .primary {
+  margin-top: 8px;
 }
 .close-button {
   position: absolute;
@@ -411,14 +443,6 @@ dialog li {
   background: transparent;
   font-size: 26px;
   padding: 3px 8px;
-}
-.data-details {
-  margin: 16px 0;
-  font-size: 12px;
-}
-.data-details p {
-  font-size: 12px;
-  color: #596159;
 }
 .skip-link {
   position: absolute;
@@ -482,20 +506,14 @@ dialog li {
   .heatmap-text {
     font-size: 16px;
   }
-  .choice-heading {
-    align-items: baseline;
-  }
   .choice-heading h2 {
     font-size: 14px;
-  }
-  .choice-heading button {
-    font-size: 12px;
   }
   .game-status {
     gap: 8px 12px;
     font-size: 12px;
   }
-  .result-heading > span {
+  .passage-actions {
     font-size: 12px;
   }
   dialog {

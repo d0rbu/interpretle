@@ -34,16 +34,16 @@ describe('measured game', () => {
       choices(initial(), feature)
         .map((p) => p.band)
         .sort((a, b) => a - b),
-    ).toEqual([0, 0, 0, 0, 50, 90, 95, 99])
+    ).toEqual([0, 0, 0, 50, 90, 95, 99])
   })
 
   it.each([
-    [0, [0, 0, 0, 0, 50, 90, 95, 99]],
-    [1, [0, 0, 0, 50, 90, 95, 99, 99.9]],
-    [50, [0, 0, 50, 90, 95, 99, 99.9, 99.9]],
-    [90, [0, 50, 90, 95, 99, 99.9, 99.9, 99.9]],
-    [95, [0, 90, 95, 99, 99, 99.9, 99.9, 99.9]],
-    [99, [0, 95, 99, 99, 99.9, 99.9, 99.9, 99.9]],
+    [0, [0, 0, 0, 50, 90, 95, 99]],
+    [1, [0, 0, 50, 90, 95, 99, 99.9]],
+    [50, [0, 50, 90, 95, 99, 99.9, 99.9]],
+    [90, [0, 90, 95, 99, 99.9, 99.9, 99.9]],
+    [95, [0, 95, 99, 99, 99.9, 99.9, 99.9]],
+    [99, [0, 95, 99, 99.9, 99.9, 99.9, 99.9]],
   ])('uses the requested distribution at %s', (score, bands) =>
     expect(bandsForScore(score as number)).toEqual(bands),
   )
@@ -131,8 +131,8 @@ describe('measured game', () => {
       const played = new Set<string>()
       while (status(game) === 'playing') {
         const deck = choices(game, feature)
-        expect(deck).toHaveLength(8)
-        expect(new Set(deck.map((p) => p.id)).size).toBe(8)
+        expect(deck).toHaveLength(7)
+        expect(new Set(deck.map((p) => p.id)).size).toBe(7)
         expect(deck.some((p) => played.has(p.id))).toBe(false)
         const card = deck[seed % deck.length]
         game = playPassage(game, feature, card.id)
@@ -157,6 +157,23 @@ describe('measured game', () => {
     const bad = JSON.parse(serializeGame(game))
     bad.moves[1].tokens[0].end = 9999
     expect(restoreGame(JSON.stringify(bad), initial(), feature)).toEqual(
+      initial(),
+    )
+  })
+
+  it('keeps saved guesses when a layout change offers different passages', () => {
+    const offered = new Set(choices(initial(), feature).map((p) => p.id))
+    const previous = feature.passages.find((p) => !offered.has(p.id))!
+    const saved = {
+      ...JSON.parse(serializeGame(initial())),
+      moves: [{ kind: 'passage', passageId: previous.id }],
+    }
+    const restored = restoreGame(JSON.stringify(saved), initial(), feature)
+    expect(restored.guesses).toHaveLength(1)
+    expect(restored.guesses[0].passageId).toBe(previous.id)
+    expect(restored.guesses[0].tokens).toEqual(previous.tokens)
+    saved.moves.push(saved.moves[0])
+    expect(restoreGame(JSON.stringify(saved), initial(), feature)).toEqual(
       initial(),
     )
   })

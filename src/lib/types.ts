@@ -12,7 +12,6 @@ export interface Passage {
   id: string
   text: string
   before: string
-  after: string
   source: { title: string; url: string; license: string }
   band: Band
   tokens: TokenActivation[]
