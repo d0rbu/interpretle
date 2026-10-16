@@ -1,4 +1,3 @@
-import { useId } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { Feature, TokenActivation } from '../lib/types'
 
@@ -43,7 +42,6 @@ export default function Heatmap({
   feature?: Feature
   before?: string
 }) {
-  const id = useId()
   const parts = segments(text, tokens)
   const highlighted: ReactNode[] = []
   let word: ReactNode[] = []
@@ -63,8 +61,8 @@ export default function Heatmap({
       if (index === 0) content = content.replace(/^\n+/, '')
       if (index === parts.length - 1) content = content.replace(/\n+$/, '')
     }
-    // Keep words together and whitespace outside moving snapshots: an inline
-    // token spanning a line break otherwise stretches during the transition.
+    // Keep words together and whitespace outside moving pieces so a token
+    // spanning a line break never stretches during the transition.
     for (const [piece, value] of (content.match(/\s+|\S+/g) ?? []).entries()) {
       const space = /^\s+$/.test(value)
       const node = (
@@ -91,11 +89,7 @@ export default function Heatmap({
           <span
             className="passage-piece"
             key={`${index}-${piece}`}
-            style={
-              {
-                '--flow-name': `passage-${id.replace(/[^a-zA-Z0-9_-]/g, '')}-${index}-${piece}`,
-              } as CSSProperties
-            }
+            data-flow={`${index}-${piece}`}
           >
             {node}
           </span>,
@@ -106,7 +100,9 @@ export default function Heatmap({
   const Tag = feature ? 'p' : 'span'
   return (
     <Tag className={feature ? 'heatmap-text' : 'passage-text'}>
-      {before}
+      {before !== undefined && (
+        <span className="preceding-context">{before}</span>
+      )}
       {before === undefined ? highlighted : <strong>{highlighted}</strong>}
     </Tag>
   )

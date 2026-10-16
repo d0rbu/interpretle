@@ -242,7 +242,6 @@ main {
 }
 .token {
   padding: 2px 0;
-  border-radius: 2px;
 }
 .passage-word {
   display: inline-block;
@@ -251,25 +250,8 @@ main {
 .passage-piece {
   display: inline-block;
 }
-.context-motion .passage-piece {
-  view-transition-name: var(--flow-name);
-}
-::view-transition-group(*),
-::view-transition-old(*),
-::view-transition-new(*) {
-  animation-duration: 550ms;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-::view-transition-old(*),
-::view-transition-new(*) {
-  width: auto;
-  height: auto;
-}
-::view-transition-old(root) {
-  display: none;
-}
-::view-transition-new(root) {
-  animation: none;
+.context-motion {
+  overflow: visible;
 }
 .history {
   list-style: none;

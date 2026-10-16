@@ -138,14 +138,15 @@ a fresh Git checkout must first run the exporter to create the ignored chunks.
 The unit/data and desktop/mobile browser checks cover six-attempt new games,
 preservation of started eight-attempt saves, the two-custom limit, native-score
 win decisions, nominal-band progression, and failure refunds. They also cover
-first-visit instructions, daily/archive persistence, seven suggestions plus
+first-visit instructions, daily/archive persistence, five suggestions plus
 write-in, preloaded puzzles, the loading skeleton, intrinsic day-number width,
 and stable scrollbar spacing.
 
 Spaces and letters have identical highlight heights. Mid-animation screenshots
-remain identical relative to the card when the page scrolls. Token motion uses
-an element-scoped transition; browsers without that API and devices requesting
-reduced motion update immediately. Checks also cover silent cancellation,
+remain identical relative to the card when the page scrolls. Token motion animates
+the actual elements relative to their card with the Web Animations API; it does
+not require view transitions. Devices requesting reduced motion update immediately.
+Checks also cover silent cancellation,
 focus-triggered loading, queued Enter submission, the `0/280` counter, Unicode
 limits, clipboard feedback and accessibility. Worker responses are mocked in
 these UI tests; the numerical browser checks above run the actual model.

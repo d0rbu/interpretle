@@ -118,7 +118,7 @@ describe('published measurements', () => {
         let game = createGame('practice', `published-${aim}`, id)
         for (let round = 0; round < game.maxGuesses; round++) {
           const cards = choices(game, feature)
-          expect(new Set(cards.map((p) => p.id)).size).toBe(7)
+          expect(new Set(cards.map((p) => p.id)).size).toBe(5)
           expect(cards.every((p) => sentenceCount(p.text) <= 3)).toBe(true)
           expect(
             cards.some((p) => game.guesses.some((g) => g.passageId === p.id)),

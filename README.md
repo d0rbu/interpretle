@@ -56,7 +56,7 @@ its heatmap and maximum. The chevron reveals up to 64 preceding model tokens,
 without additional scores. The passage moves into its expanded position and
 becomes bold; devices requesting reduced motion skip the animation.
 Suggested passages favor two or three sentences,
-with a maximum of 80 model tokens; seven suggestions are followed by a write-in
+with a maximum of 80 model tokens; five suggestions are followed by a write-in
 card. For a positive maximum `a`, the percentile is
 `100 × count(reference < a) / N`, where
 the reference contains **positive passage maxima** from the fixed corpus.
@@ -69,13 +69,13 @@ The next choices follow the best sampling band reached so far. A passage labeled
 their measured percentile. The free clue does not advance the board, and weaker
 guesses never reduce progress.
 
-| Best band        | Next seven suggestions         |
-| ---------------- | ------------------------------ |
-| Below 50         | 0, 0, 0, 0, 50, 90, 95         |
-| 50 to below 90   | 0, 0, 0, 50, 90, 95, 99        |
-| 90 to below 95   | 0, 0, 50, 90, 95, 99, 99.9     |
-| 95 to below 99   | 0, 50, 90, 95, 99, 99.9, 99.9  |
-| 99 to below 99.9 | 50, 90, 90, 95, 99, 99.9, 99.9 |
+| Best band        | Next five suggestions  |
+| ---------------- | ---------------------- |
+| Below 50         | 0, 0, 0, 50, 90        |
+| 50 to below 90   | 0, 0, 50, 90, 99       |
+| 90 to below 95   | 0, 50, 90, 95, 99.9    |
+| 95 to below 99   | 50, 90, 95, 99, 99.9   |
+| 99 to below 99.9 | 50, 95, 99, 99.9, 99.9 |
 
 Daily targets are curated SAE features. Practice also uses positive residual
 coordinates (`max(0, hidden[index])`) and gated MLP neurons

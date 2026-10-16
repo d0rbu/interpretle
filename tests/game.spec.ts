@@ -54,8 +54,8 @@ test('opens instructions once and shows a compact dated header', async ({
   await expect(
     page.getByRole('heading', { name: 'Starting clue' }),
   ).toBeVisible()
-  await expect(page.locator('.choices article')).toHaveCount(8)
-  await expect(page.locator('.passage-select')).toHaveCount(7)
+  await expect(page.locator('.choices article')).toHaveCount(6)
+  await expect(page.locator('.passage-select')).toHaveCount(5)
   await expect(
     page.locator('.choices article').last().getByRole('textbox'),
   ).toHaveAttribute('placeholder', 'Write your own (2 left)')
@@ -103,7 +103,7 @@ test('shows a skeleton while loading and opens a preloaded practice puzzle immed
   await expect(
     page.getByRole('status', { name: 'Loading puzzle' }),
   ).toBeVisible()
-  await expect(page.locator('.puzzle-skeleton .choice')).toHaveCount(8)
+  await expect(page.locator('.puzzle-skeleton .choice')).toHaveCount(6)
   await expect(page.getByText('Loading puzzle…', { exact: true })).toHaveCount(
     0,
   )
@@ -137,7 +137,7 @@ test('shows a skeleton while loading and opens a preloaded practice puzzle immed
 test('keeps highlights compact and the moving tokens attached to their card while scrolling', async ({
   page,
 }) => {
-  await page.setViewportSize({ ...page.viewportSize()!, height: 600 })
+  await page.setViewportSize({ ...page.viewportSize()!, height: 500 })
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   const clue = page.locator('.result')
   const sizes = await clue.locator('.token').evaluateAll((tokens) =>
@@ -149,13 +149,18 @@ test('keeps highlights compact and the moving tokens attached to their card whil
   expect(sizes.every(({ height, font }) => height < font * 1.6)).toBe(true)
   expect(await clue.locator('.token-space').count()).toBeGreaterThan(0)
   expect(new Set(sizes.map(({ height }) => height)).size).toBe(1)
+  // Context must animate in browsers without either view-transition API.
+  await clue.evaluate((element) => {
+    Object.defineProperty(element, 'startViewTransition', { value: undefined })
+    Object.defineProperty(document, 'startViewTransition', { value: undefined })
+  })
   await clue.getByRole('button', { name: 'Show preceding context' }).click()
   await page.waitForFunction(() =>
     document
       .getAnimations()
       .some((animation) =>
-        (animation as CSSAnimation).animationName?.includes(
-          'group-anim-passage',
+        (animation.effect as KeyframeEffect | null)?.target?.matches(
+          '.passage-piece',
         ),
       ),
   )
@@ -165,6 +170,16 @@ test('keeps highlights compact and the moving tokens attached to their card whil
       animation.currentTime = 275
     }),
   )
+  expect(
+    await clue.locator('.passage-piece').evaluateAll((pieces) =>
+      pieces.every((piece) => {
+        const weight = parseFloat(getComputedStyle(piece).fontWeight)
+        return weight > 400 && weight < 700
+      }),
+    ),
+  ).toBe(true)
+  // Keep the chevron's hover state fixed when it moves beneath the cursor.
+  await page.mouse.move(0, 0)
   const before = await clue.screenshot({ animations: 'allow' })
   const initialTop = (await clue.boundingBox())!.y
   await page.evaluate(() => window.scrollBy(0, 50))
@@ -172,11 +187,28 @@ test('keeps highlights compact and the moving tokens attached to their card whil
     .poll(async () => (await clue.boundingBox())!.y)
     .toBeCloseTo(initialTop - 50, 0)
   const after = await clue.screenshot({ animations: 'allow' })
+  if (!after.equals(before)) {
+    await test
+      .info()
+      .attach('before-scroll', { body: before, contentType: 'image/png' })
+    await test
+      .info()
+      .attach('after-scroll', { body: after, contentType: 'image/png' })
+  }
   expect(after.equals(before)).toBe(true)
   await page.evaluate(() =>
     document.getAnimations().forEach((animation) => animation.finish()),
   )
   await expect(clue.locator('strong')).toHaveText(feature.starter.text)
+  await expect(clue).not.toHaveClass(/context-motion/)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await clue.getByRole('button', { name: 'Hide preceding context' }).click()
+  await expect(clue.locator('strong')).toHaveCount(0)
+  expect(
+    await clue.evaluate(
+      (element) => element.getAnimations({ subtree: true }).length,
+    ),
+  ).toBe(0)
 })
 
 test('expands context inline with only the passage bold and highlighted, and saves each day independently', async ({
@@ -348,7 +380,7 @@ test('sizes the day selector to its digits and keeps the page aligned between mo
   const alignment = await page.locator('header').boundingBox()
   let game = createGame('daily', '2027-01-23', feature.id)
   const { playPassage } = await import('../src/lib/game')
-  for (const band of [95, 99.9]) {
+  for (const band of [90, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
     game = playPassage(game, feature, card.id)
@@ -383,7 +415,7 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   let game = createGame('daily', '2026-10-18', feature.id)
   const { playPassage } = await import('../src/lib/game')
-  for (const band of [95, 99.9]) {
+  for (const band of [90, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
     game = playPassage(game, feature, card.id)
@@ -437,7 +469,7 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
     .getByRole('textbox', { name: 'Copy your result' })
     .inputValue()
   expect(result).toContain('interpretle 3 · 2/6')
-  expect(result).toContain('🟨✨')
+  expect(result).toContain('🟧✨')
   expect(result).not.toContain(feature.title)
   await page.reload()
   await expect(page.locator('.distribution .your-result')).toHaveAttribute(

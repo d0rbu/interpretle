@@ -103,37 +103,84 @@ function PassageContent({
   children: (before: string | undefined) => ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)
-  const transition = useRef<ViewTransition | null>(null)
+  const animations = useRef<Animation[]>([])
+  useEffect(() => () => animations.current.forEach((item) => item.cancel()), [])
   function toggle(event: MouseEvent<HTMLButtonElement>) {
     const container = event.currentTarget.closest(
       '.choice, .result, .history li',
-    ) as
-      | (HTMLElement & {
-          startViewTransition?: Document['startViewTransition']
-        })
-      | null
+    ) as HTMLElement | null
     if (
-      !container?.startViewTransition ||
+      !container?.animate ||
       matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      setExpanded(!expanded)
+      animations.current.forEach((item) => item.cancel())
+      setExpanded((value) => !value)
       return
     }
-    transition.current?.skipTransition()
-    container.classList.add('context-motion')
-    const motion = container.startViewTransition(() => {
-      flushSync(() => setExpanded((value) => !value))
-    })
-    transition.current = motion
-    // A layout change can skip an animation while still applying its update.
-    void motion.ready.catch(() => {})
-    const finish = () => {
-      if (transition.current === motion) {
-        container.classList.remove('context-motion')
-        transition.current = null
-      }
+    const start = container.getBoundingClientRect()
+    const previous = new Map(
+      Array.from(container.querySelectorAll<HTMLElement>('[data-flow]')).map(
+        (piece) => {
+          const rect = piece.getBoundingClientRect()
+          return [
+            piece.dataset.flow,
+            {
+              left: rect.left - start.left,
+              top: rect.top - start.top,
+              fontWeight: getComputedStyle(piece).fontWeight,
+            },
+          ] as const
+        },
+      ),
+    )
+    animations.current.forEach((item) => item.cancel())
+    flushSync(() => setExpanded((value) => !value))
+    const end = container.getBoundingClientRect()
+    const timing = { duration: 550, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' }
+    const motion = [
+      container.animate(
+        [{ height: `${start.height}px` }, { height: `${end.height}px` }],
+        timing,
+      ),
+    ]
+    // Move real elements relative to their card, so scrolling needs no special
+    // handling. Fixed widths prevent changing font weights from reflowing them.
+    for (const piece of container.querySelectorAll<HTMLElement>(
+      '[data-flow]',
+    )) {
+      const from = previous.get(piece.dataset.flow)
+      if (!from) continue
+      const rect = piece.getBoundingClientRect()
+      const width = `${rect.width}px`
+      motion.push(
+        piece.animate(
+          [
+            {
+              transform: `translate(${from.left - (rect.left - end.left)}px, ${from.top - (rect.top - end.top)}px)`,
+              fontWeight: from.fontWeight,
+              width,
+            },
+            {
+              transform: 'translate(0, 0)',
+              fontWeight: getComputedStyle(piece).fontWeight,
+              width,
+            },
+          ],
+          timing,
+        ),
+      )
     }
-    void motion.finished.then(finish, finish)
+    const context = container.querySelector('.preceding-context')
+    if (context)
+      motion.push(context.animate([{ opacity: 0 }, { opacity: 1 }], timing))
+    container.classList.add('context-motion')
+    animations.current = motion
+    void Promise.allSettled(motion.map((item) => item.finished)).then(() => {
+      if (animations.current === motion) {
+        container.classList.remove('context-motion')
+        animations.current = []
+      }
+    })
   }
   return (
     <>
@@ -548,7 +595,7 @@ function PuzzleSkeleton() {
           <span className="skeleton-line short" />
         </div>
         <div className="choices">
-          {Array.from({ length: 8 }, (_, i) => (
+          {Array.from({ length: 6 }, (_, i) => (
             <div className="choice skeleton-card" key={i}>
               <span className="skeleton-line" />
               <span className="skeleton-line" />

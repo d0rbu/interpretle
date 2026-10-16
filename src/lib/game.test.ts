@@ -37,19 +37,19 @@ describe('measured game', () => {
       choices(initial(), feature)
         .map((p) => p.band)
         .sort((a, b) => a - b),
-    ).toEqual([0, 0, 0, 0, 50, 90, 95])
+    ).toEqual([0, 0, 0, 50, 90])
   })
 
   it.each([
-    [0, [0, 0, 0, 0, 50, 90, 95]],
-    [49.999, [0, 0, 0, 0, 50, 90, 95]],
-    [50, [0, 0, 0, 50, 90, 95, 99]],
-    [89.999, [0, 0, 0, 50, 90, 95, 99]],
-    [90, [0, 0, 50, 90, 95, 99, 99.9]],
-    [94.999, [0, 0, 50, 90, 95, 99, 99.9]],
-    [95, [0, 50, 90, 95, 99, 99.9, 99.9]],
-    [98.999, [0, 50, 90, 95, 99, 99.9, 99.9]],
-    [99, [50, 90, 90, 95, 99, 99.9, 99.9]],
+    [0, [0, 0, 0, 50, 90]],
+    [49.999, [0, 0, 0, 50, 90]],
+    [50, [0, 0, 50, 90, 99]],
+    [89.999, [0, 0, 50, 90, 99]],
+    [90, [0, 50, 90, 95, 99.9]],
+    [94.999, [0, 50, 90, 95, 99.9]],
+    [95, [50, 90, 95, 99, 99.9]],
+    [98.999, [50, 90, 95, 99, 99.9]],
+    [99, [50, 95, 99, 99.9, 99.9]],
   ])('uses the requested distribution at %s', (score, bands) =>
     expect(bandsForScore(score as number)).toEqual(bands),
   )
@@ -99,7 +99,7 @@ describe('measured game', () => {
     game = playPassage(
       game,
       feature,
-      choices(game, feature).find((p) => p.band === 95)!.id,
+      choices(game, feature).find((p) => p.band === 90)!.id,
     )
     const best = bestScore(game)
     game = playPassage(
@@ -110,7 +110,7 @@ describe('measured game', () => {
     expect(bestScore(game)).toBe(best)
     expect(game.guesses.at(-1)!.score).toBe(0)
     const winning = choices(game, feature).filter((p) => p.band === 99.9)
-    expect(winning).toHaveLength(2)
+    expect(winning).toHaveLength(1)
     expect(status(playPassage(game, feature, winning[0].id))).toBe('won')
   })
 
@@ -204,8 +204,8 @@ describe('measured game', () => {
       const played = new Set<string>()
       while (status(game) === 'playing') {
         const deck = choices(game, feature)
-        expect(deck).toHaveLength(7)
-        expect(new Set(deck.map((p) => p.id)).size).toBe(7)
+        expect(deck).toHaveLength(5)
+        expect(new Set(deck.map((p) => p.id)).size).toBe(5)
         expect(deck.some((p) => played.has(p.id))).toBe(false)
         const card = deck[seed % deck.length]
         game = playPassage(game, feature, card.id)

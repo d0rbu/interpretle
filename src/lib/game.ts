@@ -83,11 +83,11 @@ export const customRemaining = (game: Game) =>
   MAX_CUSTOM - game.guesses.filter((guess) => guess.kind === 'custom').length
 
 export function bandsForScore(score: number): Band[] {
-  if (score < 50) return [0, 0, 0, 0, 50, 90, 95]
-  if (score < 90) return [0, 0, 0, 50, 90, 95, 99]
-  if (score < 95) return [0, 0, 50, 90, 95, 99, 99.9]
-  if (score < 99) return [0, 50, 90, 95, 99, 99.9, 99.9]
-  return [50, 90, 90, 95, 99, 99.9, 99.9]
+  if (score < 50) return [0, 0, 0, 50, 90]
+  if (score < 90) return [0, 0, 50, 90, 99]
+  if (score < 95) return [0, 50, 90, 95, 99.9]
+  if (score < 99) return [50, 90, 95, 99, 99.9]
+  return [50, 95, 99, 99.9, 99.9]
 }
 
 // Approximate sentence boundaries without splitting decimals or code identifiers.
