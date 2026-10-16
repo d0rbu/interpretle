@@ -43,6 +43,10 @@ test('opens instructions once and shows a compact dated header', async ({
     'Write your own',
   )
   await expect(page.locator('.game-status')).toContainText('Best: 0%')
+  await expect(page.getByRole('button', { name: 'Test passage' })).toHaveCount(
+    0,
+  )
+  await expect(page.getByText('Goal: 99.9th percentile')).toHaveCount(0)
   await expect(page.getByText('Find the words. Follow the signal')).toHaveCount(
     0,
   )
@@ -55,35 +59,41 @@ test('opens instructions once and shows a compact dated header', async ({
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('shows preceding context and passive highlights, and saves each day independently', async ({
+test('expands context inline with only the passage bold and highlighted, and saves each day independently', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
-  const card = choices(
-    createGame('daily', '2026-10-18', feature.id),
-    feature,
-  ).find((p) => p.band === 90)!
-  const choice = page
-    .locator('.choice')
-    .filter({ has: page.getByRole('button', { name: card.text, exact: true }) })
-  await choice.getByRole('button', { name: 'Show preceding context' }).click()
-  await expect(choice.locator('.context p')).toHaveText(
-    'Preceding source context. ',
+  const clue = page.locator('.result')
+  const clueTokens = await clue.locator('.token').count()
+  await clue.getByRole('button', { name: 'Show preceding context' }).click()
+  await expect(clue.locator('.heatmap-text')).toHaveText(
+    feature.starter.before + feature.starter.text,
   )
-  await expect(choice.locator('.context .token')).toHaveCount(0)
+  await expect(clue.locator('.heatmap-text strong')).toHaveText(
+    feature.starter.text,
+  )
+  await expect(clue.locator('strong .token')).toHaveCount(clueTokens)
+  await expect(clue.locator('.heatmap-text > .token')).toHaveCount(0)
+  await clue.getByRole('button', { name: 'Hide preceding context' }).click()
+  await expect(clue.locator('.heatmap-text')).toHaveText(feature.starter.text)
+  await expect(clue.locator('.heatmap-text strong')).toHaveCount(0)
+  await expect(clue.locator('.token')).toHaveCount(clueTokens)
+
+  const cards = choices(createGame('daily', '2026-10-18', feature.id), feature)
+  const index = cards.findIndex((p) => p.band === 90)
+  const card = cards[index]
+  const choice = page.locator('.choice').nth(index)
+  await choice.getByRole('button', { name: 'Show preceding context' }).click()
+  await expect(choice.locator('.passage-select')).toHaveText(
+    card.before + card.text,
+  )
+  await expect(choice.locator('.passage-select strong')).toHaveText(card.text)
+  await expect(choice.locator('.token')).toHaveCount(0)
+  await expect(choice.locator('a')).toHaveCount(0)
+  await expect(choice).not.toContainText(card.source.title)
+  await expect(choice).not.toContainText(card.source.license)
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
-  expect(
-    await choice.evaluate((node) =>
-      Boolean(
-        node
-          .querySelector('.context')!
-          .compareDocumentPosition(node.querySelector('.passage-select')!) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ),
-  ).toBe(true)
-  await page.getByRole('button', { name: card.text, exact: true }).click()
-  await page.getByRole('button', { name: 'Test passage' }).click()
+  await choice.locator('.passage-select').click()
   await expect(page.locator('.history')).toContainText('90th percentile')
   await expect(page.locator('.history button.token')).toHaveCount(0)
   await expect(page.locator('.history .token[tabindex]')).toHaveCount(0)
@@ -95,8 +105,17 @@ test('shows preceding context and passive highlights, and saves each day indepen
     .locator('.history')
     .getByRole('button', { name: 'Show preceding context' })
     .click()
-  await expect(page.locator('.history .context p')).toHaveText(
-    'Preceding source context. ',
+  await expect(page.locator('.history .heatmap-text')).toHaveText(
+    card.before + card.text,
+  )
+  await expect(page.locator('.history .heatmap-text strong')).toHaveText(
+    card.text,
+  )
+  await expect(page.locator('.history strong .token')).toHaveCount(1)
+  await expect(page.locator('.history .heatmap-text > .token')).toHaveCount(0)
+  await expect(page.locator('.history strong .token')).toHaveCSS(
+    'background-color',
+    /rgba?\(/,
   )
   await page
     .getByRole('combobox', { name: 'Puzzle day' })
@@ -119,7 +138,6 @@ test('keeps practice separate and keeps an archive open across midnight', async 
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await page.getByRole('button', { name: 'Practice', exact: true }).click()
   await page.locator('.passage-select').first().click()
-  await page.getByRole('button', { name: 'Test passage' }).click()
   await expect(page.locator('.game-status')).toContainText('Attempt 2 of 8')
   await page.getByRole('button', { name: 'Daily', exact: true }).click()
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
@@ -151,7 +169,6 @@ test('works without persistent storage and fits the viewport', async ({
   await page.reload()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await page.locator('.passage-select').first().click()
-  await page.getByRole('button', { name: 'Test passage' }).click()
   await expect(page.locator('.game-status')).toContainText('Attempt 2 of 8')
   await expect(page.getByText('Browser storage is unavailable.')).toBeVisible()
   expect(
@@ -212,7 +229,6 @@ test('sizes the day selector to its digits and keeps the page aligned between mo
   for (const band of [99, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
-    await page.getByRole('button', { name: 'Test passage' }).click()
     game = playPassage(game, feature, card.id)
   }
   await expect(page.getByRole('heading', { name: 'Solved.' })).toBeVisible()
@@ -248,7 +264,6 @@ test('wins from measured passages and shares a spoiler-free result', async ({
   for (const band of [99, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
-    await page.getByRole('button', { name: 'Test passage' }).click()
     game = playPassage(game, feature, card.id)
   }
   await expect(page.getByRole('heading', { name: 'Solved.' })).toBeVisible()
@@ -318,24 +333,24 @@ test('requires download opt-in and charges only successful custom guesses', asyn
     .getByLabel('Your sentence', { exact: true })
     .fill('A custom sentence.')
   await expect(
-    page.getByRole('button', { name: 'Test sentence' }),
+    page.getByRole('button', { name: 'Submit', exact: true }),
   ).toBeDisabled()
   await page
     .getByRole('button', { name: 'Download & load local model' })
     .click()
-  await page.getByRole('button', { name: 'Test sentence' }).click()
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('No attempt was used.')
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
   await page
     .getByRole('button', { name: 'Download & load local model' })
     .click()
-  await page.getByRole('button', { name: 'Test sentence' }).click()
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.locator('.game-status')).toContainText('Attempt 2 of 8')
   await page.getByRole('button', { name: 'Write your own (1 left)' }).click()
   await page
     .getByLabel('Your sentence', { exact: true })
     .fill('A second custom sentence.')
-  await page.getByRole('button', { name: 'Test sentence' }).click()
+  await page.getByRole('button', { name: 'Submit', exact: true }).click()
   await expect(page.locator('.game-status')).toContainText('Attempt 3 of 8')
   await expect(
     page.getByRole('button', { name: 'Write your own (0 left)' }),

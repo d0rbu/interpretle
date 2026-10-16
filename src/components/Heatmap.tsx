@@ -34,33 +34,35 @@ export default function Heatmap({
   text,
   tokens,
   feature,
+  before,
 }: {
   text: string
   tokens: TokenActivation[]
   feature: Feature
+  before?: string
 }) {
+  const highlighted = segments(text, tokens).map((part, index) => {
+    if (!part.tokens.length) return part.text
+    const activation = Math.max(...part.tokens.map((token) => token.activation))
+    return (
+      <span
+        key={index}
+        className="token"
+        style={{
+          backgroundColor:
+            activation > 0
+              ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
+              : 'transparent',
+        }}
+      >
+        {part.text}
+      </span>
+    )
+  })
   return (
     <p className="heatmap-text">
-      {segments(text, tokens).map((part, index) => {
-        if (!part.tokens.length) return part.text
-        const activation = Math.max(
-          ...part.tokens.map((token) => token.activation),
-        )
-        return (
-          <span
-            key={index}
-            className="token"
-            style={{
-              backgroundColor:
-                activation > 0
-                  ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
-                  : 'transparent',
-            }}
-          >
-            {part.text}
-          </span>
-        )
-      })}
+      {before}
+      {before === undefined ? highlighted : <strong>{highlighted}</strong>}
     </p>
   )
 }

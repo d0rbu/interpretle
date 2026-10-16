@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import Heatmap from './components/Heatmap'
 import { loadCatalog, loadFeature } from './data/puzzles'
 import {
@@ -74,10 +74,11 @@ function Instructions({ close }: { close: () => void }) {
       </button>
       <h2 id="instructions-title">How to play</h2>
       <p>
-        Find text that lights up a hidden feature in a language model. You have{' '}
-        <strong>8 attempts</strong> to reach the{' '}
-        <strong>99.9th percentile</strong> — a stronger activation than 99.9% of
-        passages where the feature activates.
+        Find text that lights up a hidden concept in a language model. Select
+        the option you think most highly activates the concept you're looking
+        for, or write in your own. You only have two write-ins available, and{' '}
+        <strong>8 attempts</strong> to find a text passage that activates at the{' '}
+        <strong>99.9th percentile</strong>.
       </p>
       <button className="primary" onClick={close} autoFocus>
         Play
@@ -103,7 +104,7 @@ function PassageContent({
   passage?: Passage
   label?: string
   score?: { score: number; rawMax: number }
-  children: ReactNode
+  children: (before: string | undefined) => ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
@@ -131,16 +132,7 @@ function PassageContent({
           )}
         </div>
       </div>
-      {expanded && passage && (
-        <div className="context">
-          <p>{passage.before || 'No preceding context.'}</p>
-          <a href={passage.source.url} target="_blank" rel="noreferrer">
-            {passage.source.title}
-          </a>
-          <span> · {passage.source.license}</span>
-        </div>
-      )}
-      {children}
+      {children(expanded ? passage?.before : undefined)}
     </>
   )
 }
@@ -158,11 +150,14 @@ function Result({
   return (
     <section className="result">
       <PassageContent passage={passage} label={label} score={result}>
-        <Heatmap
-          text={passage.text}
-          tokens={passage.tokens}
-          feature={feature}
-        />
+        {(before) => (
+          <Heatmap
+            text={passage.text}
+            tokens={passage.tokens}
+            feature={feature}
+            before={before}
+          />
+        )}
       </PassageContent>
     </section>
   )
@@ -185,7 +180,6 @@ function Board({
     const initial = createGame(mode, seed, feature.id)
     return restoreGame(stored(storageKey(initial)), initial, feature)
   })
-  const [selected, setSelected] = useState<string | null>(null)
   const [custom, setCustom] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState('')
@@ -228,13 +222,14 @@ function Board({
     }
   }
 
-  async function submit(event: FormEvent) {
-    event.preventDefault()
+  async function submit(passageId?: string) {
     if (busy) return
     setError('')
     try {
       let next: Game
-      if (custom) {
+      if (passageId) {
+        next = playPassage(game, feature, passageId)
+      } else {
         const input = validateCustom(game, text)
         if (!catalog.browserModel)
           throw new Error(
@@ -252,12 +247,8 @@ function Board({
           controller.current.signal,
         )
         next = playCustom(game, feature, input, tokens)
-      } else {
-        if (!selected) return
-        next = playPassage(game, feature, selected)
       }
       setGame(next)
-      setSelected(null)
       setText('')
       setCustom(false)
       const guess = next.guesses.at(-1)!
@@ -327,43 +318,50 @@ function Board({
                 score={guess}
                 passage={feature.passages.find((p) => p.id === guess.passageId)}
               >
-                <Heatmap
-                  text={guess.text}
-                  tokens={guess.tokens}
-                  feature={feature}
-                />
+                {(before) => (
+                  <Heatmap
+                    text={guess.text}
+                    tokens={guess.tokens}
+                    feature={feature}
+                    before={before}
+                  />
+                )}
               </PassageContent>
             </li>
           ))}
         </ol>
       )}
       {phase === 'playing' ? (
-        <form onSubmit={submit}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
           <div className="choice-heading">
             <h2>Choose a passage</h2>
           </div>
           <div className="choices">
             {cards.map((passage) => (
-              <article
-                key={passage.id}
-                className={
-                  selected === passage.id ? 'choice selected' : 'choice'
-                }
-              >
+              <article key={passage.id} className="choice">
                 <PassageContent passage={passage}>
-                  <button
-                    type="button"
-                    className="passage-select"
-                    aria-pressed={selected === passage.id}
-                    disabled={!!busy}
-                    onClick={() => {
-                      setSelected(passage.id)
-                      setCustom(false)
-                      setError('')
-                    }}
-                  >
-                    {passage.text.replace(/^\n+|\n+$/g, '')}
-                  </button>
+                  {(before) => (
+                    <button
+                      type="button"
+                      className="passage-select"
+                      disabled={!!busy}
+                      onClick={() => submit(passage.id)}
+                    >
+                      {before === undefined ? (
+                        passage.text.replace(/^\n+|\n+$/g, '')
+                      ) : (
+                        <>
+                          {before}
+                          <strong>{passage.text}</strong>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </PassageContent>
               </article>
             ))}
@@ -397,6 +395,13 @@ function Board({
                     </button>
                   )}
                   {localReady && <p className="notice">Local model ready.</p>}
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={!!busy || !text.trim() || !localReady}
+                  >
+                    Submit
+                  </button>
                 </div>
               ) : (
                 <button
@@ -405,7 +410,6 @@ function Board({
                   disabled={!!busy || customRemaining(game) === 0}
                   onClick={() => {
                     setCustom(true)
-                    setSelected(null)
                     setError('')
                   }}
                 >
@@ -432,18 +436,6 @@ function Board({
               </button>
             </p>
           )}
-          <div className="submit-row">
-            <span>Goal: 99.9th percentile</span>
-            <button
-              type="submit"
-              className="primary"
-              disabled={
-                !!busy || (custom ? !text.trim() || !localReady : !selected)
-              }
-            >
-              {busy ? 'Scoring…' : custom ? 'Test sentence' : 'Test passage'}
-            </button>
-          </div>
         </form>
       ) : (
         <section className="reveal">

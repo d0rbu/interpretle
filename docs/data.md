@@ -1,7 +1,7 @@
 # Data sources and licenses
 
 The game publishes excerpts and up to 64 preceding model tokens from these public datasets.
-Each passage links to its source and names its license. Text is split into
+Each stored passage record includes its source and license. Text is split into
 displayed spans and annotated with measured activations; it is not rewritten.
 Dataset revisions are pinned in `scripts/prepare_corpus.py` and recorded in the
 published provenance. Corpus selection keeps complete documents that fit the
