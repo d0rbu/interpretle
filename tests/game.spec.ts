@@ -346,7 +346,7 @@ test('sizes the day selector to its digits and keeps the page aligned between mo
   const alignment = await page.locator('header').boundingBox()
   let game = createGame('daily', '2027-01-23', feature.id)
   const { playPassage } = await import('../src/lib/game')
-  for (const band of [99, 99.9]) {
+  for (const band of [95, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
     game = playPassage(game, feature, card.id)
@@ -381,7 +381,7 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   let game = createGame('daily', '2026-10-18', feature.id)
   const { playPassage } = await import('../src/lib/game')
-  for (const band of [99, 99.9]) {
+  for (const band of [95, 99.9]) {
     const card = choices(game, feature).find((p) => p.band === band)!
     await page.getByRole('button', { name: card.text, exact: true }).click()
     game = playPassage(game, feature, card.id)
@@ -435,7 +435,7 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
     .getByRole('textbox', { name: 'Copy your result' })
     .inputValue()
   expect(result).toContain('interpretle 3 · 2/6')
-  expect(result).toContain('🟩✨')
+  expect(result).toContain('🟨✨')
   expect(result).not.toContain(feature.title)
   await page.reload()
   await expect(page.locator('.distribution .your-result')).toHaveAttribute(

@@ -37,16 +37,19 @@ describe('measured game', () => {
       choices(initial(), feature)
         .map((p) => p.band)
         .sort((a, b) => a - b),
-    ).toEqual([0, 0, 0, 50, 90, 95, 99])
+    ).toEqual([0, 0, 0, 0, 50, 90, 95])
   })
 
   it.each([
-    [0, [0, 0, 0, 50, 90, 95, 99]],
-    [1, [0, 0, 50, 90, 95, 99, 99.9]],
-    [50, [0, 50, 90, 95, 99, 99.9, 99.9]],
-    [90, [0, 90, 95, 99, 99.9, 99.9, 99.9]],
-    [95, [0, 95, 99, 99, 99.9, 99.9, 99.9]],
-    [99, [0, 95, 99, 99.9, 99.9, 99.9, 99.9]],
+    [0, [0, 0, 0, 0, 50, 90, 95]],
+    [49.999, [0, 0, 0, 0, 50, 90, 95]],
+    [50, [0, 0, 0, 50, 90, 95, 99]],
+    [89.999, [0, 0, 0, 50, 90, 95, 99]],
+    [90, [0, 0, 50, 90, 95, 99, 99.9]],
+    [94.999, [0, 0, 50, 90, 95, 99, 99.9]],
+    [95, [0, 50, 90, 95, 99, 99.9, 99.9]],
+    [98.999, [0, 50, 90, 95, 99, 99.9, 99.9]],
+    [99, [50, 90, 90, 95, 99, 99.9, 99.9]],
   ])('uses the requested distribution at %s', (score, bands) =>
     expect(bandsForScore(score as number)).toEqual(bands),
   )
@@ -64,7 +67,34 @@ describe('measured game', () => {
     )
   })
 
-  it('keeps winning options after a weaker guess because progress uses the best score', () => {
+  it('advances by the best sampling band, including a 49.8th-percentile representative of 50', () => {
+    const measured = {
+      ...feature,
+      passages: feature.passages.map((p) => ({
+        ...p,
+        tokens: tokens(p.text, p.band === 0 ? 0 : p.band * 100 - 19),
+      })),
+    }
+    let game = initial()
+    for (const band of [0, 50, 90, 95, 99]) {
+      const card = choices(game, measured).find((p) => p.band === band)!
+      game = playPassage(game, measured, card.id)
+      expect(game.guesses.at(-1)!.score).toBeCloseTo(
+        band === 0 ? 0 : band - 0.2,
+      )
+      if (game.guesses.length < game.maxGuesses)
+        expect(
+          choices(game, measured)
+            .map((p) => p.band)
+            .sort((a, b) => a - b),
+        ).toEqual(bandsForScore(band))
+      expect(restoreGame(serializeGame(game), initial(), measured)).toEqual(
+        game,
+      )
+    }
+  })
+
+  it('keeps winning options after a weaker guess because progress uses the best band', () => {
     let game = initial()
     game = playPassage(
       game,
@@ -80,7 +110,7 @@ describe('measured game', () => {
     expect(bestScore(game)).toBe(best)
     expect(game.guesses.at(-1)!.score).toBe(0)
     const winning = choices(game, feature).filter((p) => p.band === 99.9)
-    expect(winning).toHaveLength(3)
+    expect(winning).toHaveLength(2)
     expect(status(playPassage(game, feature, winning[0].id))).toBe('won')
   })
 

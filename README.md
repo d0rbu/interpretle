@@ -61,6 +61,19 @@ Raw zero is inactive. Ties use the strict lower rank, and winning uses the
 unrounded percentile. Sampling bands are approximate; displayed scores are
 always calculated from actual activations.
 
+The next choices follow the best sampling band reached so far. A passage labeled
+50 unlocks the 50 band even if its measured percentile is 49.8. Write-ins use
+their measured percentile. The free clue does not advance the board, and weaker
+guesses never reduce progress.
+
+| Best band        | Next seven suggestions         |
+| ---------------- | ------------------------------ |
+| Below 50         | 0, 0, 0, 0, 50, 90, 95         |
+| 50 to below 90   | 0, 0, 0, 50, 90, 95, 99        |
+| 90 to below 95   | 0, 0, 50, 90, 95, 99, 99.9     |
+| 95 to below 99   | 0, 50, 90, 95, 99, 99.9, 99.9  |
+| 99 to below 99.9 | 50, 90, 90, 95, 99, 99.9, 99.9 |
+
 Daily targets are curated SAE features. Practice can also use positive residual
 coordinates (`max(0, hidden[index])`) at the same hook. The feature description is
 revealed when the game ends, with optional model and SAE details after a solve.

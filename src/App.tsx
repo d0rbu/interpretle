@@ -125,6 +125,8 @@ function PassageContent({
       flushSync(() => setExpanded((value) => !value))
     })
     transition.current = motion
+    // A layout change can skip an animation while still applying its update.
+    void motion.ready.catch(() => {})
     const finish = () => {
       if (transition.current === motion) {
         container.classList.remove('context-motion')

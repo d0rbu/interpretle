@@ -83,12 +83,11 @@ export const customRemaining = (game: Game) =>
   MAX_CUSTOM - game.guesses.filter((guess) => guess.kind === 'custom').length
 
 export function bandsForScore(score: number): Band[] {
-  if (score <= 0) return [0, 0, 0, 50, 90, 95, 99]
-  if (score < 50) return [0, 0, 50, 90, 95, 99, 99.9]
-  if (score < 90) return [0, 50, 90, 95, 99, 99.9, 99.9]
-  if (score < 95) return [0, 90, 95, 99, 99.9, 99.9, 99.9]
-  if (score < 99) return [0, 95, 99, 99, 99.9, 99.9, 99.9]
-  return [0, 95, 99, 99.9, 99.9, 99.9, 99.9]
+  if (score < 50) return [0, 0, 0, 0, 50, 90, 95]
+  if (score < 90) return [0, 0, 0, 50, 90, 95, 99]
+  if (score < 95) return [0, 0, 50, 90, 95, 99, 99.9]
+  if (score < 99) return [0, 50, 90, 95, 99, 99.9, 99.9]
+  return [50, 90, 90, 95, 99, 99.9, 99.9]
 }
 
 // Approximate sentence boundaries without splitting decimals or code identifiers.
@@ -127,7 +126,11 @@ export function choices(game: Game, feature: Feature): Passage[] {
     cards.forEach((card) => shown.add(card.id))
     const guess = game.guesses[round]
     if (guess.passageId) played.add(guess.passageId)
-    best = Math.max(best, guess.score)
+    // The label represents a stored passage's sampling band even when its
+    // measured percentile is slightly below the anchor. Write-ins use their
+    // score because they were not sampled from a band. Progress never regresses.
+    const band = feature.passages.find((p) => p.id === guess.passageId)?.band
+    best = Math.max(best, band ?? guess.score)
   }
   return []
 }
