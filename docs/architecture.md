@@ -16,7 +16,7 @@ custom text -> local WebGPU forward pass -> token highlights
 game rules + saved progress -> localStorage
 ```
 
-The server configuration is `wrangler.jsonc`. That is the complete hosting configuration for this version; no deployment has been made yet. Keep it that way unless a concrete user need justifies something more.
+The complete hosting configuration is `wrangler.jsonc` plus the static response header in `public/_headers`, which prevents automatic analytics injection. The prototype is live at [interpretle.com](https://interpretle.com). Keep hosting limited to static files unless a concrete user need justifies something more.
 
 ## Data
 

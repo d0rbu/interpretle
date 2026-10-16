@@ -2,9 +2,9 @@
 
 **Find the words. Follow the signal.**
 
-A Wordle-inspired interpretability game for **interpretle.com**. Start with a highlighted passage, form a theory about a hidden feature, and find text that reaches the 99.9th percentile of activation.
+A Wordle-inspired interpretability game at **[interpretle.com](https://interpretle.com)**. Start with a highlighted passage, form a theory about a hidden feature, and find text that reaches the 99.9th percentile of activation.
 
-**Status: playable browser prototype.** All current scores and word highlights are illustrative. Suggested passages have hand-authored scores; custom sentences use a toy keyword rule. Real corpus activations, a Gemma WebGPU export, and domain deployment are not connected yet. This distinction is also visible in the game.
+**Status: live playable prototype.** All current scores and word highlights are illustrative. Suggested passages have hand-authored scores; custom sentences use a toy keyword rule. Real corpus activations and a Gemma WebGPU export are not connected yet. This distinction is also visible in the game.
 
 ![Interpretle prototype with a highlighted starter, eight passage choices, and field notes](docs/screenshots/desktop.png)
 
@@ -54,9 +54,9 @@ The unit suite exercises the sampler, budget limits, win/loss conditions, heatma
 
 ## Cloudflare
 
-`wrangler.jsonc` prepares this app for **Cloudflare Workers Static Assets**. The prototype needs no server or GPU at runtime. Fonts are bundled locally and custom text stays in the browser.
+`wrangler.jsonc` deploys this app with **Cloudflare Workers Static Assets**. The prototype needs no application server or GPU at runtime. Fonts are bundled locally and custom text stays in the browser.
 
-When deploying, authenticate the intended Cloudflare account, run `npm run build`, then `npx wrangler deploy`. Add `interpretle.com` as a Worker custom domain in that account after verifying the preview. No DNS, Cloudflare account, or custom domain has been changed by this initial implementation. See [deployment notes](docs/deployment.md).
+To publish an update, authenticate the intended Cloudflare account, run `npm run build`, then `npx wrangler deploy`. The configuration attaches `interpretle.com` as a Worker custom domain in that account. Deployments are manual; GitHub Actions runs checks only. See [deployment notes](docs/deployment.md).
 
 **The entire backend is static file hosting.** Run the selected corpus through the model/SAE offline, then publish stored token activations as puzzle data. Support both SAE features and neuron/activation coordinates in those artifacts. The browser samples rounds and stores progress. The measured version will run custom guesses locally through WebGPU; the current demo uses the labeled toy scorer. No server inference, scoring API, database, queue, account system, or server-side sessions. See [the small architecture](docs/architecture.md).
 

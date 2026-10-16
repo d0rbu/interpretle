@@ -2,7 +2,11 @@
 
 ## Current status
 
-The app is a static React/Vite build. `wrangler.jsonc` configures Cloudflare Workers Static Assets, with a single-page fallback. There is no application server code and none is planned. No deployment or custom-domain route has been created by this initial implementation.
+The prototype is live at **[interpretle.com](https://interpretle.com)**, first deployed on October 16, 2026. The app is a static React/Vite build. `wrangler.jsonc` configures Cloudflare Workers Static Assets, a single-page fallback, and the custom domain. There is no application server code and none is planned.
+
+Deployments are manual. GitHub Actions checks changes but does not publish them. Cloudflare credentials stay outside the repository.
+
+`public/_headers` adds `no-transform` to the default cache policy. This prevents Cloudflare from automatically injecting its Web Analytics script; see [Cloudflare's documented behavior](https://developers.cloudflare.com/web-analytics/get-started/). Keep this header when publishing updates.
 
 Cloudflare currently recommends Workers for new projects. The relevant primary documentation is [Static Assets setup](https://developers.cloudflare.com/workers/static-assets/get-started/) and [Worker custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
@@ -16,9 +20,9 @@ npm run test:e2e
 npm run deploy:check
 ```
 
-`deploy:check` runs a local build and `wrangler deploy --dry-run`; it does not publish or change DNS. The configuration deliberately contains no account ID or custom-domain route.
+`deploy:check` runs a local build and `wrangler deploy --dry-run`; it does not publish or change DNS. The configuration contains the requested `interpretle.com` custom domain. It contains no account ID or credential. A real deployment attaches that domain; a dry run does not.
 
-## Publish the prototype
+## Publish an update
 
 After verifying the intended Cloudflare account:
 
@@ -28,7 +32,7 @@ npm run build
 npx wrangler deploy
 ```
 
-Check the resulting preview address. The demo disclosure should remain visible while data is synthetic. Add `interpretle.com` under the Worker's custom domains when ready. Review existing zone records before assigning the domain. The repository itself can be public independently of the domain launch.
+The configuration attaches `interpretle.com` as a Worker custom domain. Review existing zone records before assigning a domain, then check the custom domain over HTTPS. The demo disclosure remains visible while data is synthetic. The repository itself can be public independently of the domain launch.
 
 Workers Builds can connect directly to the public GitHub repository. Use Node 24+, build command `npm ci && npm run build`, and deployment command `npx wrangler deploy`. Keep account credentials in Cloudflare or secret storage; never put them in client-side `VITE_*` variables.
 

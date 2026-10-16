@@ -1,0 +1,3 @@
+# Prevent automatic analytics injection while retaining the default cache policy.
+/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
