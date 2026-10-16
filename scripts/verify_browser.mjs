@@ -7,7 +7,10 @@ import { open, readFile, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { chromium } from '@playwright/test'
 
-const model = JSON.parse(await readFile('public/model/manifest.json', 'utf8'))
+const descriptor = JSON.parse(
+  await readFile('public/puzzles/index.json', 'utf8'),
+).browserModel
+const model = JSON.parse(await readFile('public' + descriptor.manifest, 'utf8'))
 const checkpoint = process.argv.find((arg) => arg.endsWith('.safetensors'))
 const referencePath =
   process.argv.find((arg) => arg.startsWith('--reference='))?.slice(12) ??
@@ -101,17 +104,14 @@ try {
       previous = key
     }
   })
-  await page.evaluate(
-    async (descriptor) => {
-      const { prepareBrowserModel } = await import('/src/lib/browser.ts')
-      await prepareBrowserModel(
-        descriptor,
-        window.modelProgress,
-        new AbortController().signal,
-      )
-    },
-    { manifest: '/model/manifest.json', bytes: model.bytes },
-  )
+  await page.evaluate(async (descriptor) => {
+    const { prepareBrowserModel } = await import('/src/lib/browser.ts')
+    await prepareBrowserModel(
+      descriptor,
+      window.modelProgress,
+      new AbortController().signal,
+    )
+  }, descriptor)
   console.log(`Model ready; ${weightRequests} weight downloads.`)
   if (!process.argv.includes('--prepare-only')) {
     const reference = JSON.parse(await readFile(referencePath, 'utf8'))
@@ -126,17 +126,17 @@ try {
       if (selected && index !== Number(selected.split('=')[1])) continue
       const started = Date.now()
       const actual = await page.evaluate(
-        async ({ example, bytes }) => {
+        async ({ example, descriptor }) => {
           const { scoreInBrowser } = await import('/src/lib/browser.ts')
           return scoreInBrowser(
             example.text,
             example.target,
-            { manifest: '/model/manifest.json', bytes },
+            descriptor,
             window.modelProgress,
             new AbortController().signal,
           )
         },
-        { example, bytes: model.bytes },
+        { example, descriptor },
       )
       assert.deepEqual(
         actual.map((t) => t.id),

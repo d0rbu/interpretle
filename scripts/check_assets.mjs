@@ -6,9 +6,13 @@ import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 
 const root = resolve('dist')
-const manifest = JSON.parse(
-  await readFile(resolve(root, 'model/manifest.json'), 'utf8'),
+const catalog = JSON.parse(
+  await readFile(resolve(root, 'puzzles/index.json'), 'utf8'),
 )
+const manifest = JSON.parse(
+  await readFile(resolve(root, '.' + catalog.browserModel.manifest), 'utf8'),
+)
+assert.equal(manifest.bytes, catalog.browserModel.bytes, 'Catalog model size')
 const local = [
   ...Object.values(manifest.graphs),
   ...Object.values(manifest.positions),

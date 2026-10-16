@@ -108,6 +108,8 @@ block-scaled FP4 E2M1; normalization parameters retain their original precision.
 Each SAE puzzle contains only its own 2,560-value FP32 encoder vector, bias, and
 threshold. A shared FP32 input-bias vector is also required. No full SAE encoder,
 SAE decoder matrix, or later model layers are downloaded.
+The catalog selects the [versioned FP4 manifest](public/model/manifest-v2-fp4.json).
+Original manifest and graph URLs remain available for already-open older tabs.
 
 Stored passages and percentile reference arrays retain **the original model's
 full-quality scores**. Only local write-ins use FP4 and display `≈` to identify

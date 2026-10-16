@@ -238,10 +238,11 @@ def main():
     if not ids or set(ids) & set(schedule.values()):
         raise ValueError('Practice must have its own separate pool.')
     catalog = dict(version='gemma4-measured-v2', firstDay=str(first_day), daily=schedule, practice=ids)
-    browser_path = Path('public/model/manifest.json')
+    browser_url = previous.get('browserModel', {}).get('manifest', '/model/manifest-v2-fp4.json')
+    browser_path = Path('public') / browser_url.lstrip('/')
     if browser_path.exists():
         browser = json.loads(browser_path.read_text())
-        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=browser['bytes'],
+        catalog['browserModel'] = dict(manifest=browser_url, bytes=browser['bytes'],
                                        approximate=browser['version'].endswith('-fp4'))
     catalog_path.write_text(json.dumps(catalog, indent=2) + '\n')
     provenance = dict(extraction=manifest, passages=len(rows), documents_by_source=dict(Counter(doc['source']['kind'] for doc in docs)),

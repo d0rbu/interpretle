@@ -151,7 +151,7 @@ def main():
         embedding.load_state_dict(state, assign=True)
         graphs["embedding"] = export(
             embedding, (torch.zeros(1, length, 2560).half(), torch.zeros(1, length, 22 * 256).half()),
-            ["token_rows", "layer_rows"], ["hidden", "per_layer"], args.output / "embedding.onnx",
+            ["token_rows", "layer_rows"], ["hidden", "per_layer"], args.output / "embedding-v2.onnx",
             {name: {1: "sequence"} for name in ["token_rows", "layer_rows", "hidden", "per_layer"]},
             {name: PREFIX + name for name in embedding.state_dict()},
         )
@@ -175,7 +175,7 @@ def main():
             graphs[kind] = export(
                 module, (torch.zeros(1, length, 2560).half(), torch.zeros(1, length, 256).half(),
                          cosine[:, :length], sine[:, :length], mask),
-                ["hidden", "per_layer", "cosine", "sine", "mask"], ["output", "mlp"], args.output / f"{kind}.onnx",
+                ["hidden", "per_layer", "cosine", "sine", "mask"], ["output", "mlp"], args.output / f"{kind}-v2.onnx",
                 {**{name: {1: "sequence"} for name in ["hidden", "per_layer", "cosine", "sine", "output", "mlp"]},
                  "mask": {2: "sequence", 3: "sequence"}}, mapping,
             )
@@ -253,11 +253,13 @@ def main():
                 "graphs": graphs, "positions": positional, "layers": layers, "sources": sources,
                 "sae": {"repository": SAE, "revision": SAE_REVISION, "id": SAE_ID, "inputBias": input_bias},
                 "bytes": sum(chunk["bytes"] for source in sources.values() for chunk in source["chunks"])}
-    (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    # Old open tabs still use the original manifest and graph URLs.
+    manifest_path = args.output / f"manifest-v2{'-fp4' if args.fp4 else ''}.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     catalog_path = Path('public/puzzles/index.json')
     if catalog_path.exists() and args.output.resolve() == Path('public/model').resolve():
         catalog = json.loads(catalog_path.read_text())
-        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=manifest['bytes'], approximate=args.fp4)
+        catalog['browserModel'] = dict(manifest=f'/model/{manifest_path.name}', bytes=manifest['bytes'], approximate=args.fp4)
         catalog_path.write_text(json.dumps(catalog, indent=2) + '\n')
     print(json.dumps({"bytes": manifest["bytes"], "graphs": list(graphs), "layers": len(layers)}), flush=True)
 
