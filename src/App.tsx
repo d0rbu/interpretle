@@ -95,6 +95,15 @@ function Chevron() {
   )
 }
 
+function guessColor(score: number) {
+  if (score <= 50) return '#dd5b50'
+  if (score < 90) return '#e98b32'
+  if (score < 95) return '#efb839'
+  if (score < 99) return '#e2cf37'
+  if (score < 99.9) return '#a9c64b'
+  return '#4d9861'
+}
+
 function PassageContent({
   passage,
   label,
@@ -102,7 +111,7 @@ function PassageContent({
   children,
 }: {
   passage?: Passage
-  label?: string
+  label?: ReactNode
   score?: { score: number; rawMax: number }
   children: (before: string | undefined) => ReactNode
 }) {
@@ -314,7 +323,16 @@ function Board({
           {game.guesses.map((guess, index) => (
             <li key={index}>
               <PassageContent
-                label={`Guess ${index + 1}`}
+                label={
+                  <>
+                    Guess {index + 1}
+                    <span
+                      className="guess-color"
+                      aria-hidden="true"
+                      style={{ backgroundColor: guessColor(guess.score) }}
+                    />
+                  </>
+                }
                 score={guess}
                 passage={feature.passages.find((p) => p.id === guess.passageId)}
               >
