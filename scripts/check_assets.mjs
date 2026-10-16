@@ -1,0 +1,33 @@
+// Large derived weights are generated locally, never committed to Git.
+// Stop deployment if a checkout is missing any of the required static chunks.
+import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
+
+const root = resolve('dist')
+const manifest = JSON.parse(
+  await readFile(resolve(root, 'model/manifest.json'), 'utf8'),
+)
+const local = [
+  ...Object.values(manifest.graphs),
+  ...Object.values(manifest.positions),
+  ...manifest.sources.model.chunks.filter((chunk) => chunk.url),
+]
+for (const asset of local) {
+  assert(asset.url.startsWith('/'), 'Expected a local model asset')
+  const path = resolve(root, '.' + asset.url)
+  assert(path.startsWith(root + sep), 'Invalid asset path')
+  const data = await readFile(path)
+  assert(
+    data.length <= 25 * 1024 * 1024,
+    `Asset exceeds Cloudflare's limit: ${asset.url}`,
+  )
+  assert.equal(
+    createHash('sha256').update(data).digest('hex'),
+    asset.sha256,
+    asset.url,
+  )
+  if (asset.bytes) assert.equal(data.length, asset.bytes, asset.url)
+}
+console.log(`Verified ${local.length} model assets for deployment.`)

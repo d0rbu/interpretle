@@ -35,7 +35,7 @@ export interface Catalog {
   firstDay: string
   daily: Record<string, string>
   practice: string[]
-  browserModel?: { manifest: string; bytes: number }
+  browserModel?: { manifest: string; bytes: number; approximate?: boolean }
 }
 
 export interface Guess {
@@ -45,6 +45,7 @@ export interface Guess {
   tokens: TokenActivation[]
   rawMax: number
   score: number
+  approximate?: boolean
 }
 
 export interface Game {

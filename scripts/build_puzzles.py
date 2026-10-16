@@ -7,11 +7,14 @@ Percentiles always use all positive passage maxima in this fixed corpus.
 import argparse
 import hashlib
 import json
+import re
 from collections import Counter
+from array import array
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
+from scipy import sparse
 from huggingface_hub import hf_hub_download
 from safetensors import safe_open
 
@@ -38,10 +41,13 @@ def spans(doc):
 
 
 def index_cache(cache, docs, manifest):
-    matrix_path, spans_path = cache / 'maxima.npy', cache / 'spans.json'
+    matrix_path, spans_path = cache / 'maxima.npz', cache / 'spans.json'
     if matrix_path.exists() and spans_path.exists():
-        return np.load(matrix_path, mmap_mode='r'), json.loads(spans_path.read_text())
-    rows, maxima = [], []
+        return sparse.load_npz(matrix_path), json.loads(spans_path.read_text())
+    # A dense 65k-column matrix would exceed 22 GB for this corpus. Store only
+    # positive maxima and index by column for discovery and percentile ranking.
+    rows, maxima, columns, pointers = [], array('f'), array('I'), array('I', [0])
+    width = manifest['features'] + len(manifest['neurons']) + len(manifest.get('mlp', []))
     for doc_index, doc in enumerate(docs):
         path = cache / f'{doc_index:06d}.npz'
         if not path.exists():
@@ -50,16 +56,28 @@ def index_cache(cache, docs, manifest):
             indptr, indices, activations = data['indptr'], data['indices'], data['values']
             neurons, eligible = data['neurons'], data['eligible']
             for first, last, start, end in spans(doc):
-                values = np.zeros(manifest['features'] + len(manifest['neurons']), dtype=np.float32)
+                values = np.zeros(width, dtype=np.float32)
                 a, b = indptr[first], indptr[last]
                 np.maximum.at(values, indices[a:b], activations[a:b])
                 neuron_values = neurons[first:last].copy()
                 neuron_values[~eligible[first:last]] = 0
-                values[manifest['features']:] = np.maximum(0, neuron_values.max(axis=0))
+                neuron_end = manifest['features'] + len(manifest['neurons'])
+                values[manifest['features']:neuron_end] = np.maximum(0, neuron_values.max(axis=0))
+                if manifest.get('mlp'):
+                    mlp_values = data['mlp'][first:last].copy()
+                    mlp_values[~eligible[first:last]] = 0
+                    values[neuron_end:] = np.maximum(0, mlp_values.max(axis=0))
                 rows.append([doc_index, first, last, start, end])
-                maxima.append(values)
-    matrix = np.asarray(maxima)
-    np.save(matrix_path, matrix)
+                positive = np.flatnonzero(values).astype(np.uint32)
+                columns.frombytes(positive.tobytes())
+                maxima.frombytes(values[positive].tobytes())
+                pointers.append(len(maxima))
+        if (doc_index + 1) % 1000 == 0:
+            print(json.dumps({'indexed_documents': doc_index + 1, 'passages': len(rows), 'positive_maxima': len(maxima)}), flush=True)
+    matrix = sparse.csr_matrix((np.frombuffer(maxima, dtype=np.float32),
+                                np.frombuffer(columns, dtype=np.uint32),
+                                np.frombuffer(pointers, dtype=np.uint32)), shape=(len(rows), width)).tocsc()
+    sparse.save_npz(matrix_path, matrix)
     spans_path.write_text(json.dumps(rows))
     return matrix, rows
 
@@ -76,8 +94,10 @@ def passage(row, column, docs, cache, manifest, band):
                 matches = indices[a:b] == column
                 if np.any(matches):
                     activations[index - first] = values[a:b][matches][0]
-        else:
+        elif column < manifest['features'] + len(manifest['neurons']):
             activations = np.maximum(0, data['neurons'][first:last, column - manifest['features']])
+        else:
+            activations = np.maximum(0, data['mlp'][first:last, column - manifest['features'] - len(manifest['neurons'])])
         eligible = data['eligible'][first:last]
     # Python offsets count code points; JavaScript string slicing counts UTF-16.
     def utf16(index):
@@ -109,10 +129,10 @@ def main():
     if args.discover:
         candidates = []
         for column in range(matrix.shape[1]):
-            values = matrix[:, column]
-            count = int(np.count_nonzero(values))
+            count = int(matrix.indptr[column + 1] - matrix.indptr[column])
             if count < min(10000, len(rows) * .1) or count > .9 * len(rows):
                 continue
+            values = matrix[:, column].toarray().ravel()
             top = np.argsort(values)[-6:][::-1]
             examples = []
             for index in top:
@@ -125,32 +145,49 @@ def main():
         print(json.dumps({'passages': len(rows), 'features_to_review': len(candidates)}))
         return
     targets = json.loads(args.targets.read_text())
+    # Keep the full population for calibration; only the playable excerpts
+    # need to fit the card. This matches the frontend's sentence heuristic.
+    showable = np.array([last - first <= 80 and
+                        len(re.findall(r'''[.!?]["”’')\]]*\s+(?=\S)''', docs[doc]['text'][start:end].strip())) < 3
+                        for doc, first, last, start, end in rows])
     row_ids = {f"{docs[doc]['id']}:{first}-{last}": i for i, (doc, first, last, _, _) in enumerate(rows)}
     sae_path = hf_hub_download(manifest['sae'], f"{manifest['sae_id']}/sae_weights.safetensors", revision=manifest['sae_revision'])
     args.output.mkdir(parents=True, exist_ok=True)
+    provenance_path = args.output / 'provenance.json'
+    previous_provenance = json.loads(provenance_path.read_text()) if provenance_path.exists() else None
+    catalog_path = args.output / 'index.json'
+    previous = json.loads(catalog_path.read_text()) if catalog_path.exists() else {}
+    published = {day: target for day, target in previous.get('daily', {}).items()
+                 if day <= datetime.now(timezone.utc).date().isoformat()}
     ids, daily_ids, reports = [], [], []
     for target in targets:
         target = dict(target)
         clue = target.pop('clue', None)
-        column = target['index'] if target['kind'] == 'sae' else manifest['features'] + manifest['neurons'].index(target['index'])
-        values = matrix[:, column]
+        mode = target.pop('mode', 'daily' if target['kind'] == 'sae' else 'practice')
+        if target['kind'] == 'sae':
+            column = target['index']
+        elif target['kind'] == 'neuron':
+            column = manifest['features'] + manifest['neurons'].index(target['index'])
+        else:
+            column = manifest['features'] + len(manifest['neurons']) + manifest['mlp'].index(target['index'])
+        values = matrix[:, column].toarray().ravel()
         reference = np.sort(values[values > 0])
         if len(reference) < 10000:
             raise ValueError(f"{target['index']}: fewer than 10,000 positive passages")
         scores = np.searchsorted(reference, values, side='left') * 100 / len(reference)
         scores[values == 0] = 0
-        starter_index = int(np.argmin(np.where((values > 0) & (scores <= 50), 50 - scores, np.inf)))
+        starter_index = int(np.argmin(np.where((values > 0) & (scores <= 50) & showable, 50 - scores, np.inf)))
         if clue:
             starter_index = row_ids[clue]
-            if not 49.9 <= scores[starter_index] <= 50:
-                raise ValueError(f"{target['index']}: curated clue must be between the 49.9th and 50th percentiles")
+        if not showable[starter_index] or not 49.9 <= scores[starter_index] <= 50:
+            raise ValueError(f"{target['index']}: clue must be between the 49.9th and 50th percentiles")
         rng = np.random.default_rng(target['index'])
         chosen = []
         counts = {}
         bands = {0: (0, 0), 50: (45, 55), 90: (88, 92), 95: (94, 96), 99: (98.5, 99.8), 99.9: (99.9, 101)}
         for band, (low, high) in bands.items():
             eligible = np.flatnonzero(values == 0) if band == 0 else np.flatnonzero((scores >= low) & (scores < high) & (values > 0))
-            eligible = eligible[eligible != starter_index]
+            eligible = eligible[(eligible != starter_index) & showable[eligible]]
             rng.shuffle(eligible)
             # Different source documents make the options more informative.
             unique, seen = [], set()
@@ -169,7 +206,7 @@ def main():
                 raise ValueError(f"{target['index']}: band {band} has only {len(unique)} distinct documents")
             counts[str(band)] = len(unique)
             chosen.extend(passage(rows[index], column, docs, args.cache, manifest, band) for index in unique)
-        identity = f"gemma4-l21-{target['kind']}-{target['index']}-v1"
+        identity = f"gemma4-l21-{target['kind']}-{target['index']}-v2"
         pack = dict(id=identity, **target, reference=reference.tolist(),
                     displayScale=float(reference[min(len(reference) - 1, int(np.ceil(.999 * len(reference))))]),
                     starter=passage(rows[starter_index], column, docs, args.cache, manifest, 50), passages=chosen)
@@ -179,9 +216,15 @@ def main():
                                        bias=float(file.get_tensor('b_enc')[column]),
                                        threshold=float(file.get_tensor('threshold')[column]))
         content = json.dumps(pack, ensure_ascii=False, separators=(',', ':')) + '\n'
-        (args.output / f'{identity}.json').write_text(content)
-        ids.append(identity)
-        if target['kind'] == 'sae':
+        path = args.output / f'{identity}.json'
+        if identity in published.values() and path.read_text() != content:
+            raise ValueError(f'{identity}: already published; use a new pack version to change its measurements.')
+        path.write_text(content)
+        if mode == 'practice':
+            ids.append(identity)
+        else:
+            if target['kind'] != 'sae':
+                raise ValueError('Daily targets must be curated SAE features.')
             daily_ids.append(identity)
         reports.append(dict(id=identity, positive_passages=len(reference), inactive_passages=int(np.count_nonzero(values == 0)),
                             starter_percentile=float(scores[starter_index]), bands=counts,
@@ -190,17 +233,16 @@ def main():
         raise ValueError('At least one curated SAE target is required for daily puzzles.')
     first_day = date(2026, 10, 16)
     schedule = {str(first_day + timedelta(days=i)): daily_ids[i % len(daily_ids)] for i in range(90)}
-    catalog_path = args.output / 'index.json'
-    if catalog_path.exists():
-        previous = json.loads(catalog_path.read_text())
-        # Preserve already published daily assignments as the catalog expands.
-        today = datetime.now(timezone.utc).date().isoformat()
-        schedule.update({day: target for day, target in previous.get('daily', {}).items() if day <= today})
-    catalog = dict(version='gemma4-measured-v1', firstDay=str(first_day), daily=schedule, practice=ids)
+    # Preserve already published daily assignments as the catalog expands.
+    schedule.update(published)
+    if not ids or set(ids) & set(schedule.values()):
+        raise ValueError('Practice must have its own separate pool.')
+    catalog = dict(version='gemma4-measured-v2', firstDay=str(first_day), daily=schedule, practice=ids)
     browser_path = Path('public/model/manifest.json')
     if browser_path.exists():
         browser = json.loads(browser_path.read_text())
-        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=browser['bytes'])
+        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=browser['bytes'],
+                                       approximate=browser['version'].endswith('-fp4'))
     catalog_path.write_text(json.dumps(catalog, indent=2) + '\n')
     provenance = dict(extraction=manifest, passages=len(rows), documents_by_source=dict(Counter(doc['source']['kind'] for doc in docs)),
                       sources={doc['source']['kind']: {key: doc['source'][key] for key in ['dataset', 'revision', 'license']}
@@ -208,7 +250,22 @@ def main():
                       scoring='strict lower rank among positive passage maxima in this fixed corpus',
                       reference_population='all non-overlapping displayed passages in the selected corpus',
                       targets=reports)
-    (args.output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
+    # Keep the original measurements and hashes for already published days.
+    # Flatten archives so repeated builds do not nest or duplicate old reports.
+    archived_ids = set(schedule.values()) - {report['id'] for report in reports}
+    archives = []
+    if previous_provenance:
+        for source in [previous_provenance, *previous_provenance.get('archives', [])]:
+            retained = [report for report in source['targets'] if report['id'] in archived_ids]
+            if retained:
+                archives.append({**{k: v for k, v in source.items() if k not in ['targets', 'archives']},
+                                 'targets': retained})
+                archived_ids.difference_update(report['id'] for report in retained)
+    if archived_ids:
+        raise ValueError(f'Missing provenance for archived puzzles: {sorted(archived_ids)}')
+    if archives:
+        provenance['archives'] = archives
+    provenance_path.write_text(json.dumps(provenance, indent=2) + '\n')
     print(json.dumps(reports, indent=2))
 
 

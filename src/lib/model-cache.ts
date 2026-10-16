@@ -8,6 +8,7 @@ interface Chunk {
   offset: number
   bytes: number
   sha256: string
+  url?: string
 }
 export interface WeightSource {
   url: string
@@ -75,14 +76,16 @@ export async function downloadWeights(
       while (cursor < missing.length && !failed) {
         const chunk = missing[cursor++]
         try {
-          const response = await fetch(source.url, {
-            headers: {
-              Range: `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
-            },
+          const response = await fetch(chunk.url ?? source.url, {
+            headers: chunk.url
+              ? undefined
+              : {
+                  Range: `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
+                },
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
           })
-          if (response.status !== 206)
+          if (response.status !== (chunk.url ? 200 : 206))
             throw new Error(
               'The model host did not honor the partial download. Please retry.',
             )
@@ -146,7 +149,7 @@ export async function embeddingRows(
   tensor: TensorInfo,
   ids: number[],
 ) {
-  const width = tensor.shape[1] * 2
+  const width = tensor.shape[1] * (tensor.dtype === 'FP4' ? 18 / 32 : 2)
   const result = new Uint8Array(ids.length * width)
   for (const chunk of source.chunks) {
     const rows = ids

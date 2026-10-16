@@ -1,4 +1,4 @@
-"""Export small ONNX graphs; weights stay in the original public checkpoints.
+"""Export small ONNX graphs and only the weights needed through layer 21.
 
 Weights are graph inputs so the browser can run one layer at a time. This avoids
 loading the entire model into GPU or WebAssembly memory. No generation head,
@@ -21,6 +21,7 @@ from transformers.models.gemma4.modeling_gemma4 import (
 )
 
 from extract import MODEL, REVISION, SAE, SAE_ID, SAE_REVISION
+from quantization import pack_fp4
 
 PREFIX = "model.language_model."
 MAX_TOKENS = 512
@@ -39,15 +40,15 @@ def header(path):
 class Embeddings(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.per_layer_model_projection = torch.nn.Linear(2560, 42 * 256, bias=False)
+        self.per_layer_model_projection = torch.nn.Linear(2560, 22 * 256, bias=False)
         self.per_layer_projection_norm = Gemma4RMSNorm(256, eps=config.rms_norm_eps)
 
     def forward(self, token_rows, layer_rows):
         hidden = token_rows * torch.tensor(2560 ** 0.5, dtype=token_rows.dtype)
-        lookup = (layer_rows * 16).reshape(1, -1, 42, 256)
+        lookup = (layer_rows * 16).reshape(1, -1, 22, 256)
         projected = self.per_layer_model_projection(hidden) * (2560 ** -0.5)
-        projected = self.per_layer_projection_norm(projected.reshape(1, -1, 42, 256))
-        return hidden, ((projected + lookup) * (2 ** -0.5))[:, :, :22, :]
+        projected = self.per_layer_projection_norm(projected.reshape(1, -1, 22, 256))
+        return hidden, (projected + lookup) * (2 ** -0.5)
 
 
 class FloatActivation(torch.nn.Module):
@@ -73,10 +74,15 @@ class Layer(torch.nn.Module):
         self.layer = Gemma4TextDecoderLayer(config, index)
         self.layer.mlp.act_fn = FloatActivation(self.layer.mlp.act_fn)
         self.layer.act_fn = FloatActivation(self.layer.act_fn)
+        self.layer.mlp.down_proj.register_forward_pre_hook(self.capture_mlp)
+
+    def capture_mlp(self, _module, inputs):
+        self.mlp_neurons = inputs[0]
 
     def forward(self, hidden, per_layer, cosine, sine, mask):
-        return self.layer(hidden, per_layer, shared_kv_states={},
-                          position_embeddings=(cosine, sine), attention_mask=mask)
+        output = self.layer(hidden, per_layer, shared_kv_states={},
+                            position_embeddings=(cosine, sine), attention_mask=mask)
+        return output, self.mlp_neurons
 
 
 def export(module, inputs, input_names, output_names, path, axes, checkpoint_names):
@@ -125,6 +131,7 @@ def export(module, inputs, input_names, output_names, path, axes, checkpoint_nam
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("public/model"))
+    parser.add_argument('--fp4', action='store_true', help='Approximate browser weights; offline scores remain unchanged.')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     config = AutoConfig.from_pretrained(MODEL, revision=REVISION).text_config
@@ -140,10 +147,10 @@ def main():
     with safe_open(checkpoint, framework="pt", device="cpu") as file:
         with torch.device("meta"):
             embedding = Embeddings(config)
-        state = {name: file.get_tensor(PREFIX + name).half() for name in embedding.state_dict()}
+        state = {name: file.get_tensor(PREFIX + name)[:22 * 256].half() for name in embedding.state_dict()}
         embedding.load_state_dict(state, assign=True)
         graphs["embedding"] = export(
-            embedding, (torch.zeros(1, length, 2560).half(), torch.zeros(1, length, 10752).half()),
+            embedding, (torch.zeros(1, length, 2560).half(), torch.zeros(1, length, 22 * 256).half()),
             ["token_rows", "layer_rows"], ["hidden", "per_layer"], args.output / "embedding.onnx",
             {name: {1: "sequence"} for name in ["token_rows", "layer_rows", "hidden", "per_layer"]},
             {name: PREFIX + name for name in embedding.state_dict()},
@@ -168,8 +175,8 @@ def main():
             graphs[kind] = export(
                 module, (torch.zeros(1, length, 2560).half(), torch.zeros(1, length, 256).half(),
                          cosine[:, :length], sine[:, :length], mask),
-                ["hidden", "per_layer", "cosine", "sine", "mask"], ["output"], args.output / f"{kind}.onnx",
-                {**{name: {1: "sequence"} for name in ["hidden", "per_layer", "cosine", "sine", "output"]},
+                ["hidden", "per_layer", "cosine", "sine", "mask"], ["output", "mlp"], args.output / f"{kind}.onnx",
+                {**{name: {1: "sequence"} for name in ["hidden", "per_layer", "cosine", "sine", "output", "mlp"]},
                  "mask": {2: "sequence", 3: "sequence"}}, mapping,
             )
             # Each layer has its own parameters, but only two graph shapes.
@@ -183,6 +190,42 @@ def main():
     for index, kind in enumerate(layers):
         required.update(name.replace("{layer}", str(index)) for name in graphs[kind]["weights"].values())
     selected = {name: tensors[name] for name in sorted(required)}
+    # Projection rows are a contiguous prefix in the original checkpoint.
+    projection = selected[PREFIX + 'per_layer_model_projection.weight']
+    projection['shape'][0] = 22 * 256
+    projection['bytes'] = 22 * 256 * 2560 * 2
+    # Embedding columns are interleaved by vocabulary row. Repack just these
+    # columns into small static assets instead of downloading unused layers.
+    table = selected[PREFIX + 'embed_tokens_per_layer.weight']
+    table['shape'][1] = 22 * 256
+    table['bytes'] = table['shape'][0] * 22 * 256 * 2
+    local_chunks = {}
+    directory = args.output / 'weights'
+    directory.mkdir(exist_ok=True)
+    with safe_open(checkpoint, framework='pt', device='cpu') as file:
+        for name, row in selected.items():
+            quantized = args.fp4 and len(row['shape']) == 2
+            if row is not table and not quantized:
+                continue
+            width = row['shape'][1]
+            row_bytes = width * 18 // 32 if quantized else width * 2
+            if quantized:
+                assert width % 32 == 0
+                row['dtype'] = 'FP4'
+                row['bytes'] = row['shape'][0] * row_bytes
+            chunks = local_chunks[name] = []
+            tensor = file.get_slice(name)
+            rows_per_chunk = (16 * 1024 * 1024) // row_bytes
+            for first in range(0, row['shape'][0], rows_per_chunk):
+                values = tensor[first:min(first + rows_per_chunk, row['shape'][0]), :width].contiguous()
+                data = (pack_fp4(values.to(device='cuda' if torch.cuda.is_available() else 'cpu', dtype=torch.float16))
+                        if quantized else values.view(torch.uint16).numpy().tobytes())
+                digest = hashlib.sha256(data).hexdigest()
+                path = directory / f'{digest}.bin'
+                path.write_bytes(data)
+                chunks.append(dict(offset=row['offset'] + first * row_bytes, bytes=len(data),
+                                   sha256=digest, url=f'/model/weights/{path.name}'))
+            print(json.dumps({'tensor': name, 'dtype': row['dtype'], 'bytes': row['bytes']}), flush=True)
     # Chunk boundaries do not depend on a player's input. Download the entire
     # fixed selection before looking up token rows, so requests reveal no text.
     sources = {
@@ -191,7 +234,10 @@ def main():
     for source in sources.values():
         source["chunks"] = []
         with open(checkpoint, "rb") as file:
-            for row in sorted(source["tensors"].values(), key=lambda t: t["offset"]):
+            for name, row in sorted(source["tensors"].items(), key=lambda item: item[1]['offset']):
+                if name in local_chunks:
+                    source['chunks'].extend(local_chunks[name])
+                    continue
                 for start in range(row["offset"], row["offset"] + row["bytes"], 16 * 1024 * 1024):
                     size = min(16 * 1024 * 1024, row["offset"] + row["bytes"] - start)
                     file.seek(start)
@@ -199,7 +245,8 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(MODEL, revision=REVISION)
     with safe_open(sae_checkpoint, framework="pt", device="cpu") as file:
         input_bias = file.get_tensor("b_dec").tolist()
-    manifest = {"version": f"gemma4-e4b-l21-{REVISION[:12]}-v1", "maxTokens": MAX_TOKENS,
+    manifest = {"version": f"gemma4-e4b-l21-{REVISION[:12]}-v2{'-fp4' if args.fp4 else ''}", "maxTokens": MAX_TOKENS,
+                'precision': 'FP4 E2M1, block 32, FP16 scales and compute' if args.fp4 else 'original weights, FP16 compute',
                 "bos": tokenizer.bos_token_id, "specialIds": tokenizer.all_special_ids,
                 "tokenizer": {name: f"https://huggingface.co/{MODEL}/resolve/{REVISION}/{name}.json"
                               for name in ["tokenizer", "tokenizer_config"]},
@@ -208,9 +255,9 @@ def main():
                 "bytes": sum(chunk["bytes"] for source in sources.values() for chunk in source["chunks"])}
     (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     catalog_path = Path('public/puzzles/index.json')
-    if catalog_path.exists():
+    if catalog_path.exists() and args.output.resolve() == Path('public/model').resolve():
         catalog = json.loads(catalog_path.read_text())
-        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=manifest['bytes'])
+        catalog['browserModel'] = dict(manifest='/model/manifest.json', bytes=manifest['bytes'], approximate=args.fp4)
         catalog_path.write_text(json.dumps(catalog, indent=2) + '\n')
     print(json.dumps({"bytes": manifest["bytes"], "graphs": list(graphs), "layers": len(layers)}), flush=True)
 

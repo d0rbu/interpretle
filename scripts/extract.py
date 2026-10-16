@@ -22,7 +22,7 @@ MODEL, REVISION = CONFIG['model'], CONFIG['model_revision']
 SAE, SAE_REVISION, SAE_ID = CONFIG['sae'], CONFIG['sae_revision'], CONFIG['sae_id']
 
 
-def load_scorer(feature_count=2048):
+def load_scorer(feature_count=65536):
     torch.set_float32_matmul_precision('highest')
     tokenizer = AutoTokenizer.from_pretrained(MODEL, revision=REVISION)
     model = AutoModelForCausalLM.from_pretrained(
@@ -41,11 +41,15 @@ def load_scorer(feature_count=2048):
     else:
         raise ValueError("The checkpoint did not expose the expected layer-21 decoder.")
     captured = []
+    mlp_captured = []
     hook = names[hook_name].register_forward_hook(lambda _m, _i, output: captured.append(output.detach()))
+    mlp_hook = names[hook_name].mlp.down_proj.register_forward_pre_hook(
+        lambda _m, inputs: mlp_captured.append(inputs[0].detach()))
     probe = tokenizer("The ship entered the harbor. A small test of the model.", return_tensors="pt").to("cuda")
     with torch.inference_mode():
         text_model(**probe, use_cache=False)
     reference = captured.pop()
+    mlp_reference = mlp_captured.pop()
     hook.remove()
     # Later layers and the final norm cannot affect this earlier activation.
     text_model.layers = torch.nn.ModuleList(list(text_model.layers[:22]))
@@ -53,7 +57,9 @@ def load_scorer(feature_count=2048):
     with torch.inference_mode():
         prefix = text_model(**probe, use_cache=False).last_hidden_state
     torch.testing.assert_close(prefix, reference, rtol=0, atol=0)
-    del model, reference, prefix, probe
+    torch.testing.assert_close(mlp_captured.pop(), mlp_reference, rtol=0, atol=0)
+    mlp_hook.remove()
+    del model, reference, mlp_reference, prefix, probe
     torch.cuda.empty_cache()
     path = hf_hub_download(SAE, f"{SAE_ID}/sae_weights.safetensors", revision=SAE_REVISION)
     with safe_open(path, framework="pt", device="cpu") as file:
@@ -74,15 +80,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus", type=Path, default=Path("artifacts/corpus.jsonl"))
     parser.add_argument("--output", type=Path, default=Path("artifacts/activations"))
-    parser.add_argument("--features", type=int, default=2048)
+    parser.add_argument("--features", type=int, default=65536)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--neurons", type=int, nargs="*", default=[100, 500, 1000, *range(0, 2560, 160)])
+    parser.add_argument("--mlp", type=int, nargs="*", default=list(range(0, 10240, 80)))
     args = parser.parse_args()
     if not 1 <= args.features <= 65536:
         parser.error("--features must be between 1 and 65536")
     if any(index < 0 or index >= 2560 for index in args.neurons):
         parser.error("--neurons must be layer-21 residual coordinates from 0 to 2559")
+    if any(index < 0 or index >= 10240 for index in args.mlp):
+        parser.error("--mlp must be layer-21 gated MLP coordinates from 0 to 10239")
     args.output.mkdir(parents=True, exist_ok=True)
     docs = [json.loads(line) for line in args.corpus.read_text().splitlines()]
     # Interleave sources so a bounded discovery run has the same broad mix.
@@ -93,6 +102,12 @@ def main():
     if args.limit:
         docs = docs[:args.limit]
     tokenizer, model, weights, hook_name = load_scorer(args.features)
+    mlp = []
+    def capture_mlp(_module, inputs):
+        # These are the actual gated neurons, immediately before down_proj:
+        # gelu(gate_proj(x)) * up_proj(x), not residual-stream coordinates.
+        mlp[:] = [inputs[0][..., args.mlp].detach()]
+    mlp_hook = model.layers[21].mlp.down_proj.register_forward_pre_hook(capture_mlp)
     special = set(tokenizer.all_special_ids)
     prepared = []
     for doc in docs:
@@ -109,9 +124,12 @@ def main():
         "sae_revision": SAE_REVISION, "sae_id": SAE_ID, "hook": hook_name,
         "dtype": "float16", "sae_dtype": "float32", "features": args.features,
         "neurons": args.neurons, "documents": len(prepared),
+        "mlp": args.mlp, "mlp_hook": hook_name + '.mlp.down_proj.input',
+        "mlp_scoring": 'max(0, gelu(gate_proj(x)) * up_proj(x)) per coordinate',
         "context": "complete-source-document", "bos": tokenizer.bos_token_id,
         "corpus_sha256": hashlib.sha256(args.corpus.read_bytes()).hexdigest(),
         "prefix_parity": "exact against full-model layer-21 hook",
+        "mlp_prefix_parity": "exact against full-model layer-21 MLP down_proj input",
         "versions": {"torch": torch.__version__, "transformers": __import__("transformers").__version__},
     }
     manifest_path = args.output / "manifest.json"
@@ -150,6 +168,7 @@ def main():
                     indptr=indptr, indices=columns.cpu().numpy().astype(np.uint16),
                     values=acts[rows, columns].cpu().numpy(),
                     neurons=hidden[i, :count, args.neurons].float().cpu().numpy(),
+                    mlp=mlp[0][i, :count].float().cpu().numpy(),
                     eligible=eligible.cpu().numpy(),
                 )
                 temporary.replace(destination)
@@ -157,6 +176,7 @@ def main():
         if first % (args.batch_size * 20) == 0 or first + len(batch) == len(prepared):
             elapsed = time.monotonic() - started
             print(json.dumps({"documents": first + len(batch), "total": len(prepared), "tokens_per_second": round(tokens / max(elapsed, 1)), "seconds": round(elapsed)}), flush=True)
+    mlp_hook.remove()
     print("Extraction complete.", flush=True)
 
 

@@ -1,0 +1,14 @@
+Gemma 4 E4B — Google DeepMind
+
+Source: https://huggingface.co/google/gemma-4-E4B
+Revision: 411aa17b749aa952df1359d2dcea73917a544d9a
+License: Apache 2.0 (LICENSE.txt)
+
+Interpretle modifications: export the text decoder through layer 21; retain
+only the first 22 layer-specific embedding columns and projection rows; repack
+the embedding columns into hashed static chunks; expose the gated MLP output;
+quantize matrix weights to FP4 E2M1 with block size 32 and FP16 scales. These
+approximate browser weights do not replace the original model's offline scores.
+Normalization vectors and the selected SAE encoder retain their precision.
+The upstream model and this model
+subset are not covered by the application code MIT license.

@@ -1,12 +1,38 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   bf16ToHalf,
   floatToHalf,
+  fp4ToHalf,
   halfToFloat,
   tokenOffsets,
 } from './model-math'
 
 describe('browser numeric conversion', () => {
+  it('matches PyTorch FP4 restoration on measured checkpoint weights', () => {
+    const fixture = JSON.parse(readFileSync('tests/fixtures/fp4.json', 'utf8'))
+    expect(Array.from(fp4ToHalf(new Uint8Array(fixture.packed)))).toEqual(
+      fixture.expected,
+    )
+  })
+  it('unpacks FP4 nibble order, sign, scales and subnormals', () => {
+    const codes = Array.from({ length: 16 }, (_, i) => (i % 8) * 0x22 + 0x10)
+    const packed = new Uint8Array([0, 0x3c, ...codes, 1, 0, ...codes])
+    const levels = [
+      0, 0.5, 1, 1.5, 2, 3, 4, 6, -0, -0.5, -1, -1.5, -2, -3, -4, -6,
+    ]
+    const expected = floatToHalf(
+      new Float32Array([
+        ...levels,
+        ...levels,
+        ...levels.map((v) => v * 2 ** -24),
+        ...levels.map((v) => v * 2 ** -24),
+      ]),
+    )
+    expect(fp4ToHalf(packed)).toEqual(expected)
+    expect(() => fp4ToHalf(packed.subarray(1))).toThrow('block')
+    expect(() => fp4ToHalf(new Uint8Array(18))).toThrow('scale')
+  })
   it('converts every finite FP16 value through Float32 without changing bits', () => {
     const bits = Array.from({ length: 65536 }, (_, i) => i).filter(
       (i) => ((i >>> 10) & 31) !== 31,

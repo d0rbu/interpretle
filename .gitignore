@@ -10,6 +10,7 @@ test-results/
 .DS_Store
 *.tsbuildinfo
 artifacts/
+public/model/weights/
 data/private/
 .venv/
 __pycache__/

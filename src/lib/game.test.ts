@@ -234,6 +234,28 @@ describe('measured game', () => {
     )
   })
 
+  it('retains which custom scores used the approximate model across reloads', () => {
+    const game = playCustom(
+      initial(),
+      feature,
+      'Estimated.',
+      tokens('Estimated.', 5038),
+      true,
+    )
+    expect(game.guesses[0].approximate).toBe(true)
+    expect(restoreGame(serializeGame(game), initial(), feature)).toEqual(game)
+    const legacy = JSON.parse(serializeGame(game))
+    delete legacy.moves[0].approximate
+    expect(
+      restoreGame(JSON.stringify(legacy), initial(), feature).guesses[0]
+        .approximate,
+    ).toBe(false)
+    legacy.moves[0].approximate = 'unknown'
+    expect(restoreGame(JSON.stringify(legacy), initial(), feature)).toEqual(
+      initial(),
+    )
+  })
+
   it('keeps saved guesses when a layout change offers different passages', () => {
     const offered = new Set(choices(initial(), feature).map((p) => p.id))
     const previous = feature.passages.find((p) => !offered.has(p.id))!

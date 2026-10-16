@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run test && npm run build",
-    "deploy:check": "npm run build && wrangler deploy --dry-run"
+    "deploy:check": "npm run build && node scripts/check_assets.mjs && wrangler deploy --dry-run",
+    "deploy": "npm run build && node scripts/check_assets.mjs && wrangler deploy"
   },
   "engines": {
     "node": ">=24"

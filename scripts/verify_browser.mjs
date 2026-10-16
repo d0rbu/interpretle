@@ -1,5 +1,6 @@
 // Run with the Vite dev server on port 5173. Optionally pass a local copy of the
-// pinned model.safetensors to avoid downloading the same 11 GB again in tests.
+// pinned model.safetensors to serve unchanged normalization weights locally.
+// The exported FP4 matrix chunks are served by Vite from public/model/weights.
 // This is a local test harness; it is never part of the deployed server.
 import assert from 'node:assert/strict'
 import { open, readFile, mkdir, writeFile } from 'node:fs/promises'
@@ -8,6 +9,12 @@ import { chromium } from '@playwright/test'
 
 const model = JSON.parse(await readFile('public/model/manifest.json', 'utf8'))
 const checkpoint = process.argv.find((arg) => arg.endsWith('.safetensors'))
+const referencePath =
+  process.argv.find((arg) => arg.startsWith('--reference='))?.slice(12) ??
+  'artifacts/validation/reference.json'
+const resultsPath =
+  process.argv.find((arg) => arg.startsWith('--results='))?.slice(10) ??
+  'artifacts/browser-validation/results.json'
 const flags = [
   '--enable-unsafe-webgpu',
   '--enable-features=Vulkan',
@@ -24,6 +31,12 @@ const context = await chromium.launchPersistentContext(
 let weightRequests = 0
 const file = checkpoint ? await open(checkpoint) : null
 try {
+  // Keep frontend hot reloads from interrupting a numerical validation run.
+  await context.routeWebSocket('**/*', (socket) => socket.close())
+  context.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/model/weights/'))
+      weightRequests++
+  })
   if (file) {
     await context.route(model.sources.model.url, async (route) => {
       const match = /^bytes=(\d+)-(\d+)$/.exec(route.request().headers().range)
@@ -61,7 +74,7 @@ try {
   page.on('console', (message) => {
     if (message.type() === 'error') console.error(message.text())
   })
-  await page.goto('http://127.0.0.1:5173')
+  await page.goto(process.env.INTERPRETLE_TEST_URL ?? 'http://127.0.0.1:5173')
   await page.waitForLoadState('networkidle')
   const adapter = await page.evaluate(async () => {
     let adapter = await navigator.gpu?.requestAdapter({
@@ -101,9 +114,7 @@ try {
   )
   console.log(`Model ready; ${weightRequests} weight downloads.`)
   if (!process.argv.includes('--prepare-only')) {
-    const reference = JSON.parse(
-      await readFile('artifacts/validation/reference.json', 'utf8'),
-    )
+    const reference = JSON.parse(await readFile(referencePath, 'utf8'))
     const results = []
     const requestsBeforeScoring = weightRequests
     // Run the Unicode/whitespace case first; it is sensitive to rounding drift.
@@ -150,6 +161,7 @@ try {
       const result = {
         index,
         feature: example.target.index,
+        kind: example.target.kind,
         tokens: actual.length,
         seconds: (Date.now() - started) / 1000,
         maxAbsoluteError: Math.max(...differences),
@@ -159,7 +171,7 @@ try {
       console.log(JSON.stringify(result))
       results.push(result)
       await writeFile(
-        'artifacts/browser-validation/results.json',
+        resultsPath,
         JSON.stringify({ adapter, flags, results }, null, 2),
       )
       assert(

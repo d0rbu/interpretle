@@ -191,6 +191,7 @@ export function playCustom(
   feature: Feature,
   input: string,
   tokens: TokenActivation[],
+  approximate = false,
 ): Game {
   const text = validateCustom(game, input)
   if (
@@ -211,6 +212,7 @@ export function playCustom(
     throw new Error('The local model returned invalid token activations.')
   return addGuess(game, {
     kind: 'custom',
+    approximate,
     text,
     tokens,
     ...measure(feature, tokens),
@@ -230,7 +232,12 @@ export function serializeGame(game: Game): string {
     moves: game.guesses.map((guess) =>
       guess.kind === 'passage'
         ? { kind: 'passage', passageId: guess.passageId }
-        : { kind: 'custom', text: guess.text, tokens: guess.tokens },
+        : {
+            kind: 'custom',
+            text: guess.text,
+            tokens: guess.tokens,
+            approximate: guess.approximate,
+          },
     ),
   })
 }
@@ -270,9 +277,17 @@ export function restoreGame(
         if (
           move.kind === 'custom' &&
           typeof move.text === 'string' &&
-          Array.isArray(move.tokens)
+          Array.isArray(move.tokens) &&
+          (move.approximate === undefined ||
+            typeof move.approximate === 'boolean')
         )
-          return playCustom(game, feature, move.text, move.tokens)
+          return playCustom(
+            game,
+            feature,
+            move.text,
+            move.tokens,
+            move.approximate,
+          )
         throw new Error('Invalid saved move.')
       },
       { ...initial, maxGuesses },

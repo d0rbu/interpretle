@@ -5,6 +5,7 @@ feature in a language model. Reach the 99.9th percentile within six attempts,
 with at most two custom sentences. A highlighted passage near the median is your
 free starting clue. Daily puzzles roll over at midnight UTC; the day dropdown
 opens the archive. Practice keeps separate progress.
+Games started before the six-attempt update keep their original limit.
 
 The game is served as **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
 The only backend is [a small daily solve counter](server/results.ts): one
@@ -12,7 +13,7 @@ Cloudflare Durable Object per puzzle day, with eight solve counts, an X bucket
 for games that exhausted all attempts, and random
 submission IDs to avoid counting reloads twice. It stores no text or scores and
 does no inference. Results are browser-reported, not a verified leaderboard.
-The counter begins collecting when deployed; older saved solves are included
+The counter begins collecting when deployed; older saved results are included
 when those players return. Practice does not contribute to daily counts.
 
 ## Develop and deploy
@@ -31,8 +32,10 @@ npm run test:e2e
 npm run deploy:check
 ```
 
-After authenticating your Cloudflare account, `npm run build` followed by
-`npx wrangler deploy` publishes the site and its counter to `interpretle.com`. Credentials
+Generate the ignored browser weight chunks with `python scripts/export_browser.py --fp4`
+before deploying a fresh checkout. After authenticating your Cloudflare account,
+`npm run deploy` verifies those assets and publishes the site and its counter to
+`interpretle.com`. Credentials
 stay outside this repository. GitHub Actions runs checks; deployment is manual.
 Keep the `no-transform` response header, which prevents automatic analytics
 injection. Game progress and custom text stay in the player's browser; only a
@@ -74,19 +77,24 @@ guesses never reduce progress.
 | 95 to below 99   | 0, 50, 90, 95, 99, 99.9, 99.9  |
 | 99 to below 99.9 | 50, 90, 90, 95, 99, 99.9, 99.9 |
 
-Daily targets are curated SAE features. Practice can also use positive residual
-coordinates (`max(0, hidden[index])`) at the same hook. The feature description is
+Daily targets are curated SAE features. Practice also uses positive residual
+coordinates (`max(0, hidden[index])`) and gated MLP neurons
+(`max(0, gelu(gate_proj(x)) * up_proj(x))`, before layer 21's output projection).
+The feature description is
 revealed when the game ends, with optional model and SAE details after a solve.
 Data and answers are inspectable in this static
 game; it does not attempt to prevent cheating.
 
-The initial library has 14 curated SAE features and one experimental coordinate.
-The daily catalog rotates these targets; practice uses a fresh passage order.
+The library has **30 curated daily concepts**. Its separate practice pool has
+48 experimental SAE features spread across all four quarters of the 65,536-feature
+dictionary, eight MLP neurons, and one residual coordinate. No daily SAE feature
+is used in that practice pool. Published daily assignments and their original
+measurements stay fixed as the library expands.
 
 ## Custom sentences
 
 Custom scoring is WebGPU inference on the player's device. Focusing the write-in
-card automatically downloads and loads the model prefix, 11.2 GB on first use,
+card automatically downloads and loads the model prefix, about **2.39 GB** on first use,
 and caches it in browser storage. Type directly into the card; Enter submits and
 Shift+Enter adds a newline. Enter during loading waits for the model to be ready.
 Download and inference progress appear inside the card, beside a Cancel button.
@@ -94,11 +102,23 @@ It needs a compatible GPU with FP16 support and enough storage. Loading,
 cancelled runs, unsupported devices, and failed inference do not consume an
 attempt. The passage game works without downloading any model.
 
-The browser runs small ONNX graphs one layer at a time. It reads weights from
-the pinned public checkpoint, checks download hashes, and never contacts an
+The browser runs small ONNX graphs one layer at a time. It uses only layers 0–21,
+with the unused layer-specific embedding columns removed. Matrix weights use
+block-scaled FP4 E2M1; normalization parameters retain their original precision.
+Each SAE puzzle contains only its own 2,560-value FP32 encoder vector, bias, and
+threshold. A shared FP32 input-bias vector is also required. No full SAE encoder,
+SAE decoder matrix, or later model layers are downloaded.
+
+Stored passages and percentile reference arrays retain **the original model's
+full-quality scores**. Only local write-ins use FP4 and display `≈` to identify
+their estimated scores. The approximation can change activations and win decisions;
+see the [measured FP4/FP8 comparison](docs/validation.md#quantization).
+
+The client checks download hashes and never contacts an
 inference service. All required weight chunks are downloaded **before** looking
 up input tokens, so input-dependent embedding requests cannot disclose text.
-Weights and hidden states use FP16, with FP32 matrix accumulation and reductions.
+Packed weights are restored to FP16 for inference, with FP32 matrix accumulation
+and reductions. Quantization reduces the download, not the GPU's computation precision.
 The ONNX Runtime binary is loaded from a version-pinned CDN only after opt-in.
 Custom text is scored as a complete document with a BOS token and no chat
 template. Unlike a source excerpt, it has no preceding source context.
@@ -114,18 +134,21 @@ environment, then run:
 ```sh
 python scripts/prepare_corpus.py
 python scripts/verify_model.py
-python scripts/extract.py
-python scripts/build_puzzles.py --discover
-# Inspect artifacts/activations/discovery.json and curate data/features.json.
-python scripts/build_puzzles.py
-python scripts/export_browser.py
+python scripts/extract.py --output artifacts/activations-full
+python scripts/build_puzzles.py --cache artifacts/activations-full --discover
+# Inspect artifacts/activations-full/discovery.json and curate data/features.json.
+python scripts/build_puzzles.py --cache artifacts/activations-full
+python scripts/export_browser.py --fp4
 ```
 
 The corpus mixes complete OpenAssistant conversations, TinyStories, MBPP Python
 problems, and Wikipedia articles. Documents longer than 1,024 tokens are skipped,
-not truncated. Extraction stores sparse SAE activations, neuron coordinates,
+not truncated. Extraction scans all 65,536 SAE features by default and stores
+sparse activations, residual coordinates, selected gated MLP neurons,
 token IDs, and original offsets. The large intermediate cache lives in ignored
-`artifacts/`; only curated game packs and small model graphs are published.
+`artifacts/`. The repository contains measured game packs and small model graphs;
+derived weight chunks live in ignored `public/model/weights/` and are served as
+static Cloudflare assets. The deployment check refuses missing or altered chunks.
 See [data sources and licenses](docs/data.md).
 
 | File                         | Purpose                                      |

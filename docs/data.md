@@ -29,7 +29,9 @@ Johnny Lin at Decode Research and is not covered by this application's MIT
 license. The small exported graphs and per-feature encoder vectors derive from
 these checkpoints.
 
-Inference uses FP16 model weights/hidden states and FP32 SAE parameters. Despite
+Offline inference uses the original model weights converted to FP16, with FP32
+SAE parameters. Browser write-ins use an FP4 approximation restored to FP16 for
+compute; their estimated scores are marked `≈`. Despite
 the training directory's BatchTopK name, its released inference architecture is
 JumpReLU: `relu((h - b_dec) @ W_enc + b_enc)`, gated by the learned threshold.
 We use the encoder direction, not the decoder direction. BOS, padding, and
@@ -38,9 +40,12 @@ overlapping offsets from byte-fallback tokens share a displayed highlight while
 retaining their individual activation values in the stored data. Context is
 trimmed only for display; extraction still uses each complete source document.
 
-Feature discovery uses the first 2,048 directions of the 65,536-direction
-Matryoshka SAE. Published targets have at least 10,000 positive reference
+Feature discovery now scans all 65,536 directions of the Matryoshka SAE. The
+first release searched only the initial 2,048 directions; its already-published
+daily measurements are preserved. Published targets have at least 10,000 positive reference
 passages. Feature names describe recurring patterns in reviewed examples;
 they are interpretations, not definitive descriptions of what a feature means.
-Experimental coordinate targets use the positive part of a layer-21 residual
-coordinate, `max(0, hidden[index])`; they are not MLP neurons.
+Experimental residual coordinates use `max(0, hidden[index])` after layer 21.
+Separate MLP targets measure `max(0, gelu(gate_proj(x)) * up_proj(x))` at the
+input to that layer's `down_proj`. Their type and hook are shown in the concept
+details; residual coordinates are never labeled as MLP neurons.

@@ -4,95 +4,630 @@
     "index": 678,
     "clue": "reference:4050128:1-45",
     "title": "Colors",
-    "description": "Many strong examples highlight color words such as yellow, orange, and purple, often describing an object in a story."
+    "description": "Many strong examples highlight color words such as yellow, orange, and purple, often describing an object in a story.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 14834,
+    "title": "Bowls",
+    "description": "Strong examples often highlight bowls used for mixing, eating, or washing.",
+    "mode": "daily"
   },
   {
     "kind": "sae",
     "index": 58,
     "clue": "chat:c6a73c2b-8065-423a-a4d6-71282f2793be:192-205",
     "title": "Stronger comparisons",
-    "description": "Comparative words such as better, greater, higher, and bigger stand out, especially after intensifiers such as much."
+    "description": "Comparative words such as better, greater, higher, and bigger stand out, especially after intensifiers such as much.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 9475,
+    "title": "Pain",
+    "description": "Pain and related word forms stand out, especially in descriptions of physical discomfort.",
+    "mode": "daily",
+    "clue": "reference:4074967:1-49"
   },
   {
     "kind": "sae",
     "index": 959,
     "title": "Months in dates",
-    "description": "Month names activate strongly in descriptions of when an event happened."
+    "description": "Month names activate strongly in descriptions of when an event happened.",
+    "mode": "daily",
+    "clue": "reference:4053652:238-290"
+  },
+  {
+    "kind": "sae",
+    "index": 7790,
+    "title": "Heavy",
+    "description": "The word heavy often activates in descriptions of weight, equipment, and heavy metal music.",
+    "mode": "daily",
+    "clue": "reference:4078351:1-60"
   },
   {
     "kind": "sae",
     "index": 671,
     "clue": "reference:4053129:461-509",
     "title": "U.S. states",
-    "description": "State names such as Wisconsin, Arkansas, Missouri, and Illinois stand out in place descriptions."
+    "description": "State names such as Wisconsin, Arkansas, Missouri, and Illinois stand out in place descriptions.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 6814,
+    "title": "Hearing something",
+    "description": "Strong examples often highlight heard when someone notices a sound, voice, or piece of news.",
+    "mode": "daily",
+    "clue": "prose:59:135-176"
   },
   {
     "kind": "sae",
     "index": 327,
     "clue": "reference:4052996:1-62",
     "title": "Pleasure and enthusiasm",
-    "description": "Words such as pleased, excited, loved, and love frequently receive strong activations."
+    "description": "Words such as pleased, excited, loved, and love frequently receive strong activations.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 4103,
+    "title": "Marriage",
+    "description": "Married stands out in accounts of spouses and relationships, including biographical passages.",
+    "mode": "daily"
   },
   {
     "kind": "sae",
     "index": 196,
     "title": "Object references in code",
-    "description": "Strong examples often highlight self in Python classes and instance attributes. Other programming constructs can activate it too."
+    "description": "Strong examples often highlight self in Python classes and instance attributes. Other programming constructs can activate it too.",
+    "mode": "daily",
+    "clue": "chat:b5de9e83-d570-42b3-a6cd-ca731fb2e4de:44-102"
+  },
+  {
+    "kind": "sae",
+    "index": 2549,
+    "title": "Dating historical objects",
+    "description": "The word dated often activates when an object or building is assigned a historical date.",
+    "mode": "daily",
+    "clue": "reference:4071483:58-103"
   },
   {
     "kind": "sae",
     "index": 859,
-    "clue": "chat:e6357edc-3c2e-4bb1-8b84-50957ae251be:153-208",
     "title": "Chemical substances",
-    "description": "Names of elements and compounds, including lead, titanium, chromium, and boric acid, are prominent in strong examples."
+    "description": "Names of elements and compounds, including lead, titanium, chromium, and boric acid, are prominent in strong examples.",
+    "mode": "daily",
+    "clue": "reference:4046303:246-300"
+  },
+  {
+    "kind": "sae",
+    "index": 13635,
+    "title": "The Olympics",
+    "description": "Strong examples discuss the Summer or Winter Olympics and Olympic competition.",
+    "mode": "daily",
+    "clue": "reference:3805:1-58"
   },
   {
     "kind": "sae",
     "index": 114,
     "title": "Parties and meetings",
-    "description": "Gatherings that people attend, especially parties and meetings, appear repeatedly among the strongest examples."
+    "description": "Gatherings that people attend, especially parties and meetings, appear repeatedly among the strongest examples.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 9222,
+    "title": "Surprise and shock",
+    "description": "Surprised and shocked often stand out in reactions to an unexpected event.",
+    "mode": "daily",
+    "clue": "chat:b13f4004-3b84-4f92-8b0b-f54c49738815:380-419"
   },
   {
     "kind": "sae",
     "index": 900,
     "title": "Parts of the body",
-    "description": "Words for body parts and organs, such as eyes, hands, stomach, heart, and brain, often light up."
+    "description": "Words for body parts and organs, such as eyes, hands, stomach, heart, and brain, often light up.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 8168,
+    "title": "Synthesizers",
+    "description": "Strong examples often highlight synthesizer-related word parts in music descriptions and instrument credits.",
+    "mode": "daily",
+    "clue": "chat:f1854edb-bf17-4a32-ab9b-b56bee38de40:1-53"
   },
   {
     "kind": "sae",
     "index": 545,
     "title": "Choices and decisions",
-    "description": "The feature often highlights choice and decision when describing options or actions people decide to take."
+    "description": "The feature often highlights choice and decision when describing options or actions people decide to take.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 41907,
+    "title": "Accidents and mistakes",
+    "description": "Accidentally and mistake often light up when someone knocks over, breaks, or does something unintentionally.",
+    "mode": "daily",
+    "clue": "reference:4049235:383-443"
   },
   {
     "kind": "sae",
     "index": 200,
     "title": "Code indentation",
-    "description": "Runs of spaces used to indent code are especially strong examples. Whitespace is a model token too."
+    "description": "Runs of spaces used to indent code are especially strong examples. Whitespace is a model token too.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 11995,
+    "title": "Being called for a meal",
+    "description": "Dinner and lunch often stand out when a parent calls children to eat.",
+    "mode": "daily"
   },
   {
     "kind": "sae",
     "index": 480,
     "title": "Measurable quantities",
-    "description": "Words naming quantities, such as concentration, frequency, temperature, height, and length, stand out."
+    "description": "Words naming quantities, such as concentration, frequency, temperature, height, and length, stand out.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 8552,
+    "title": "Programming languages",
+    "description": "Language and languages often activate in discussions of programming and computer science.",
+    "mode": "daily",
+    "clue": "chat:65a4bba9-19f7-482e-b439-86460ba6cc5e:164-221"
   },
   {
     "kind": "sae",
     "index": 130,
     "title": "Organisms in biology",
-    "description": "Strong examples discuss organisms and their biology, often highlighting animal, plant, humans, or parts of biological classification words."
+    "description": "Strong examples discuss organisms and their biology, often highlighting animal, plant, humans, or parts of biological classification words.",
+    "mode": "daily",
+    "clue": "prose:3603:1-44"
+  },
+  {
+    "kind": "sae",
+    "index": 5398,
+    "title": "Where something is located",
+    "description": "Located and situated stand out in descriptions of where a place or building can be found.",
+    "mode": "daily",
+    "clue": "reference:4053428:295-357"
   },
   {
     "kind": "sae",
     "index": 127,
     "clue": "chat:8b77ea67-ad53-4822-883d-27ccd81825ad:1-51",
     "title": "Contributing and helping",
-    "description": "Words such as contribute, help, and aid often activate when something has an effect on a larger outcome."
+    "description": "Words such as contribute, help, and aid often activate when something has an effect on a larger outcome.",
+    "mode": "daily"
+  },
+  {
+    "kind": "sae",
+    "index": 4302,
+    "title": "Trains and rail travel",
+    "description": "Train and trains often activate in descriptions of journeys and rail transport.",
+    "mode": "daily",
+    "clue": "reference:4062433:414-471"
+  },
+  {
+    "kind": "sae",
+    "index": 5858,
+    "title": "Hand tools",
+    "description": "Strong examples often highlight tools such as a shovel or axe, with some everyday utensils activating too.",
+    "mode": "daily",
+    "clue": "reference:3403:253-299"
+  },
+  {
+    "kind": "sae",
+    "index": 6741,
+    "title": "Historical wars",
+    "description": "Strong examples mention wars in military history, especially the Civil War and the World Wars.",
+    "mode": "daily",
+    "clue": "reference:4073803:62-115"
+  },
+  {
+    "kind": "sae",
+    "index": 6466,
+    "mode": "practice",
+    "title": "Experimental SAE feature 6466",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 15976,
+    "mode": "practice",
+    "title": "Experimental SAE feature 15976",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 9947,
+    "mode": "practice",
+    "title": "Experimental SAE feature 9947",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 11189,
+    "mode": "practice",
+    "title": "Experimental SAE feature 11189",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 12268,
+    "mode": "practice",
+    "title": "Experimental SAE feature 12268",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 1449,
+    "mode": "practice",
+    "title": "Experimental SAE feature 1449",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 10482,
+    "mode": "practice",
+    "title": "Experimental SAE feature 10482",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 8593,
+    "mode": "practice",
+    "title": "Experimental SAE feature 8593",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 8,
+    "mode": "practice",
+    "title": "Experimental SAE feature 8",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 2016,
+    "mode": "practice",
+    "title": "Experimental SAE feature 2016",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 4946,
+    "mode": "practice",
+    "title": "Experimental SAE feature 4946",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 65,
+    "mode": "practice",
+    "title": "Experimental SAE feature 65",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 19894,
+    "mode": "practice",
+    "title": "Experimental SAE feature 19894",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 31738,
+    "mode": "practice",
+    "title": "Experimental SAE feature 31738",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 17132,
+    "mode": "practice",
+    "title": "Experimental SAE feature 17132",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 17165,
+    "mode": "practice",
+    "title": "Experimental SAE feature 17165",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 32073,
+    "mode": "practice",
+    "title": "Experimental SAE feature 32073",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 29784,
+    "mode": "practice",
+    "title": "Experimental SAE feature 29784",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 32392,
+    "mode": "practice",
+    "title": "Experimental SAE feature 32392",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 26886,
+    "mode": "practice",
+    "title": "Experimental SAE feature 26886",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 20591,
+    "mode": "practice",
+    "title": "Experimental SAE feature 20591",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 31876,
+    "mode": "practice",
+    "title": "Experimental SAE feature 31876",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 21063,
+    "mode": "practice",
+    "title": "Experimental SAE feature 21063",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 27719,
+    "mode": "practice",
+    "title": "Experimental SAE feature 27719",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 46049,
+    "mode": "practice",
+    "title": "Experimental SAE feature 46049",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 39381,
+    "mode": "practice",
+    "title": "Experimental SAE feature 39381",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 35670,
+    "mode": "practice",
+    "title": "Experimental SAE feature 35670",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 39056,
+    "mode": "practice",
+    "title": "Experimental SAE feature 39056",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 47251,
+    "mode": "practice",
+    "title": "Experimental SAE feature 47251",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 37292,
+    "mode": "practice",
+    "title": "Experimental SAE feature 37292",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 36005,
+    "mode": "practice",
+    "title": "Experimental SAE feature 36005",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 42919,
+    "mode": "practice",
+    "title": "Experimental SAE feature 42919",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 43146,
+    "mode": "practice",
+    "title": "Experimental SAE feature 43146",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 44149,
+    "mode": "practice",
+    "title": "Experimental SAE feature 44149",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 45175,
+    "mode": "practice",
+    "title": "Experimental SAE feature 45175",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 43263,
+    "mode": "practice",
+    "title": "Experimental SAE feature 43263",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 58101,
+    "mode": "practice",
+    "title": "Experimental SAE feature 58101",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 59639,
+    "mode": "practice",
+    "title": "Experimental SAE feature 59639",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 62637,
+    "mode": "practice",
+    "title": "Experimental SAE feature 62637",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 58777,
+    "mode": "practice",
+    "title": "Experimental SAE feature 58777",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 51300,
+    "mode": "practice",
+    "title": "Experimental SAE feature 51300",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 54099,
+    "mode": "practice",
+    "title": "Experimental SAE feature 54099",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 49482,
+    "mode": "practice",
+    "title": "Experimental SAE feature 49482",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 52482,
+    "mode": "practice",
+    "title": "Experimental SAE feature 52482",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 65191,
+    "mode": "practice",
+    "title": "Experimental SAE feature 65191",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 60469,
+    "mode": "practice",
+    "title": "Experimental SAE feature 60469",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 54304,
+    "mode": "practice",
+    "title": "Experimental SAE feature 54304",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "sae",
+    "index": 57055,
+    "mode": "practice",
+    "title": "Experimental SAE feature 57055",
+    "description": "An experimental SAE direction from the full 65,536-feature dictionary. Its strongest examples have not been assigned a curated concept label."
+  },
+  {
+    "kind": "mlp",
+    "index": 3520,
+    "mode": "practice",
+    "title": "MLP neuron 3520",
+    "description": "The positive gated activation of neuron 3520 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 4880,
+    "mode": "practice",
+    "title": "MLP neuron 4880",
+    "description": "The positive gated activation of neuron 4880 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 6720,
+    "mode": "practice",
+    "title": "MLP neuron 6720",
+    "description": "The positive gated activation of neuron 6720 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 8880,
+    "mode": "practice",
+    "title": "MLP neuron 8880",
+    "description": "The positive gated activation of neuron 8880 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 2080,
+    "mode": "practice",
+    "title": "MLP neuron 2080",
+    "description": "The positive gated activation of neuron 2080 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 6560,
+    "mode": "practice",
+    "title": "MLP neuron 6560",
+    "description": "The positive gated activation of neuron 6560 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 2640,
+    "mode": "practice",
+    "title": "MLP neuron 2640",
+    "description": "The positive gated activation of neuron 2640 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
+  },
+  {
+    "kind": "mlp",
+    "index": 3200,
+    "mode": "practice",
+    "title": "MLP neuron 3200",
+    "description": "The positive gated activation of neuron 3200 in layer 21, before the MLP output projection. This experimental neuron can respond to several patterns."
   },
   {
     "kind": "neuron",
     "index": 320,
     "title": "Residual coordinate 320",
-    "description": "An experimental target: the positive value of coordinate 320 after layer 21. A single residual coordinate can mix several patterns, so it has no curated semantic label."
+    "description": "An experimental target: the positive value of coordinate 320 after layer 21. A single residual coordinate can mix several patterns, so it has no curated semantic label.",
+    "mode": "practice"
   }
 ]

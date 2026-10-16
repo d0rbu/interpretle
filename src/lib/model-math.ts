@@ -103,3 +103,35 @@ export function floatToHalf(values: Float32Array): Uint16Array {
   }
   return result
 }
+
+/** E2M1 blocks: FP16 scale, then 32 four-bit values (low nibble first).
+ * Cache the 16 possible restored values per scale instead of expanding the
+ * whole tensor to Float32. This matches the offline FP4 experiment exactly. */
+export function fp4ToHalf(bytes: Uint8Array): Uint16Array {
+  if (bytes.length % 18) throw new Error('Invalid FP4 model block.')
+  const result = new Uint16Array((bytes.length / 18) * 32)
+  const tables = new Map<number, Uint16Array>()
+  const levels = [0, 0.5, 1, 1.5, 2, 3, 4, 6]
+  let output = 0
+  for (let start = 0; start < bytes.length; start += 18) {
+    const bits = bytes[start] | (bytes[start + 1] << 8)
+    let table = tables.get(bits)
+    if (!table) {
+      const scale = halfToFloat(bits)
+      if (!(scale > 0) || !Number.isFinite(scale))
+        throw new Error('Invalid FP4 model scale.')
+      const positive = floatToHalf(
+        new Float32Array(levels.map((v) => v * scale)),
+      )
+      table = new Uint16Array(16)
+      table.set(positive)
+      for (let i = 0; i < 8; i++) table[i + 8] = positive[i] | 0x8000
+      tables.set(bits, table)
+    }
+    for (let i = start + 2; i < start + 18; i++) {
+      result[output++] = table[bytes[i] & 15]
+      result[output++] = table[bytes[i] >>> 4]
+    }
+  }
+  return result
+}

@@ -6,10 +6,12 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from huggingface_hub import snapshot_download
+from huggingface_hub import hf_hub_download, snapshot_download
 from sae_lens import SAE
 
 from extract import SAE as SAE_REPO, SAE_ID, SAE_REVISION, encode, load_scorer
+from extract import MODEL, REVISION
+from quantization import quantize_model
 
 
 TEXTS = [
@@ -27,10 +29,18 @@ TEXTS = [
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('artifacts/validation'))
+    parser.add_argument('--fp4', action='store_true', help='Verify the browser approximation rather than stored scoring.')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     tokenizer, model, weights, hook = load_scorer()
     report = {'hook': hook, 'prefix_parity': 'exact', 'cases': [], 'native_sae_max_error': 0}
+    if args.fp4:
+        quantize_model(model, hf_hub_download(MODEL, 'model.safetensors', revision=REVISION), 'fp4')
+        report['browser_precision'] = 'FP4 E2M1, block 32, FP16 scales and compute; FP32 SAE'
+    mlp, mlp_cases, selected_mlp = [], [], set()
+    def capture_mlp(_module, inputs):
+        mlp[:] = [inputs[0].detach()]
+    mlp_hook = model.layers[21].mlp.down_proj.register_forward_pre_hook(capture_mlp)
     sae_root = snapshot_download(SAE_REPO, revision=SAE_REVISION, allow_patterns=[f'{SAE_ID}/*'])
     native = SAE.load_from_disk(Path(sae_root) / SAE_ID, device='cuda').eval()
     selected = set()
@@ -59,6 +69,14 @@ def main():
                                        offsets=[dict(start=len(text[:start].encode('utf-16-le')) // 2,
                                                      end=len(text[:end].encode('utf-16-le')) // 2)
                                                 for start, end in offsets]))
+            neurons = mlp[0][0, 1:].float().clamp_min(0)
+            order = neurons.amax(dim=0).argsort(descending=True).tolist()
+            neuron = next(j for j in order if j not in selected_mlp and int((neurons[:, j] > 0).sum()) >= 2)
+            selected_mlp.add(neuron)
+            mlp_cases.append(dict(text=text, ids=encoded['input_ids'][0].tolist(),
+                                  target=dict(kind='mlp', index=neuron),
+                                  expected=neurons[:, neuron].cpu().tolist(),
+                                  offsets=report['cases'][-1]['offsets']))
         # Right padding must not change which source tokens are measured.
         tokenizer.padding_side = 'right'
         batch = tokenizer(TEXTS[:2], padding=True, return_tensors='pt').to('cuda')
@@ -68,12 +86,18 @@ def main():
             with np.load(args.output / f'case-{i}.npz') as file:
                 expected = torch.from_numpy(file['hidden']).cuda()
             actual = padded[i, :len(expected)]
-            torch.testing.assert_close(actual, expected, rtol=.02, atol=.05)
+            if not args.fp4:
+                # Padding is used only by the full-quality offline extractor;
+                # the FP4 browser always evaluates one unpadded input.
+                torch.testing.assert_close(actual, expected, rtol=.02, atol=.05)
             padding_errors.append(float((actual - expected).abs().max()))
         report['padding_max_errors'] = padding_errors
+    mlp_hook.remove()
+    report['mlp_hook'] = hook + '.mlp.down_proj.input'
+    report['cases'].extend(mlp_cases)
     (args.output / 'reference.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps({key: value for key, value in report.items() if key != 'cases'}), flush=True)
-    print(f"Saved {len(TEXTS)} measured browser reference cases.", flush=True)
+    print(f"Saved {len(report['cases'])} measured browser reference cases.", flush=True)
 
 
 if __name__ == '__main__':

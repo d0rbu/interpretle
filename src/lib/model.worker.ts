@@ -10,6 +10,7 @@ import type { TensorInfo, WeightSource } from './model-cache'
 import {
   bf16ToHalf,
   floatToHalf,
+  fp4ToHalf,
   halfToFloat,
   tokenOffsets,
 } from './model-math'
@@ -112,6 +113,7 @@ async function prepare(url: string) {
 }
 
 function half(bytes: Uint8Array, info: TensorInfo) {
+  if (info.dtype === 'FP4') return fp4ToHalf(bytes)
   if (info.dtype === 'BF16')
     return bf16ToHalf(
       new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2),
@@ -180,6 +182,7 @@ async function score(
   const embedding = await sessions.embedding.run(embeddingFeeds)
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
   let hidden = embedding.hidden
+  let mlp: ort.Tensor | undefined
   const allPerLayer = halfBits(embedding.per_layer)
   const maskData = new Uint16Array(length * length)
   for (let row = 0; row < length; row++)
@@ -206,20 +209,26 @@ async function score(
         [1, length, dim],
       )
     }
-    const output = await sessions[kind].run({ ...feeds, hidden, mask })
+    const captureMlp =
+      target.kind === 'mlp' && index === manifest.layers.length - 1
+    const output = await sessions[kind].run(
+      { ...feeds, hidden, mask },
+      captureMlp ? ['output', 'mlp'] : ['output'],
+    )
     hidden.dispose()
     Object.values(feeds).forEach((tensor) => tensor.dispose())
     hidden = output.output
+    if (captureMlp) mlp = output.mlp
   }
-  const values = halfBits(hidden)
+  const values = halfBits(mlp ?? hidden)
   if (values.some((value) => (value & 0x7c00) === 0x7c00))
     throw new Error(
       'The local model returned non-finite values. No attempt was used.',
     )
   const result = encoded.ids.map((id, index) => {
-    const start = (index + 1) * 2560
+    const start = (index + 1) * (target.kind === 'mlp' ? 10240 : 2560)
     let activation: number
-    if (target.kind === 'neuron')
+    if (target.kind === 'neuron' || target.kind === 'mlp')
       activation = Math.max(0, halfToFloat(values[start + target.index]))
     else {
       const encoder = target.encoder
@@ -242,6 +251,7 @@ async function score(
     return { id, ...offsets[index], activation }
   })
   hidden.dispose()
+  mlp?.dispose()
   embedding.per_layer.dispose()
   mask.dispose()
   return result

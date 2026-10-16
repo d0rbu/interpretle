@@ -99,7 +99,7 @@ function PassageContent({
 }: {
   passage?: Passage
   label?: ReactNode
-  score?: { score: number; rawMax: number }
+  score?: { score: number; rawMax: number; approximate?: boolean }
   children: (before: string | undefined) => ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -141,7 +141,10 @@ function PassageContent({
         {label && <h2>{label}</h2>}
         <div className="passage-actions">
           {score && (
-            <span title={`Maximum activation: ${score.rawMax.toPrecision(6)}`}>
+            <span
+              title={`${score.approximate ? 'Estimated with the local FP4 model. ' : ''}Maximum activation: ${score.rawMax.toPrecision(6)}`}
+            >
+              {score.approximate && '≈ '}
               {scoreLabel(score.score, score.rawMax > 0)}
             </span>
           )}
@@ -222,6 +225,9 @@ function Board({
   const phase = status(game)
   const cards = choices(game, feature)
   const best = bestScore(game)
+  const bestApproximate = game.guesses.find(
+    (guess) => guess.score === best,
+  )?.approximate
   useEffect(() => {
     setSaveWarning(!remember(storageKey(game), serializeGame(game)))
   }, [game])
@@ -292,14 +298,20 @@ function Board({
           reportProgress,
           controller.current.signal,
         )
-        next = playCustom(game, feature, input, tokens)
+        next = playCustom(
+          game,
+          feature,
+          input,
+          tokens,
+          catalog.browserModel.approximate,
+        )
       }
       setGame(next)
       setCelebrate(status(next) === 'won')
       setText('')
       const guess = next.guesses.at(-1)!
       setAnnouncement(
-        `Attempt ${next.guesses.length}: ${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${game.maxGuesses - next.guesses.length} attempts left.`}`,
+        `Attempt ${next.guesses.length}: ${guess.approximate ? 'approximately ' : ''}${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${game.maxGuesses - next.guesses.length} attempts left.`}`,
       )
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return
@@ -326,7 +338,11 @@ function Board({
             : `${game.guesses.length} of ${game.maxGuesses} attempts`}
         </span>
         <span>
-          Best: <strong>{best === 0 ? '0%' : scoreLabel(best)}</strong>
+          Best:{' '}
+          <strong>
+            {bestApproximate && '≈ '}
+            {best === 0 ? '0%' : scoreLabel(best)}
+          </strong>
         </span>
         {mode === 'practice' && (
           <button

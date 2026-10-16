@@ -31,6 +31,27 @@ describe('published measurements', () => {
     expect(catalog.browserModel?.bytes).toBeGreaterThan(1e9)
   })
 
+  it('keeps experimental practice targets separate from curated daily features', () => {
+    const read = (id: string): Feature =>
+      JSON.parse(readFileSync(`public/puzzles/${id}.json`, 'utf8'))
+    const daily = new Set(
+      Object.values(catalog.daily).map((id) => {
+        const feature = read(id)
+        expect(feature.kind).toBe('sae')
+        return feature.index
+      }),
+    )
+    expect(daily.size).toBe(30)
+    const practice = catalog.practice.map(read)
+    expect(practice.filter((f) => f.kind === 'sae')).toHaveLength(48)
+    expect(practice.filter((f) => f.kind === 'mlp')).toHaveLength(8)
+    expect(
+      practice
+        .filter((f) => f.kind === 'sae')
+        .every((f) => !daily.has(f.index)),
+    ).toBe(true)
+  })
+
   for (const id of ids) {
     const feature: Feature = JSON.parse(
       readFileSync(`public/puzzles/${id}.json`, 'utf8'),
