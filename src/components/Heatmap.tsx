@@ -73,7 +73,6 @@ export default function Heatmap({
           className={`${feature && part.tokens.length ? 'token' : 'passage-token'}${space ? ' token-space' : ''}`}
           style={
             {
-              '--flow-name': `passage-${id.replace(/[^a-zA-Z0-9_-]/g, '')}-${index}-${piece}`,
               backgroundColor:
                 feature && activation > 0
                   ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
@@ -87,7 +86,20 @@ export default function Heatmap({
       if (space) {
         finishWord()
         highlighted.push(node)
-      } else word.push(node)
+      } else
+        word.push(
+          <span
+            className="passage-piece"
+            key={`${index}-${piece}`}
+            style={
+              {
+                '--flow-name': `passage-${id.replace(/[^a-zA-Z0-9_-]/g, '')}-${index}-${piece}`,
+              } as CSSProperties
+            }
+          >
+            {node}
+          </span>,
+        )
     }
   })
   finishWord()

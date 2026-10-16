@@ -5,7 +5,7 @@ complexity and a low bar for removing it.
 
 - Serve the game as static files. The one backend exception is the small daily
   results counter in `server/results.ts`, requested by the user. Keep it limited
-  to aggregate solve counts and deduplication; no server inference, game-session
+  to aggregate completed-game counts and deduplication; no server inference, game-session
   service, queue, authentication, or storage of custom text.
 - Run the selected dataset through the model and SAE **offline**, preserving
   per-token activations. Also support neuron/activation targets with explicit
@@ -20,7 +20,7 @@ complexity and a low bar for removing it.
 - Publish only measured activations and actual tokenizer offsets. Numerical
   fixtures belong in tests and must never be imported by application code.
 - Daily puzzles use curated SAE features. Practice may use experimental targets.
-- Preserve the eight-attempt limit, two-custom limit, free 50th-percentile clue,
+- Preserve the six-attempt limit (preserving older saved games), two-custom limit, free 50th-percentile clue,
   positive-passage percentile definition, and per-token feedback.
 - Use Node 24+. Run `npm run check` and the relevant Playwright checks. UI changes
   should be inspected on desktop and mobile. Do not rent GPUs or run a full

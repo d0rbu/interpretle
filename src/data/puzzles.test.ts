@@ -95,7 +95,7 @@ describe('published measurements', () => {
 
       for (const aim of [0, 50, 90, 95, 99]) {
         let game = createGame('practice', `published-${aim}`, id)
-        for (let round = 0; round < 8; round++) {
+        for (let round = 0; round < game.maxGuesses; round++) {
           const cards = choices(game, feature)
           expect(new Set(cards.map((p) => p.id)).size).toBe(7)
           expect(cards.every((p) => sentenceCount(p.text) <= 3)).toBe(true)

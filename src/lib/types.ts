@@ -19,7 +19,7 @@ export interface Passage {
 
 export interface Feature {
   id: string
-  kind: 'sae' | 'neuron'
+  kind: 'sae' | 'neuron' | 'mlp'
   index: number
   title: string
   description: string
@@ -49,6 +49,7 @@ export interface Guess {
 
 export interface Game {
   version: 2
+  maxGuesses: 6 | 8
   mode: Mode
   seed: string
   featureId: string

@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import Heatmap from './components/Heatmap'
+import Chevron from './components/Chevron'
 import Outcome from './components/Outcome'
-import { loadCatalog, loadFeature } from './data/puzzles'
+import { cachedFeature, loadCatalog, loadFeature } from './data/puzzles'
 import {
   browserModelReady,
   prepareBrowserModel,
@@ -80,21 +81,13 @@ function Instructions({ close }: { close: () => void }) {
         Find text that lights up a hidden concept in a language model. Select
         the option you think most highly activates the concept you're looking
         for, or write in your own. You only have two write-ins available, and{' '}
-        <strong>8 attempts</strong> to find a text passage that activates at the{' '}
-        <strong>99.9th percentile</strong>.
+        <strong>{MAX_GUESSES} attempts</strong> to find a text passage that
+        activates at the <strong>99.9th percentile</strong>.
       </p>
       <button className="primary" onClick={close} autoFocus>
         Play
       </button>
     </dialog>
-  )
-}
-
-function Chevron() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path d="m4 6 4 4 4-4" />
-    </svg>
   )
 }
 
@@ -114,10 +107,13 @@ function PassageContent({
   function toggle(event: MouseEvent<HTMLButtonElement>) {
     const container = event.currentTarget.closest(
       '.choice, .result, .history li',
-    )
+    ) as
+      | (HTMLElement & {
+          startViewTransition?: Document['startViewTransition']
+        })
+      | null
     if (
-      !container ||
-      !document.startViewTransition ||
+      !container?.startViewTransition ||
       matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
       setExpanded(!expanded)
@@ -125,7 +121,7 @@ function PassageContent({
     }
     transition.current?.skipTransition()
     container.classList.add('context-motion')
-    const motion = document.startViewTransition(() => {
+    const motion = container.startViewTransition(() => {
       flushSync(() => setExpanded((value) => !value))
     })
     transition.current = motion
@@ -211,6 +207,7 @@ function Board({
     return restoreGame(stored(storageKey(initial)), initial, feature)
   })
   const [text, setText] = useState('')
+  const [writing, setWriting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [busy, setBusy] = useState('')
   const [progress, setProgress] = useState<number>()
@@ -250,6 +247,8 @@ function Board({
       .then(
         () => true,
         (cause) => {
+          if (cause instanceof DOMException && cause.name === 'AbortError')
+            return false
           setError(
             cause instanceof Error
               ? cause.message
@@ -298,9 +297,10 @@ function Board({
       setText('')
       const guess = next.guesses.at(-1)!
       setAnnouncement(
-        `Attempt ${next.guesses.length}: ${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${MAX_GUESSES - next.guesses.length} attempts left.`}`,
+        `Attempt ${next.guesses.length}: ${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${game.maxGuesses - next.guesses.length} attempts left.`}`,
       )
     } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return
       setError(
         cause instanceof Error
           ? cause.message
@@ -320,8 +320,8 @@ function Board({
       <div className="game-status">
         <span>
           {phase === 'playing'
-            ? `Attempt ${game.guesses.length + 1} of ${MAX_GUESSES}`
-            : `${game.guesses.length} of ${MAX_GUESSES} attempts`}
+            ? `Attempt ${game.guesses.length + 1} of ${game.maxGuesses}`
+            : `${game.guesses.length} of ${game.maxGuesses} attempts`}
         </span>
         <span>
           Best: <strong>{best === 0 ? '0%' : scoreLabel(best)}</strong>
@@ -415,11 +415,18 @@ function Board({
                 </PassageContent>
               </article>
             ))}
-            <article className="choice write-in">
+            <article
+              className="choice write-in"
+              onFocusCapture={() => setWriting(true)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget))
+                  setWriting(false)
+              }}
+            >
               <textarea
                 aria-label="Your sentence"
                 aria-description="Enter to submit. Shift+Enter for a new line."
-                aria-describedby={text ? 'custom-count' : undefined}
+                aria-describedby={text || writing ? 'custom-count' : undefined}
                 placeholder={`Write your own (${customRemaining(game)} left)`}
                 value={text}
                 onChange={(event) =>
@@ -445,7 +452,7 @@ function Board({
                 readOnly={submitting}
                 disabled={customRemaining(game) === 0}
               />
-              {(text || busy) && (
+              {(text || writing || busy) && (
                 <div className="write-in-footer">
                   {busy && (
                     <>
@@ -464,7 +471,7 @@ function Board({
                       </button>
                     </>
                   )}
-                  {text && (
+                  {(text || writing) && (
                     <span id="custom-count" className="character-count">
                       {Array.from(text).length}/{MAX_CUSTOM_LENGTH}
                     </span>
@@ -494,6 +501,41 @@ function Board({
   )
 }
 
+function PuzzleSkeleton() {
+  return (
+    <div
+      className="puzzle-skeleton"
+      role="status"
+      aria-label="Loading puzzle"
+      aria-busy="true"
+    >
+      <div aria-hidden="true">
+        <div className="game-status">
+          <span className="skeleton-line" />
+        </div>
+        <div className="result skeleton-card">
+          <span className="skeleton-line short" />
+          <span className="skeleton-line" />
+          <span className="skeleton-line" />
+          <span className="skeleton-line short" />
+        </div>
+        <div className="choice-heading">
+          <span className="skeleton-line short" />
+        </div>
+        <div className="choices">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div className="choice skeleton-card" key={i}>
+              <span className="skeleton-line" />
+              <span className="skeleton-line" />
+              <span className="skeleton-line short" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Puzzle({
   id,
   ...props
@@ -504,7 +546,7 @@ function Puzzle({
   catalog: Catalog
   newPractice: () => void
 }) {
-  const [feature, setFeature] = useState<Feature | null>(null)
+  const [feature, setFeature] = useState(() => cachedFeature(id))
   const [error, setError] = useState('')
   useEffect(() => {
     let current = true
@@ -529,7 +571,7 @@ function Puzzle({
       {...props}
     />
   ) : (
-    <p role="status">Loading puzzle…</p>
+    <PuzzleSkeleton />
   )
 }
 
@@ -539,6 +581,9 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('daily')
   const [practiceSeed, setPracticeSeed] = useState(
     () => stored(PRACTICE_KEY) ?? crypto.randomUUID(),
+  )
+  const [nextPracticeSeed, setNextPracticeSeed] = useState(() =>
+    crypto.randomUUID(),
   )
   const [help, setHelp] = useState(() => stored(HELP_KEY) !== '1')
   const [catalog, setCatalog] = useState<Catalog | null>(null)
@@ -580,6 +625,22 @@ export default function App() {
     (mode === 'daily'
       ? catalog.daily[day]
       : catalog.practice[hash(practiceSeed) % catalog.practice.length])
+  useEffect(() => {
+    if (!catalog) return
+    const archive = Object.keys(catalog.daily)
+      .filter((date) => date <= today)
+      .sort()
+    const previous = archive[archive.indexOf(day) - 1]
+    const targets = [
+      catalog.daily[today],
+      catalog.daily[previous],
+      ...[practiceSeed, nextPracticeSeed].map(
+        (seed) => catalog.practice[hash(seed) % catalog.practice.length],
+      ),
+    ]
+    for (const target of new Set(targets))
+      if (target) void loadFeature(target).catch(() => {})
+  }, [catalog, today, day, practiceSeed, nextPracticeSeed])
   return (
     <div className="shell">
       <a className="skip-link" href="#puzzle">
@@ -613,6 +674,13 @@ export default function App() {
             {dateLabel(day)}
           </time>
         </div>
+        <span className="credit">
+          Made by{' '}
+          <a href="https://x.com/henrycstllo" target="_blank" rel="noreferrer">
+            Henry
+          </a>{' '}
+          and Codex
+        </span>
         <nav className="mode-switch" aria-label="Puzzle mode">
           {(['daily', 'practice'] as const).map((value) => (
             <button
@@ -642,14 +710,15 @@ export default function App() {
             mode={mode}
             seed={mode === 'daily' ? day : practiceSeed}
             catalog={catalog}
-            newPractice={() => setPracticeSeed(crypto.randomUUID())}
+            newPractice={() => {
+              setPracticeSeed(nextPracticeSeed)
+              setNextPracticeSeed(crypto.randomUUID())
+            }}
           />
+        ) : catalog ? (
+          <p role="status">Today’s puzzle has not been published yet.</p>
         ) : (
-          <p role="status">
-            {catalog
-              ? 'Today’s puzzle has not been published yet.'
-              : 'Loading puzzle…'}
-          </p>
+          <PuzzleSkeleton />
         )}
       </main>
       {help && (

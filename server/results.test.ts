@@ -60,13 +60,18 @@ afterEach(() => {
 
 describe('daily solve counter', () => {
   it('starts empty and isolates each puzzle day', async () => {
-    expect(await (await request()).json()).toEqual({ counts: Array(8).fill(0) })
+    expect(await (await request()).json()).toEqual({
+      counts: Array(8).fill(0),
+      failed: 0,
+    })
     await request('2026-10-18', { id: crypto.randomUUID(), attempts: 4 })
     expect(await (await request()).json()).toEqual({
       counts: [0, 0, 0, 1, 0, 0, 0, 0],
+      failed: 0,
     })
     expect(await (await request('2026-10-17')).json()).toEqual({
       counts: Array(8).fill(0),
+      failed: 0,
     })
   })
 
@@ -78,15 +83,36 @@ describe('daily solve counter', () => {
     await Promise.all(
       [...results, ...results].map((body) => request('2026-10-18', body)),
     )
-    expect(await (await request()).json()).toEqual({ counts: Array(8).fill(4) })
+    expect(await (await request()).json()).toEqual({
+      counts: Array(8).fill(4),
+      failed: 0,
+    })
     counters.clear()
     await request('2026-10-18', { ...results[0], attempts: 8 })
-    expect(await (await request()).json()).toEqual({ counts: Array(8).fill(4) })
+    expect(await (await request()).json()).toEqual({
+      counts: Array(8).fill(4),
+      failed: 0,
+    })
+  })
+
+  it('counts exhausted games once and keeps the first result across retries', async () => {
+    const lost = { id: crypto.randomUUID(), attempts: 0 }
+    const won = { id: crypto.randomUUID(), attempts: 8 }
+    await Promise.all(
+      [lost, won, lost, won].map((body) => request('2026-10-18', body)),
+    )
+    counters.clear()
+    await request('2026-10-18', { ...lost, attempts: 3 })
+    await request('2026-10-18', { ...won, attempts: 0 })
+    expect(await (await request()).json()).toEqual({
+      counts: [0, 0, 0, 0, 0, 0, 0, 1],
+      failed: 1,
+    })
   })
 
   it('rejects invalid results, future puzzles, and cross-site writes', async () => {
     const id = crypto.randomUUID()
-    for (const attempts of [0, 9, 1.5, '4', null])
+    for (const attempts of [-1, 9, 1.5, '4', null])
       expect((await request('2026-10-18', { id, attempts })).status).toBe(400)
     expect(
       (await request('2026-10-18', { id: 'invalid', attempts: 3 })).status,
@@ -132,7 +158,10 @@ describe('daily solve counter', () => {
     ).toBe(405)
     for (const day of ['2026-10-19', '2026-01-01', 'not-a-day'])
       expect((await request(day)).status).toBe(404)
-    expect(await (await request()).json()).toEqual({ counts: Array(8).fill(0) })
+    expect(await (await request()).json()).toEqual({
+      counts: Array(8).fill(0),
+      failed: 0,
+    })
   })
 
   it('reports an unavailable counter without inventing results', async () => {

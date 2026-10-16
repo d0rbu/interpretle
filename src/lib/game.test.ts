@@ -14,6 +14,7 @@ import {
   playPassage,
   restoreGame,
   scoreLabel,
+  scoreColor,
   scoreEmoji,
   serializeGame,
   shareText,
@@ -63,6 +64,26 @@ describe('measured game', () => {
     )
   })
 
+  it('keeps winning options after a weaker guess because progress uses the best score', () => {
+    let game = initial()
+    game = playPassage(
+      game,
+      feature,
+      choices(game, feature).find((p) => p.band === 95)!.id,
+    )
+    const best = bestScore(game)
+    game = playPassage(
+      game,
+      feature,
+      choices(game, feature).find((p) => p.band === 0)!.id,
+    )
+    expect(bestScore(game)).toBe(best)
+    expect(game.guesses.at(-1)!.score).toBe(0)
+    const winning = choices(game, feature).filter((p) => p.band === 99.9)
+    expect(winning).toHaveLength(3)
+    expect(status(playPassage(game, feature, winning[0].id))).toBe('won')
+  })
+
   it('does not round a near miss into a win', () => {
     const near = playCustom(
       initial(),
@@ -86,7 +107,7 @@ describe('measured game', () => {
     expect(scoreLabel(99.89999)).toBe('99.89th percentile')
   })
 
-  it('enforces eight attempts and two custom submissions without charging errors', () => {
+  it('enforces six attempts and two custom submissions without charging errors', () => {
     let game = initial()
     expect(() => playCustom(game, feature, '', [])).toThrow('Write')
     expect(game.guesses).toHaveLength(0)
@@ -96,7 +117,7 @@ describe('measured game', () => {
     expect(() =>
       playCustom(game, feature, 'Third.', tokens('Third.', 0)),
     ).toThrow('both')
-    while (game.guesses.length < 8)
+    while (game.guesses.length < 6)
       game = playPassage(
         game,
         feature,
@@ -104,6 +125,26 @@ describe('measured game', () => {
       )
     expect(status(game)).toBe('lost')
     expect(choices(game, feature)).toEqual([])
+  })
+
+  it('keeps the original limit for an older saved game that has already started', () => {
+    let legacy = { ...initial(), maxGuesses: 8 as const }
+    for (let i = 0; i < 7; i++)
+      legacy = playPassage(
+        legacy,
+        feature,
+        choices(legacy, feature).find((p) => p.band === 0)!.id,
+      ) as typeof legacy
+    const saved = JSON.parse(serializeGame(legacy))
+    delete saved.maxGuesses
+    const restored = restoreGame(JSON.stringify(saved), initial(), feature)
+    expect(restored.maxGuesses).toBe(8)
+    expect(restored.guesses).toHaveLength(7)
+    expect(status(restored)).toBe('playing')
+    saved.moves = []
+    expect(
+      restoreGame(JSON.stringify(saved), initial(), feature).maxGuesses,
+    ).toBe(6)
   })
 
   it('validates character limits, token offsets, and finite activations', () => {
@@ -182,10 +223,10 @@ describe('measured game', () => {
 })
 
 describe('scoring and display', () => {
-  it('uses the requested emoji bands, including their exact boundaries', () => {
+  it('uses the nearest color anchor for guesses without a sampling band', () => {
     expect(
-      [0, 50, 50.01, 89.99, 90, 94.99, 95, 98.99, 99, 99.899, 99.9, 100].map(
-        scoreEmoji,
+      [0, 25, 25.01, 70, 70.01, 92.5, 92.51, 97, 97.01, 99.899, 99.9, 100].map(
+        (score) => scoreEmoji(score),
       ),
     ).toEqual([
       '⬜',
@@ -211,9 +252,33 @@ describe('scoring and display', () => {
         score,
       })),
     }
-    expect(shareText(game, '2026-10-16')).toBe(
-      'interpretle 3 · 4/8\n⬜🟧🟥✨\nhttps://interpretle.com',
+    expect(shareText(game, '2026-10-16', feature)).toBe(
+      'interpretle 3 · 4/6\n🟥🟨🟧✨\nhttps://interpretle.com',
     )
+  })
+  it('shares a suggested passage by its sampling band, with sparkle only for actual wins', () => {
+    expect(scoreEmoji(98.88, 99)).toBe('🟩')
+    expect(scoreColor(98.88)).toBe('rgb(81, 154, 96)')
+    expect(scoreColor(99)).toBe('rgb(77, 152, 97)')
+    expect(scoreEmoji(94.57, 95)).toBe('🟨')
+    expect(scoreEmoji(49.98, 50)).toBe('🟥')
+    expect(scoreEmoji(99.89, 99.9)).toBe('🟩')
+    expect(scoreEmoji(99.9, 99.9)).toBe('✨')
+    const card = feature.passages.find((p) => p.band === 99)!
+    const game = {
+      ...initial(),
+      guesses: [
+        {
+          kind: 'passage' as const,
+          passageId: card.id,
+          text: card.text,
+          tokens: card.tokens,
+          rawMax: 1,
+          score: 98.88,
+        },
+      ],
+    }
+    expect(shareText(game, '2026-10-16', feature)).toContain('\n🟩\n')
   })
   it('excludes zero from the reference and uses strict lower ranks for ties', () => {
     const reference = calibration([0, 0, 1, 2, 2, 4])

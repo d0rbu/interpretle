@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { dateLabel, shareText, status, utcDay } from '../lib/game'
+import { dateLabel, MAX_GUESSES, shareText, status, utcDay } from '../lib/game'
 import type { Feature, Game } from '../lib/types'
 import extraction from '../../data/model.json'
+import Chevron from './Chevron'
 
 export default function Outcome({
   game,
@@ -48,19 +49,14 @@ export default function Outcome({
       // The current page can still report its result without browser storage.
     }
     let current = true
-    fetch(
-      `/api/results/${game.seed}`,
-      won
-        ? {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: resultId.current,
-              attempts: game.guesses.length,
-            }),
-          }
-        : undefined,
-    )
+    fetch(`/api/results/${game.seed}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: resultId.current,
+        attempts: won ? game.guesses.length : 0,
+      }),
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error('Results unavailable')
         const data = await response.json()
@@ -69,10 +65,12 @@ export default function Outcome({
           data.counts.length !== 8 ||
           !data.counts.every(
             (n: unknown) => Number.isSafeInteger(n) && Number(n) >= 0,
-          )
+          ) ||
+          !Number.isSafeInteger(data.failed ?? 0) ||
+          (data.failed ?? 0) < 0
         )
           throw new Error('Invalid results')
-        if (current) setCounts(data.counts)
+        if (current) setCounts([...data.counts, data.failed ?? 0])
       })
       .catch(() => {
         if (current) setStatsError(true)
@@ -83,7 +81,7 @@ export default function Outcome({
   }, [game.mode, game.seed, game.guesses.length, won])
 
   async function share() {
-    const text = shareText(game, firstDay)
+    const text = shareText(game, firstDay, feature)
     try {
       await navigator.clipboard.writeText(text)
       setFallback('')
@@ -136,7 +134,9 @@ export default function Outcome({
       </p>
       {won && (
         <details className="feature-details">
-          <summary>Concept details</summary>
+          <summary>
+            Concept details <Chevron />
+          </summary>
           <dl>
             <dt>Model</dt>
             <dd>
@@ -149,7 +149,12 @@ export default function Outcome({
               </a>
             </dd>
             <dt>Layer</dt>
-            <dd>21 · residual stream after the decoder block</dd>
+            <dd>
+              21 ·{' '}
+              {feature.kind === 'mlp'
+                ? 'gated MLP, before down projection'
+                : 'residual stream after the decoder block'}
+            </dd>
             {feature.kind === 'sae' ? (
               <>
                 <dt>SAE</dt>
@@ -177,7 +182,7 @@ export default function Outcome({
               </>
             ) : (
               <>
-                <dt>Coordinate</dt>
+                <dt>{feature.kind === 'mlp' ? 'MLP neuron' : 'Coordinate'}</dt>
                 <dd>{feature.index} · positive activation</dd>
               </>
             )}
@@ -192,33 +197,42 @@ export default function Outcome({
             </h3>
             {counts && (
               <span>
-                {counts.reduce((a, b) => a + b, 0).toLocaleString()} solved
+                {counts
+                  .slice(0, 8)
+                  .reduce((a, b) => a + b, 0)
+                  .toLocaleString()}{' '}
+                solved
               </span>
             )}
           </div>
           {counts ? (
-            <ol aria-label="Number of guesses to solve the daily puzzle">
-              {counts.map((count, index) => (
-                <li
-                  key={index}
-                  className={
-                    won && index + 1 === game.guesses.length
-                      ? 'your-result'
-                      : undefined
-                  }
-                  aria-label={`${index + 1} ${index === 0 ? 'guess' : 'guesses'}: ${count} ${count === 1 ? 'solve' : 'solves'}${won && index + 1 === game.guesses.length ? ', your result' : ''}`}
-                >
-                  <span>{index + 1}</span>
-                  <div className="distribution-track">
-                    <span
-                      style={{
-                        width: `${(100 * count) / Math.max(1, ...counts)}%`,
-                      }}
-                    />
-                  </div>
-                  <span>{count.toLocaleString()}</span>
-                </li>
-              ))}
+            <ol aria-label="Daily puzzle results by number of guesses">
+              {counts.map((count, index) => {
+                // Older games allowed eight guesses; retain any real results
+                // in those buckets without showing empty legacy rows.
+                if (index >= MAX_GUESSES && index < 8 && count === 0)
+                  return null
+                const yours = won
+                  ? index + 1 === game.guesses.length
+                  : index === 8
+                return (
+                  <li
+                    key={index}
+                    className={yours ? 'your-result' : undefined}
+                    aria-label={`${index === 8 ? `Failed: ${count} ${count === 1 ? 'player' : 'players'}` : `${index + 1} ${index === 0 ? 'guess' : 'guesses'}: ${count} ${count === 1 ? 'solve' : 'solves'}`}${yours ? ', your result' : ''}`}
+                  >
+                    <span>{index === 8 ? 'X' : index + 1}</span>
+                    <div className="distribution-track">
+                      <span
+                        style={{
+                          width: `${(100 * count) / Math.max(1, ...counts)}%`,
+                        }}
+                      />
+                    </div>
+                    <span>{count.toLocaleString()}</span>
+                  </li>
+                )
+              })}
             </ol>
           ) : (
             <p className="notice" role="status">

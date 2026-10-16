@@ -1,14 +1,15 @@
 # interpretle
 
 [Play interpretle.com](https://interpretle.com). Find text that activates a hidden
-feature in a language model. Reach the 99.9th percentile within eight attempts,
+feature in a language model. Reach the 99.9th percentile within six attempts,
 with at most two custom sentences. A highlighted passage near the median is your
 free starting clue. Daily puzzles roll over at midnight UTC; the day dropdown
 opens the archive. Practice keeps separate progress.
 
 The game is served as **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
 The only backend is [a small daily solve counter](server/results.ts): one
-Cloudflare Durable Object per puzzle day, with eight aggregate counts and random
+Cloudflare Durable Object per puzzle day, with eight solve counts, an X bucket
+for games that exhausted all attempts, and random
 submission IDs to avoid counting reloads twice. It stores no text or scores and
 does no inference. Results are browser-reported, not a verified leaderboard.
 The counter begins collecting when deployed; older saved solves are included
@@ -35,7 +36,7 @@ After authenticating your Cloudflare account, `npm run build` followed by
 stay outside this repository. GitHub Actions runs checks; deployment is manual.
 Keep the `no-transform` response header, which prevents automatic analytics
 injection. Game progress and custom text stay in the player's browser; only a
-per-puzzle random ID and number of attempts are sent when a daily puzzle is solved.
+per-puzzle random ID and outcome are sent when a daily puzzle finishes.
 To run the counter locally, build the site and run `npx wrangler dev`.
 
 ## Scores

@@ -73,6 +73,14 @@ header {
   gap: 16px;
   border-bottom: 1px solid #dbe0d8;
 }
+.credit {
+  color: #596159;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.credit a {
+  color: inherit;
+}
 .identity {
   display: flex;
   align-items: baseline;
@@ -240,10 +248,10 @@ main {
   display: inline-block;
   max-width: 100%;
 }
-.passage-word > span {
+.passage-piece {
   display: inline-block;
 }
-.context-motion .passage-word > span {
+.context-motion .passage-piece {
   view-transition-name: var(--flow-name);
 }
 ::view-transition-group(*),
@@ -278,6 +286,24 @@ main {
 }
 .choice-heading {
   margin: 28px 0 12px;
+}
+.skeleton-line {
+  display: block;
+  height: 14px;
+  width: 100%;
+  border-radius: 4px;
+  background: #e7ebe3;
+}
+.skeleton-line.short {
+  width: 45%;
+}
+.puzzle-skeleton .game-status .skeleton-line {
+  width: 110px;
+}
+.skeleton-card {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
 }
 .new-puzzle {
   background: white;
@@ -450,9 +476,22 @@ textarea {
   color: #596159;
 }
 .feature-details summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  list-style: none;
   cursor: pointer;
   width: fit-content;
   margin: auto;
+}
+.feature-details summary::-webkit-details-marker {
+  display: none;
+}
+.feature-details summary svg {
+  transition: transform 180ms;
+}
+.feature-details[open] summary svg {
+  transform: rotate(180deg);
 }
 .feature-details dl {
   display: grid;
@@ -638,10 +677,7 @@ dialog .primary {
   white-space: nowrap;
   border: 0;
 }
-@media (max-width: 640px) {
-  .shell {
-    padding: 0 16px 28px;
-  }
+@media (max-width: 800px) {
   header {
     flex-wrap: wrap;
     gap: 10px;
@@ -660,10 +696,19 @@ dialog .primary {
     order: 1;
   }
   .mode-switch {
+    order: 3;
+  }
+  .credit {
     order: 2;
+    margin-left: auto;
   }
   .identity {
     order: 0;
+  }
+}
+@media (max-width: 640px) {
+  .shell {
+    padding: 0 16px 28px;
   }
   main {
     padding-top: 18px;

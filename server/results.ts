@@ -18,8 +18,8 @@ const json = (body: object, status = 200) =>
     headers: { 'Cache-Control': 'no-store, no-transform' },
   })
 
-// One small, persistent counter per day. A SQL trigger updates the eight
-// buckets atomically, and duplicate browser submissions do not increment them.
+// One persistent counter per day. SQL triggers update the buckets atomically;
+// a browser's first completed result wins, including retries after a restart.
 export class DailyResults {
   sql: Sql
   constructor(state: { storage: { sql: Sql } }) {
@@ -31,8 +31,13 @@ export class DailyResults {
       CREATE TABLE IF NOT EXISTS totals (
         attempts INTEGER PRIMARY KEY, solves INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS failures (id TEXT PRIMARY KEY) WITHOUT ROWID;
       CREATE TRIGGER IF NOT EXISTS count_solve AFTER INSERT ON submissions BEGIN
         INSERT INTO totals (attempts, solves) VALUES (NEW.attempts, 1)
+        ON CONFLICT (attempts) DO UPDATE SET solves = solves + 1;
+      END;
+      CREATE TRIGGER IF NOT EXISTS count_failure AFTER INSERT ON failures BEGIN
+        INSERT INTO totals (attempts, solves) VALUES (0, 1)
         ON CONFLICT (attempts) DO UPDATE SET solves = solves + 1;
       END;
     `)
@@ -57,20 +62,33 @@ export class DailyResults {
           result.id,
         ) ||
         !Number.isInteger(result.attempts) ||
-        result.attempts < 1 ||
+        result.attempts < 0 ||
         result.attempts > 8
       )
         return json({ error: 'Invalid result.' }, 400)
-      this.sql.exec(
-        'INSERT OR IGNORE INTO submissions (id, attempts) VALUES (?, ?)',
-        result.id,
-        result.attempts,
-      )
+      // Zero means all guesses were used without a solve. A separate
+      // table preserves the original submissions schema and existing results.
+      if (result.attempts === 0)
+        this.sql.exec(
+          'INSERT OR IGNORE INTO failures (id) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM submissions WHERE id = ?)',
+          result.id,
+          result.id,
+        )
+      else
+        this.sql.exec(
+          'INSERT OR IGNORE INTO submissions (id, attempts) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM failures WHERE id = ?)',
+          result.id,
+          result.attempts,
+          result.id,
+        )
     }
     const counts = Array<number>(8).fill(0)
-    for (const row of this.sql.exec('SELECT attempts, solves FROM totals'))
-      counts[Number(row.attempts) - 1] = Number(row.solves)
-    return json({ counts })
+    let failed = 0
+    for (const row of this.sql.exec('SELECT attempts, solves FROM totals')) {
+      if (Number(row.attempts) === 0) failed = Number(row.solves)
+      else counts[Number(row.attempts) - 1] = Number(row.solves)
+    }
+    return json({ counts, failed })
   }
 }
 

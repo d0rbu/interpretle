@@ -14,8 +14,7 @@ function run<T>(
 ): Promise<T> {
   if (running)
     return Promise.reject(new Error('The local model is already busy.'))
-  if (signal.aborted)
-    return Promise.reject(new Error('Cancelled. No attempt was used.'))
+  if (signal.aborted) return Promise.reject(new DOMException('', 'AbortError'))
   worker ??= new Worker(new URL('./model.worker.ts', import.meta.url), {
     type: 'module',
   })
@@ -33,11 +32,7 @@ function run<T>(
       worker = undefined
       ready = false
       finish()
-      reject(
-        new Error(
-          'Cancelled. No attempt was used. Downloads already cached can be resumed.',
-        ),
-      )
+      reject(new DOMException('', 'AbortError'))
     }
     current.onmessage = ({ data }) => {
       if (data.progress) progress(data.progress, data.fraction)

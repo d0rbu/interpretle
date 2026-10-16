@@ -9,7 +9,7 @@ import type {
   TokenActivation,
 } from './types'
 
-export const MAX_GUESSES = 8
+export const MAX_GUESSES = 6
 export const MAX_CUSTOM = 2
 export const MAX_CUSTOM_LENGTH = 280
 export const MAX_PASSAGE_TOKENS = 80
@@ -63,13 +63,20 @@ export const createGame = (
   mode: Mode,
   seed: string,
   featureId: string,
-): Game => ({ version: 2, mode, seed, featureId, guesses: [] })
+): Game => ({
+  version: 2,
+  maxGuesses: MAX_GUESSES,
+  mode,
+  seed,
+  featureId,
+  guesses: [],
+})
 export const bestScore = (game: Game) =>
   Math.max(0, ...game.guesses.map((guess) => guess.score))
 export const status = (game: Game) =>
   bestScore(game) >= WIN_SCORE
     ? 'won'
-    : game.guesses.length >= MAX_GUESSES
+    : game.guesses.length >= game.maxGuesses
       ? 'lost'
       : 'playing'
 export const customRemaining = (game: Game) =>
@@ -213,6 +220,7 @@ export const storageKey = (game: Pick<Game, 'mode' | 'seed' | 'featureId'>) =>
 export function serializeGame(game: Game): string {
   return JSON.stringify({
     version: 2,
+    maxGuesses: game.maxGuesses,
     mode: game.mode,
     seed: game.seed,
     featureId: game.featureId,
@@ -240,58 +248,76 @@ export function restoreGame(
       data.seed !== initial.seed ||
       data.featureId !== feature.id ||
       !Array.isArray(data.moves) ||
-      data.moves.length > MAX_GUESSES
+      data.moves.length > 8
     )
       return initial
-    return data.moves.reduce((game: Game, move: Guess) => {
-      if (move.kind === 'passage' && typeof move.passageId === 'string') {
-        // Published passages remain valid saved moves when the deck layout changes.
-        const passage = feature.passages.find((p) => p.id === move.passageId)
-        if (!passage) throw new Error('Unknown saved passage.')
-        return recordPassage(game, feature, passage)
-      }
-      if (
-        move.kind === 'custom' &&
-        typeof move.text === 'string' &&
-        Array.isArray(move.tokens)
-      )
-        return playCustom(game, feature, move.text, move.tokens)
-      throw new Error('Invalid saved move.')
-    }, initial)
+    // Preserve the rules of a game already in progress before the six-guess
+    // update. An old, empty save starts with the current rules.
+    const maxGuesses = data.maxGuesses ?? (data.moves.length ? 8 : MAX_GUESSES)
+    if (![6, 8].includes(maxGuesses) || data.moves.length > maxGuesses)
+      return initial
+    return data.moves.reduce(
+      (game: Game, move: Guess) => {
+        if (move.kind === 'passage' && typeof move.passageId === 'string') {
+          // Published passages remain valid saved moves when the deck layout changes.
+          const passage = feature.passages.find((p) => p.id === move.passageId)
+          if (!passage) throw new Error('Unknown saved passage.')
+          return recordPassage(game, feature, passage)
+        }
+        if (
+          move.kind === 'custom' &&
+          typeof move.text === 'string' &&
+          Array.isArray(move.tokens)
+        )
+          return playCustom(game, feature, move.text, move.tokens)
+        throw new Error('Invalid saved move.')
+      },
+      { ...initial, maxGuesses },
+    )
   } catch {
     return initial
   }
 }
 
-export function shareText(game: Game, firstDay: string): string {
+export function shareText(
+  game: Game,
+  firstDay: string,
+  feature: Feature,
+): string {
   const number =
     game.mode === 'daily' ? dayNumber(game.seed, firstDay) : 'Practice'
   const result = status(game) === 'won' ? game.guesses.length : 'X'
-  const squares = game.guesses.map(({ score }) => scoreEmoji(score)).join('')
-  return `interpretle ${number} · ${result}/${MAX_GUESSES}\n${squares}\nhttps://interpretle.com`
+  const squares = game.guesses
+    .map(({ score, passageId }) =>
+      scoreEmoji(score, feature.passages.find((p) => p.id === passageId)?.band),
+    )
+    .join('')
+  return `interpretle ${number} · ${result}/${game.maxGuesses}\n${squares}\nhttps://interpretle.com`
 }
 
-export function scoreEmoji(score: number) {
-  if (score <= 50) return '⬜'
-  if (score < 90) return '🟥'
-  if (score < 95) return '🟧'
-  if (score < 99) return '🟨'
-  if (score < WIN_SCORE) return '🟩'
-  return '✨'
+const colorStops = [
+  [0, [255, 255, 255], '⬜'],
+  [50, [221, 91, 80], '🟥'],
+  [90, [233, 139, 50], '🟧'],
+  [95, [226, 207, 55], '🟨'],
+  [99, [77, 152, 97], '🟩'],
+] as const
+
+export function scoreEmoji(score: number, band?: Band) {
+  if (score >= WIN_SCORE) return '✨'
+  // Stored passages retain their sampling band; write-ins use the nearest
+  // anchor because they have no preselected band. Color never decides a win.
+  const value = band ?? score
+  return colorStops.reduce((closest, stop) =>
+    Math.abs(stop[0] - value) < Math.abs(closest[0] - value) ? stop : closest,
+  )[2]
 }
 
 export function scoreColor(score: number) {
-  const stops = [
-    [50, [255, 255, 255]],
-    [90, [221, 91, 80]],
-    [95, [233, 139, 50]],
-    [99, [226, 207, 55]],
-    [WIN_SCORE, [77, 152, 97]],
-  ] as const
-  if (score <= 50) return 'rgb(255, 255, 255)'
-  for (let i = 1; i < stops.length; i++) {
-    const [low, from] = stops[i - 1],
-      [high, to] = stops[i]
+  if (score <= 0) return 'rgb(255, 255, 255)'
+  for (let i = 1; i < colorStops.length; i++) {
+    const [low, from] = colorStops[i - 1],
+      [high, to] = colorStops[i]
     if (score <= high) {
       const fraction = (score - low) / (high - low)
       return `rgb(${from.map((value, channel) => Math.round(value + fraction * (to[channel] - value))).join(', ')})`

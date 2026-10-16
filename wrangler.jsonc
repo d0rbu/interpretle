@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "interpretle",
   "main": "server/results.ts",
+  "workers_dev": false,
+  "preview_urls": false,
   "compatibility_date": "2026-10-16",
   "routes": [{ "pattern": "interpretle.com", "custom_domain": true }],
   "assets": {
