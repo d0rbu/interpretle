@@ -147,6 +147,8 @@ test('keeps highlights compact and the moving tokens attached to their card whil
     })),
   )
   expect(sizes.every(({ height, font }) => height < font * 1.6)).toBe(true)
+  expect(await clue.locator('.token-space').count()).toBeGreaterThan(0)
+  expect(new Set(sizes.map(({ height }) => height)).size).toBe(1)
   await clue.getByRole('button', { name: 'Show preceding context' }).click()
   await page.waitForFunction(() =>
     document
