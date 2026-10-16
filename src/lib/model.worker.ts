@@ -31,7 +31,8 @@ interface Manifest {
 }
 
 const prefix = 'model.language_model.'
-const progress = (message: string) => self.postMessage({ progress: message })
+const progress = (message: string, fraction?: number) =>
+  self.postMessage({ progress: message, fraction })
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
 let prepared = false
 const sessions: Record<string, ort.InferenceSession> = {}
@@ -187,6 +188,7 @@ async function score(
   for (const [index, kind] of manifest.layers.entries()) {
     progress(
       `Scoring locally: layer ${index + 1} of ${manifest.layers.length}…`,
+      index / manifest.layers.length,
     )
     const feeds = await weights(manifest.graphs[kind], index)
     const perLayer = new Uint16Array(length * 256)

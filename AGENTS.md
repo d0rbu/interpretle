@@ -3,8 +3,10 @@
 Keep this project small and easy to read. There is a very high bar for adding
 complexity and a low bar for removing it.
 
-- The deployed server serves static files. No server GPU inference, inference
-  API, game-session service, database, queue, or authentication is needed.
+- Serve the game as static files. The one backend exception is the small daily
+  results counter in `server/results.ts`, requested by the user. Keep it limited
+  to aggregate solve counts and deduplication; no server inference, game-session
+  service, queue, authentication, or storage of custom text.
 - Run the selected dataset through the model and SAE **offline**, preserving
   per-token activations. Also support neuron/activation targets with explicit
   hook, coordinate, and sign conventions.

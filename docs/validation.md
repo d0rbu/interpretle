@@ -67,10 +67,15 @@ checkpoint is supplied. Its results and persistent browser cache stay in ignored
 
 ## Interface and publication
 
-All 38 unit/data checks and 16 desktop/mobile browser checks passed, including
+The unit/data and desktop/mobile browser checks cover
 first-visit instructions, daily/archive persistence, the eight-attempt and
 two-custom limits, failed-inference refunds, and accessibility checks. They also
 cover passive highlights, preceding context, seven suggestions plus write-in,
-the day selector's intrinsic width, and stable scrollbar spacing. Actual measured
+the day selector's intrinsic width, and stable scrollbar spacing. They also cover
+focus-triggered model loading with a mocked worker, queued Enter submission,
+Unicode limits, failure refunds, daily result reporting, and clipboard feedback.
+The counter tests use SQLite to check deduplication, concurrent submissions,
+restart persistence, date separation, and invalid requests. Actual measured
 daily puzzles were also played to completion on desktop and mobile.
-Cloudflare's deployment dry run found no backend bindings.
+Only the daily results endpoint runs server code; activation scoring is offline
+or in the player's browser.

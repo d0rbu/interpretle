@@ -267,18 +267,35 @@ export function shareText(game: Game, firstDay: string): string {
   const number =
     game.mode === 'daily' ? dayNumber(game.seed, firstDay) : 'Practice'
   const result = status(game) === 'won' ? game.guesses.length : 'X'
-  const squares = game.guesses
-    .map(({ score, rawMax }) =>
-      rawMax === 0
-        ? '⬜'
-        : score < 50
-          ? '🟨'
-          : score < 95
-            ? '🟧'
-            : score < WIN_SCORE
-              ? '🟩'
-              : '✨',
-    )
-    .join('')
+  const squares = game.guesses.map(({ score }) => scoreEmoji(score)).join('')
   return `interpretle ${number} · ${result}/${MAX_GUESSES}\n${squares}\nhttps://interpretle.com`
+}
+
+export function scoreEmoji(score: number) {
+  if (score <= 50) return '⬜'
+  if (score < 90) return '🟥'
+  if (score < 95) return '🟧'
+  if (score < 99) return '🟨'
+  if (score < WIN_SCORE) return '🟩'
+  return '✨'
+}
+
+export function scoreColor(score: number) {
+  const stops = [
+    [50, [255, 255, 255]],
+    [90, [221, 91, 80]],
+    [95, [233, 139, 50]],
+    [99, [226, 207, 55]],
+    [WIN_SCORE, [77, 152, 97]],
+  ] as const
+  if (score <= 50) return 'rgb(255, 255, 255)'
+  for (let i = 1; i < stops.length; i++) {
+    const [low, from] = stops[i - 1],
+      [high, to] = stops[i]
+    if (score <= high) {
+      const fraction = (score - low) / (high - low)
+      return `rgb(${from.map((value, channel) => Math.round(value + fraction * (to[channel] - value))).join(', ')})`
+    }
+  }
+  return 'rgb(77, 152, 97)'
 }

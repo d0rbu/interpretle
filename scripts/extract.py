@@ -17,11 +17,9 @@ from safetensors import safe_open
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-MODEL = "google/gemma-4-E4B"
-REVISION = "411aa17b749aa952df1359d2dcea73917a544d9a"
-SAE = "decoderesearch/gemma-4-saes"
-SAE_REVISION = "bb8e6b333def5cf2667f2cd4b9e67258dae7029b"
-SAE_ID = "gemma-4-e4b/btk-mat-layer-21-k-100"
+CONFIG = json.loads((Path(__file__).resolve().parents[1] / 'data/model.json').read_text())
+MODEL, REVISION = CONFIG['model'], CONFIG['model_revision']
+SAE, SAE_REVISION, SAE_ID = CONFIG['sae'], CONFIG['sae_revision'], CONFIG['sae_id']
 
 
 def load_scorer(feature_count=2048):

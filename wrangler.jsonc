@@ -1,10 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "interpretle",
+  "main": "server/results.ts",
   "compatibility_date": "2026-10-16",
   "routes": [{ "pattern": "interpretle.com", "custom_domain": true }],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
   },
+  "durable_objects": {
+    "bindings": [{ "name": "RESULTS", "class_name": "DailyResults" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DailyResults"] }],
 }

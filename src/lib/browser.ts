@@ -1,6 +1,6 @@
 import type { Catalog, Feature, TokenActivation } from './types'
 
-type Progress = (message: string) => void
+type Progress = (message: string, fraction?: number) => void
 let worker: Worker | undefined
 let running = false
 let ready = false
@@ -40,7 +40,7 @@ function run<T>(
       )
     }
     current.onmessage = ({ data }) => {
-      if (data.progress) progress(data.progress)
+      if (data.progress) progress(data.progress, data.fraction)
       else {
         finish()
         if (data.error) {

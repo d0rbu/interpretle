@@ -1,3 +1,5 @@
+import { useId } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { Feature, TokenActivation } from '../lib/types'
 
 // Some Unicode characters span several tokenizer tokens. Merge overlapping
@@ -38,31 +40,62 @@ export default function Heatmap({
 }: {
   text: string
   tokens: TokenActivation[]
-  feature: Feature
+  feature?: Feature
   before?: string
 }) {
-  const highlighted = segments(text, tokens).map((part, index) => {
-    if (!part.tokens.length) return part.text
+  const id = useId()
+  const parts = segments(text, tokens)
+  const highlighted: ReactNode[] = []
+  let word: ReactNode[] = []
+  const finishWord = () => {
+    if (word.length)
+      highlighted.push(
+        <span className="passage-word" key={`word-${highlighted.length}`}>
+          {word}
+        </span>,
+      )
+    word = []
+  }
+  parts.forEach((part, index) => {
     const activation = Math.max(...part.tokens.map((token) => token.activation))
-    return (
-      <span
-        key={index}
-        className="token"
-        style={{
-          backgroundColor:
-            activation > 0
-              ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
-              : 'transparent',
-        }}
-      >
-        {part.text}
-      </span>
-    )
+    let content = part.text
+    if (!feature && before === undefined) {
+      if (index === 0) content = content.replace(/^\n+/, '')
+      if (index === parts.length - 1) content = content.replace(/\n+$/, '')
+    }
+    // Keep words together and whitespace outside moving snapshots: an inline
+    // token spanning a line break otherwise stretches during the transition.
+    for (const [piece, value] of (content.match(/\s+|\S+/g) ?? []).entries()) {
+      const space = /^\s+$/.test(value)
+      const node = (
+        <span
+          key={`${index}-${piece}`}
+          className={`${feature && part.tokens.length ? 'token' : 'passage-token'}${space ? ' token-space' : ''}`}
+          style={
+            {
+              '--flow-name': `passage-${id.replace(/[^a-zA-Z0-9_-]/g, '')}-${index}-${piece}`,
+              backgroundColor:
+                feature && activation > 0
+                  ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
+                  : 'transparent',
+            } as CSSProperties
+          }
+        >
+          {value}
+        </span>
+      )
+      if (space) {
+        finishWord()
+        highlighted.push(node)
+      } else word.push(node)
+    }
   })
+  finishWord()
+  const Tag = feature ? 'p' : 'span'
   return (
-    <p className="heatmap-text">
+    <Tag className={feature ? 'heatmap-text' : 'passage-text'}>
       {before}
       {before === undefined ? highlighted : <strong>{highlighted}</strong>}
-    </p>
+    </Tag>
   )
 }

@@ -54,12 +54,18 @@ export async function cachedFile(cache: Cache, url: string, hash?: string) {
 export async function downloadWeights(
   cache: Cache,
   source: WeightSource,
-  progress: (message: string) => void,
+  progress: (message: string, fraction?: number) => void,
 ) {
   const saved = new Set((await cache.keys()).map((request) => request.url))
   const missing = source.chunks.filter((chunk) => !saved.has(key(chunk)))
   const total = source.chunks.reduce((sum, chunk) => sum + chunk.bytes, 0)
   let done = total - missing.reduce((sum, chunk) => sum + chunk.bytes, 0)
+  const report = () =>
+    progress(
+      `Downloading model: ${(done / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB`,
+      total ? done / total : 1,
+    )
+  report()
   // Modern Chrome deliberately caps the reported quota estimate at usage +
   // 10 GiB. It is not the actual limit; handle real storage failures below.
   let cursor = 0,
@@ -86,9 +92,7 @@ export async function downloadWeights(
           // CacheStorage does not accept HTTP 206; save verified bytes as a local 200 response.
           await cache.put(key(chunk), new Response(data))
           done += data.byteLength
-          progress(
-            `Downloading model: ${(done / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB`,
-          )
+          report()
         } catch (error) {
           failed = true
           if (

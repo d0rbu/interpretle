@@ -1,0 +1,7 @@
+{
+  "model": "google/gemma-4-E4B",
+  "model_revision": "411aa17b749aa952df1359d2dcea73917a544d9a",
+  "sae": "decoderesearch/gemma-4-saes",
+  "sae_revision": "bb8e6b333def5cf2667f2cd4b9e67258dae7029b",
+  "sae_id": "gemma-4-e4b/btk-mat-layer-21-k-100"
+}

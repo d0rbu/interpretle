@@ -6,8 +6,13 @@ with at most two custom sentences. A highlighted passage near the median is your
 free starting clue. Daily puzzles roll over at midnight UTC; the day dropdown
 opens the archive. Practice keeps separate progress.
 
-The backend is **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
-There is no inference endpoint, database, account system, or application server.
+The game is served as **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
+The only backend is [a small daily solve counter](server/results.ts): one
+Cloudflare Durable Object per puzzle day, with eight aggregate counts and random
+submission IDs to avoid counting reloads twice. It stores no text or scores and
+does no inference. Results are browser-reported, not a verified leaderboard.
+The counter begins collecting when deployed; older saved solves are included
+when those players return. Practice does not contribute to daily counts.
 
 ## Develop and deploy
 
@@ -26,10 +31,12 @@ npm run deploy:check
 ```
 
 After authenticating your Cloudflare account, `npm run build` followed by
-`npx wrangler deploy` publishes the static site to `interpretle.com`. Credentials
+`npx wrangler deploy` publishes the site and its counter to `interpretle.com`. Credentials
 stay outside this repository. GitHub Actions runs checks; deployment is manual.
 Keep the `no-transform` response header, which prevents automatic analytics
-injection. Game progress and custom text stay in the player's browser.
+injection. Game progress and custom text stay in the player's browser; only a
+per-puzzle random ID and number of attempts are sent when a daily puzzle is solved.
+To run the counter locally, build the site and run `npx wrangler dev`.
 
 ## Scores
 
@@ -42,7 +49,9 @@ published in [the data provenance](public/puzzles/provenance.json).
 The model reads each complete source document. We then split its stored token
 activations into displayed passages. Only a passage's own tokens contribute to
 its heatmap and maximum. The chevron reveals up to 64 preceding model tokens,
-without additional scores. Suggested passages favor two or three sentences,
+without additional scores. The passage moves into its expanded position and
+becomes bold; devices requesting reduced motion skip the animation.
+Suggested passages favor two or three sentences,
 with a maximum of 80 model tokens; seven suggestions are followed by a write-in
 card. For a positive maximum `a`, the percentile is
 `100 × count(reference < a) / N`, where
@@ -53,7 +62,8 @@ always calculated from actual activations.
 
 Daily targets are curated SAE features. Practice can also use positive residual
 coordinates (`max(0, hidden[index])`) at the same hook. The feature description is
-revealed when the game ends. Data and answers are inspectable in this static
+revealed when the game ends, with optional model and SAE details after a solve.
+Data and answers are inspectable in this static
 game; it does not attempt to prevent cheating.
 
 The initial library has 14 curated SAE features and one experimental coordinate.
@@ -61,8 +71,11 @@ The daily catalog rotates these targets; practice uses a fresh passage order.
 
 ## Custom sentences
 
-Custom scoring is opt-in WebGPU inference on the player's device. The first use
-downloads the model prefix, 11.2 GB, and caches it in browser storage.
+Custom scoring is WebGPU inference on the player's device. Focusing the write-in
+card automatically downloads and loads the model prefix, 11.2 GB on first use,
+and caches it in browser storage. Type directly into the card; Enter submits and
+Shift+Enter adds a newline. Enter during loading waits for the model to be ready.
+Download and inference progress appear inside the card, beside a Cancel button.
 It needs a compatible GPU with FP16 support and enough storage. Loading,
 cancelled runs, unsupported devices, and failed inference do not consume an
 attempt. The passage game works without downloading any model.

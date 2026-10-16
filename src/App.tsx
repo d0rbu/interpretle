@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import Heatmap from './components/Heatmap'
+import Outcome from './components/Outcome'
 import { loadCatalog, loadFeature } from './data/puzzles'
 import {
   browserModelReady,
@@ -10,6 +12,7 @@ import {
 import {
   MAX_CUSTOM_LENGTH,
   MAX_GUESSES,
+  WIN_SCORE,
   bestScore,
   choices,
   createGame,
@@ -22,8 +25,8 @@ import {
   playPassage,
   restoreGame,
   scoreLabel,
+  scoreColor,
   serializeGame,
-  shareText,
   status,
   storageKey,
   utcDay,
@@ -95,15 +98,6 @@ function Chevron() {
   )
 }
 
-function guessColor(score: number) {
-  if (score <= 50) return '#dd5b50'
-  if (score < 90) return '#e98b32'
-  if (score < 95) return '#efb839'
-  if (score < 99) return '#e2cf37'
-  if (score < 99.9) return '#a9c64b'
-  return '#4d9861'
-}
-
 function PassageContent({
   passage,
   label,
@@ -116,6 +110,33 @@ function PassageContent({
   children: (before: string | undefined) => ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)
+  const transition = useRef<ViewTransition | null>(null)
+  function toggle(event: MouseEvent<HTMLButtonElement>) {
+    const container = event.currentTarget.closest(
+      '.choice, .result, .history li',
+    )
+    if (
+      !container ||
+      !document.startViewTransition ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setExpanded(!expanded)
+      return
+    }
+    transition.current?.skipTransition()
+    container.classList.add('context-motion')
+    const motion = document.startViewTransition(() => {
+      flushSync(() => setExpanded((value) => !value))
+    })
+    transition.current = motion
+    const finish = () => {
+      if (transition.current === motion) {
+        container.classList.remove('context-motion')
+        transition.current = null
+      }
+    }
+    void motion.finished.then(finish, finish)
+  }
   return (
     <>
       <div className="result-heading">
@@ -134,7 +155,7 @@ function PassageContent({
                 expanded ? 'Hide preceding context' : 'Show preceding context'
               }
               aria-expanded={expanded}
-              onClick={() => setExpanded(!expanded)}
+              onClick={toggle}
             >
               <Chevron />
             </button>
@@ -189,15 +210,16 @@ function Board({
     const initial = createGame(mode, seed, feature.id)
     return restoreGame(stored(storageKey(initial)), initial, feature)
   })
-  const [custom, setCustom] = useState(false)
   const [text, setText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [busy, setBusy] = useState('')
+  const [progress, setProgress] = useState<number>()
   const [error, setError] = useState('')
   const [saveWarning, setSaveWarning] = useState(false)
   const [announcement, setAnnouncement] = useState('')
-  const [shareFallback, setShareFallback] = useState('')
-  const [localReady, setLocalReady] = useState(browserModelReady)
+  const [celebrate, setCelebrate] = useState(false)
   const controller = useRef<AbortController | null>(null)
+  const loading = useRef<Promise<boolean> | null>(null)
   const phase = status(game)
   const cards = choices(game, feature)
   const best = bestScore(game)
@@ -206,33 +228,47 @@ function Board({
   }, [game])
   useEffect(() => () => controller.current?.abort(), [])
 
-  async function loadModel() {
-    if (busy || !catalog.browserModel) return
-    setError('')
-    setBusy('Preparing the local model…')
-    controller.current = new AbortController()
-    try {
-      await prepareBrowserModel(
-        catalog.browserModel,
-        setBusy,
-        controller.current.signal,
-      )
-      setLocalReady(true)
-    } catch (cause) {
-      setLocalReady(false)
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'The model could not be loaded. No attempt was used.',
-      )
-    } finally {
-      setBusy('')
-      controller.current = null
+  function reportProgress(message: string, fraction?: number) {
+    setBusy(message)
+    setProgress(fraction)
+  }
+
+  function loadModel() {
+    if (browserModelReady()) return Promise.resolve(true)
+    if (loading.current) return loading.current
+    const model = catalog.browserModel
+    if (!model) {
+      setError('Custom scoring is unavailable.')
+      return Promise.resolve(false)
     }
+    setError('')
+    reportProgress('Loading…')
+    controller.current = new AbortController()
+    const signal = controller.current.signal
+    loading.current = Promise.resolve()
+      .then(() => prepareBrowserModel(model, reportProgress, signal))
+      .then(
+        () => true,
+        (cause) => {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : 'The model could not be loaded. No attempt was used.',
+          )
+          return false
+        },
+      )
+      .finally(() => {
+        setBusy('')
+        controller.current = null
+        loading.current = null
+      })
+    return loading.current
   }
 
   async function submit(passageId?: string) {
-    if (busy) return
+    if (submitting || (passageId && busy)) return
+    if (!passageId && !text.trim()) return
     setError('')
     try {
       let next: Game
@@ -244,46 +280,38 @@ function Board({
           throw new Error(
             'The local model is not available yet. Stored passages are ready to play.',
           )
-        if (!localReady)
-          throw new Error('Load the local model first. No attempt was used.')
-        setBusy('Scoring locally…')
+        setSubmitting(true)
+        if (!(await loadModel())) return
+        reportProgress('Scoring locally…')
         controller.current = new AbortController()
         const tokens = await scoreInBrowser(
           input,
           feature,
           catalog.browserModel,
-          setBusy,
+          reportProgress,
           controller.current.signal,
         )
         next = playCustom(game, feature, input, tokens)
       }
       setGame(next)
+      setCelebrate(status(next) === 'won')
       setText('')
-      setCustom(false)
       const guess = next.guesses.at(-1)!
       setAnnouncement(
         `Attempt ${next.guesses.length}: ${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${MAX_GUESSES - next.guesses.length} attempts left.`}`,
       )
     } catch (cause) {
-      setLocalReady(browserModelReady())
       setError(
         cause instanceof Error
           ? cause.message
           : 'Scoring failed. No attempt was used.',
       )
     } finally {
-      setBusy('')
-      controller.current = null
-    }
-  }
-
-  async function share() {
-    const result = shareText(game, catalog.firstDay)
-    try {
-      await navigator.clipboard.writeText(result)
-      setAnnouncement('Result copied.')
-    } catch {
-      setShareFallback(result)
+      setSubmitting(false)
+      if (!loading.current) {
+        setBusy('')
+        controller.current = null
+      }
     }
   }
 
@@ -300,7 +328,7 @@ function Board({
         </span>
         {mode === 'practice' && (
           <button
-            className="text-button"
+            className="new-puzzle"
             onClick={newPractice}
             disabled={!!busy}
           >
@@ -327,10 +355,17 @@ function Board({
                   <>
                     Guess {index + 1}
                     <span
-                      className="guess-color"
+                      className={`guess-color${guess.score >= WIN_SCORE ? ' sparkle' : ''}`}
                       aria-hidden="true"
-                      style={{ backgroundColor: guessColor(guess.score) }}
-                    />
+                      style={{
+                        backgroundColor:
+                          guess.score < WIN_SCORE
+                            ? scoreColor(guess.score)
+                            : undefined,
+                      }}
+                    >
+                      {guess.score >= WIN_SCORE ? '✨' : null}
+                    </span>
                   </>
                 }
                 score={guess}
@@ -370,70 +405,71 @@ function Board({
                       disabled={!!busy}
                       onClick={() => submit(passage.id)}
                     >
-                      {before === undefined ? (
-                        passage.text.replace(/^\n+|\n+$/g, '')
-                      ) : (
-                        <>
-                          {before}
-                          <strong>{passage.text}</strong>
-                        </>
-                      )}
+                      <Heatmap
+                        text={passage.text}
+                        tokens={passage.tokens}
+                        before={before}
+                      />
                     </button>
                   )}
                 </PassageContent>
               </article>
             ))}
-            <article className={`choice write-in${custom ? ' selected' : ''}`}>
-              {custom ? (
-                <div className="custom-input">
-                  <label htmlFor="custom-passage">Your sentence</label>
-                  <textarea
-                    id="custom-passage"
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                    rows={3}
-                    disabled={!!busy}
-                    autoFocus
-                    aria-describedby="custom-note"
-                  />
-                  <p id="custom-note">
-                    {catalog.browserModel
-                      ? `Scored locally with WebGPU. First use downloads ${(catalog.browserModel.bytes / 1e9).toFixed(1)} GB; later attempts use the cached model.`
-                      : 'Custom scoring is unavailable until the browser model is ready. Suggested passages use measured activations.'}{' '}
-                    {Array.from(text).length}/{MAX_CUSTOM_LENGTH} characters.
-                  </p>
-                  {catalog.browserModel && !localReady && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={loadModel}
-                      disabled={!!busy}
-                    >
-                      Download &amp; load local model
-                    </button>
+            <article className="choice write-in">
+              <textarea
+                aria-label="Your sentence"
+                aria-description="Enter to submit. Shift+Enter for a new line."
+                aria-describedby={text ? 'custom-count' : undefined}
+                placeholder={`Write your own (${customRemaining(game)} left)`}
+                value={text}
+                onChange={(event) =>
+                  setText(
+                    Array.from(event.target.value)
+                      .slice(0, MAX_CUSTOM_LENGTH)
+                      .join(''),
+                  )
+                }
+                onFocus={() => void loadModel()}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault()
+                    void submit()
+                  }
+                }}
+                rows={3}
+                enterKeyHint="send"
+                readOnly={submitting}
+                disabled={customRemaining(game) === 0}
+              />
+              {(text || busy) && (
+                <div className="write-in-footer">
+                  {busy && (
+                    <>
+                      <progress
+                        aria-label={busy}
+                        title={busy}
+                        value={progress}
+                        max={1}
+                      />
+                      <button
+                        type="button"
+                        className="cancel-model"
+                        onClick={() => controller.current?.abort()}
+                      >
+                        Cancel
+                      </button>
+                    </>
                   )}
-                  {localReady && <p className="notice">Local model ready.</p>}
-                  <button
-                    type="submit"
-                    className="primary"
-                    disabled={!!busy || !text.trim() || !localReady}
-                  >
-                    Submit
-                  </button>
+                  {text && (
+                    <span id="custom-count" className="character-count">
+                      {Array.from(text).length}/{MAX_CUSTOM_LENGTH}
+                    </span>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  className="write-in-select"
-                  disabled={!!busy || customRemaining(game) === 0}
-                  onClick={() => {
-                    setCustom(true)
-                    setError('')
-                  }}
-                >
-                  <strong>Write your own</strong>{' '}
-                  <span>({customRemaining(game)} left)</span>
-                </button>
               )}
             </article>
           </div>
@@ -442,41 +478,14 @@ function Board({
               {error}
             </p>
           )}
-          {busy && (
-            <p className="notice" role="status">
-              {busy}{' '}
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => controller.current?.abort()}
-              >
-                Cancel
-              </button>
-            </p>
-          )}
         </form>
       ) : (
-        <section className="reveal">
-          <h2>{phase === 'won' ? 'Solved.' : 'Out of attempts.'}</h2>
-          <p>
-            <strong>{feature.title}</strong> — {feature.description}
-          </p>
-          <p className="target-id">
-            Gemma 4 E4B · layer 21 ·{' '}
-            {feature.kind === 'sae' ? 'SAE feature' : 'residual coordinate'}{' '}
-            {feature.index}
-          </p>
-          <button className="primary" onClick={share}>
-            Share result
-          </button>
-          {shareFallback && (
-            <textarea
-              aria-label="Copy your result"
-              readOnly
-              value={shareFallback}
-            />
-          )}
-        </section>
+        <Outcome
+          game={game}
+          feature={feature}
+          firstDay={catalog.firstDay}
+          celebrate={celebrate}
+        />
       )}
       <p className="sr-only" role="status" aria-live="polite">
         {announcement}

@@ -4,6 +4,18 @@ import { catalog, feature } from './fixture'
 import { choices, createGame } from '../src/lib/game'
 
 test.beforeEach(async ({ page }) => {
+  const reported = new Set<string>()
+  const counts = Array<number>(8).fill(0)
+  await page.route('**/api/results/**', (route) => {
+    if (route.request().method() === 'POST') {
+      const { id, attempts } = route.request().postDataJSON()
+      if (!reported.has(id)) {
+        reported.add(id)
+        counts[attempts - 1]++
+      }
+    }
+    return route.fulfill({ json: { counts } })
+  })
   await page.clock.install({ time: new Date('2026-10-18T12:00:00Z') })
   await page.route('**/puzzles/index.json', (route) =>
     route.fulfill({ json: catalog }),
@@ -39,9 +51,9 @@ test('opens instructions once and shows a compact dated header', async ({
   ).toBeVisible()
   await expect(page.locator('.choices article')).toHaveCount(8)
   await expect(page.locator('.passage-select')).toHaveCount(7)
-  await expect(page.locator('.choices article').last()).toContainText(
-    'Write your own',
-  )
+  await expect(
+    page.locator('.choices article').last().getByRole('textbox'),
+  ).toHaveAttribute('placeholder', 'Write your own (2 left)')
   await expect(page.locator('.game-status')).toContainText('Best: 0%')
   await expect(page.getByRole('button', { name: 'Test passage' })).toHaveCount(
     0,
@@ -97,7 +109,7 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await expect(page.locator('.history')).toContainText('90th percentile')
   await expect(page.locator('.history button.token')).toHaveCount(0)
   await expect(page.locator('.history .token[tabindex]')).toHaveCount(0)
-  await expect(page.locator('.history .token')).toHaveCSS(
+  await expect(page.locator('.history .token').first()).toHaveCSS(
     'background-color',
     /rgba?\(/,
   )
@@ -111,9 +123,11 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await expect(page.locator('.history .heatmap-text strong')).toHaveText(
     card.text,
   )
-  await expect(page.locator('.history strong .token')).toHaveCount(1)
+  expect(
+    (await page.locator('.history strong .token').allTextContents()).join(''),
+  ).toBe(card.text)
   await expect(page.locator('.history .heatmap-text > .token')).toHaveCount(0)
-  await expect(page.locator('.history strong .token')).toHaveCSS(
+  await expect(page.locator('.history strong .token').first()).toHaveCSS(
     'background-color',
     /rgba?\(/,
   )
@@ -255,7 +269,7 @@ test('has no serious accessibility violations in instructions or play', async ({
   }
 })
 
-test('wins from measured passages and shares a spoiler-free result', async ({
+test('celebrates a solve, shows daily counts and optional details, and confirms copying', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
@@ -268,6 +282,43 @@ test('wins from measured passages and shares a spoiler-free result', async ({
   }
   await expect(page.getByRole('heading', { name: 'Solved.' })).toBeVisible()
   await expect(page.locator('.reveal')).toContainText(feature.title)
+  await expect(page.locator('.celebration span')).toHaveCount(36)
+  await expect(page.locator('.history .guess-color').last()).toHaveText('✨')
+  await expect(page.locator('.guess-color').first()).toHaveCSS('width', '22px')
+  await expect(page.locator('.guess-color').first()).toHaveCSS(
+    'border-radius',
+    '5px',
+  )
+  await expect(page.locator('.distribution li')).toHaveCount(8)
+  await expect(page.locator('.distribution .your-result')).toHaveAttribute(
+    'aria-label',
+    '2 guesses: 1 solve, your result',
+  )
+  await expect(
+    page.getByRole('link', { name: 'Gemma 4 E4B', exact: true }),
+  ).not.toBeVisible()
+  await page.getByText('Concept details', { exact: true }).click()
+  await expect(
+    page.getByRole('link', { name: 'Gemma 4 E4B', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Open in Neuronpedia' }),
+  ).toHaveAttribute(
+    'href',
+    'https://www.neuronpedia.org/gemma-4-e4b/21-matryoshka-res-65k/42',
+  )
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.resolve() },
+    }),
+  )
+  await page.getByRole('button', { name: 'Share result' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Copied to clipboard' }),
+  ).toHaveCSS('background-color', 'rgb(222, 237, 216)')
+  await page.clock.fastForward(3100)
+  await expect(page.getByRole('button', { name: 'Share result' })).toBeVisible()
   await page.evaluate(() =>
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: () => Promise.reject(new Error('unavailable')) },
@@ -278,10 +329,25 @@ test('wins from measured passages and shares a spoiler-free result', async ({
     .getByRole('textbox', { name: 'Copy your result' })
     .inputValue()
   expect(result).toContain('interpretle 3 · 2/8')
+  expect(result).toContain('🟩✨')
   expect(result).not.toContain(feature.title)
+  await page.reload()
+  await expect(page.locator('.distribution .your-result')).toHaveAttribute(
+    'aria-label',
+    '2 guesses: 1 solve, your result',
+  )
+  await expect(page.locator('.celebration')).toHaveCount(0)
+  const accessibility = await new AxeBuilder({ page })
+    .include('.reveal')
+    .analyze()
+  expect(
+    accessibility.violations.filter((v) =>
+      ['serious', 'critical'].includes(v.impact ?? ''),
+    ),
+  ).toEqual([])
 })
 
-test('requires download opt-in and charges only successful custom guesses', async ({
+test('loads on write-in focus, queues Enter, and charges only successful custom guesses', async ({
   page,
 }) => {
   await page.route('**/puzzles/index.json', (route) =>
@@ -294,16 +360,31 @@ test('requires download opt-in and charges only successful custom guesses', asyn
   )
   await page.addInitScript(() => {
     let submissions = 0
+    let pending: TestWorker | undefined
+    const modelTest = {
+      messages: [] as string[],
+      ready() {
+        pending?.onmessage?.({ data: { result: null } })
+        pending = undefined
+      },
+    }
+    Object.assign(window, { modelTest })
     // Only the worker is replaced here: this exercises the actual UI's async
     // accounting without downloading a GPU model in routine CI.
     class TestWorker {
       onmessage: ((event: { data: object }) => void) | null = null
       onerror = null
       postMessage(message: { type: string; text: string }) {
+        modelTest.messages.push(message.type)
+        if (message.type === 'prepare') {
+          pending = this
+          this.onmessage?.({
+            data: { progress: 'Downloading model…', fraction: 0.25 },
+          })
+          return
+        }
         queueMicrotask(() => {
-          if (message.type === 'prepare')
-            this.onmessage?.({ data: { result: null } })
-          else if (submissions++ === 0)
+          if (submissions++ === 0)
             this.onmessage?.({
               data: { error: 'A test inference failure. No attempt was used.' },
             })
@@ -328,31 +409,88 @@ test('requires download opt-in and charges only successful custom guesses', asyn
   })
   await page.reload()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
-  await page.getByRole('button', { name: 'Write your own (2 left)' }).click()
-  await page
-    .getByLabel('Your sentence', { exact: true })
-    .fill('A custom sentence.')
+  const messages = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { modelTest: { messages: string[] } }).modelTest
+          .messages,
+    )
+  const ready = () =>
+    page.evaluate(() =>
+      (window as unknown as { modelTest: { ready(): void } }).modelTest.ready(),
+    )
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  expect(await messages()).toEqual([])
+  await expect(page.locator('.write-in button')).toHaveCount(0)
+  await expect(page.locator('.character-count')).toHaveCount(0)
+  await expect(page.getByText('Scored locally with WebGPU')).toHaveCount(0)
+  await input.focus()
+  await expect.poll(messages).toEqual(['prepare'])
+  await expect(page.locator('.write-in progress')).toHaveAttribute(
+    'value',
+    '0.25',
+  )
   await expect(
-    page.getByRole('button', { name: 'Submit', exact: true }),
-  ).toBeDisabled()
+    page.getByText('Downloading model…', { exact: true }),
+  ).toHaveCount(0)
   await page
-    .getByRole('button', { name: 'Download & load local model' })
+    .locator('.write-in')
+    .getByRole('button', { name: 'Cancel', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText(
+    'Cancelled. No attempt was used.',
+  )
+  await expect(page.locator('.write-in progress')).toHaveCount(0)
+  await input.focus()
+  await expect.poll(messages).toEqual(['prepare', 'prepare'])
+  await input.press('Enter')
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
+  await input.fill('😀'.repeat(281))
+  await expect(page.locator('.character-count')).toHaveText('280/280')
+  expect(Array.from(await input.inputValue())).toHaveLength(280)
+  await input.fill('A custom sentence.')
+  await expect(page.locator('.character-count')).toHaveText('18/280')
+  await input.blur()
+  await input.focus()
+  expect(await messages()).toEqual(['prepare', 'prepare'])
+  await input.press('Enter')
+  await expect(input).toHaveAttribute('readonly', '')
+  expect(await messages()).toEqual(['prepare', 'prepare'])
+  await ready()
   await expect(page.getByRole('alert')).toContainText('No attempt was used.')
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 8')
-  await page
-    .getByRole('button', { name: 'Download & load local model' })
-    .click()
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
+  await input.press('Enter')
+  await expect
+    .poll(messages)
+    .toEqual(['prepare', 'prepare', 'score', 'prepare'])
+  await ready()
   await expect(page.locator('.game-status')).toContainText('Attempt 2 of 8')
-  await page.getByRole('button', { name: 'Write your own (1 left)' }).click()
-  await page
-    .getByLabel('Your sentence', { exact: true })
-    .fill('A second custom sentence.')
-  await page.getByRole('button', { name: 'Submit', exact: true }).click()
+  await expect(page.locator('.character-count')).toHaveCount(0)
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (1 left)')
+  await input.fill('A second')
+  await input.press('End')
+  await input.press('Shift+Enter')
+  await input.pressSequentially('custom sentence.')
+  await expect(input).toHaveValue('A second\ncustom sentence.')
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 8')
+  await input.dispatchEvent('keydown', {
+    key: 'Enter',
+    isComposing: true,
+    bubbles: true,
+  })
+  expect(await messages()).toEqual([
+    'prepare',
+    'prepare',
+    'score',
+    'prepare',
+    'score',
+  ])
+  await input.press('Enter')
   await expect(page.locator('.game-status')).toContainText('Attempt 3 of 8')
-  await expect(
-    page.getByRole('button', { name: 'Write your own (0 left)' }),
-  ).toBeDisabled()
+  await expect(input).toBeDisabled()
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (0 left)')
 })

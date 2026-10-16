@@ -14,7 +14,9 @@ import {
   playPassage,
   restoreGame,
   scoreLabel,
+  scoreEmoji,
   serializeGame,
+  shareText,
   status,
   utcDay,
 } from './game'
@@ -180,6 +182,39 @@ describe('measured game', () => {
 })
 
 describe('scoring and display', () => {
+  it('uses the requested emoji bands, including their exact boundaries', () => {
+    expect(
+      [0, 50, 50.01, 89.99, 90, 94.99, 95, 98.99, 99, 99.899, 99.9, 100].map(
+        scoreEmoji,
+      ),
+    ).toEqual([
+      '⬜',
+      '⬜',
+      '🟥',
+      '🟥',
+      '🟧',
+      '🟧',
+      '🟨',
+      '🟨',
+      '🟩',
+      '🟩',
+      '✨',
+      '✨',
+    ])
+    const game = {
+      ...initial(),
+      guesses: [45.98, 94.57, 88.1, 99.98].map((score) => ({
+        kind: 'passage' as const,
+        text: '',
+        tokens: [],
+        rawMax: 1,
+        score,
+      })),
+    }
+    expect(shareText(game, '2026-10-16')).toBe(
+      'interpretle 3 · 4/8\n⬜🟧🟥✨\nhttps://interpretle.com',
+    )
+  })
   it('excludes zero from the reference and uses strict lower ranks for ties', () => {
     const reference = calibration([0, 0, 1, 2, 2, 4])
     expect(reference.positiveCount).toBe(4)

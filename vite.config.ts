@@ -8,5 +8,5 @@ export default defineConfig({
     include: ['@huggingface/tokenizers', 'onnxruntime-web/webgpu'],
   },
   server: { watch: { ignored: ['**/.venv/**', '**/artifacts/**'] } },
-  test: { include: ['src/**/*.test.ts'] },
+  test: { include: ['src/**/*.test.ts', 'server/**/*.test.ts'] },
 })
