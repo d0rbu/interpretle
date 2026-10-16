@@ -1,0 +1,12 @@
+# Offline extraction/export only; never installed on the static web host.
+torch==2.13.0
+transformers==5.14.1
+accelerate==1.12.0
+huggingface-hub==1.33.0
+safetensors==0.8.0
+numpy==2.5.4
+datasets==5.1.0
+pyarrow==26.0.0
+onnx==1.23.2
+sae-lens==6.42.0
+transformer-lens==3.0.0

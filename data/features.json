@@ -1,0 +1,98 @@
+[
+  {
+    "kind": "sae",
+    "index": 678,
+    "clue": "reference:4050128:1-45",
+    "title": "Colors",
+    "description": "Many strong examples highlight color words such as yellow, orange, and purple, often describing an object in a story."
+  },
+  {
+    "kind": "sae",
+    "index": 58,
+    "clue": "chat:c6a73c2b-8065-423a-a4d6-71282f2793be:192-205",
+    "title": "Stronger comparisons",
+    "description": "Comparative words such as better, greater, higher, and bigger stand out, especially after intensifiers such as much."
+  },
+  {
+    "kind": "sae",
+    "index": 959,
+    "title": "Months in dates",
+    "description": "Month names activate strongly in descriptions of when an event happened."
+  },
+  {
+    "kind": "sae",
+    "index": 671,
+    "clue": "reference:4053129:461-509",
+    "title": "U.S. states",
+    "description": "State names such as Wisconsin, Arkansas, Missouri, and Illinois stand out in place descriptions."
+  },
+  {
+    "kind": "sae",
+    "index": 327,
+    "clue": "reference:4052996:1-62",
+    "title": "Pleasure and enthusiasm",
+    "description": "Words such as pleased, excited, loved, and love frequently receive strong activations."
+  },
+  {
+    "kind": "sae",
+    "index": 196,
+    "title": "Object references in code",
+    "description": "Strong examples often highlight self in Python classes and instance attributes. Other programming constructs can activate it too."
+  },
+  {
+    "kind": "sae",
+    "index": 859,
+    "clue": "chat:e6357edc-3c2e-4bb1-8b84-50957ae251be:153-208",
+    "title": "Chemical substances",
+    "description": "Names of elements and compounds, including lead, titanium, chromium, and boric acid, are prominent in strong examples."
+  },
+  {
+    "kind": "sae",
+    "index": 114,
+    "title": "Parties and meetings",
+    "description": "Gatherings that people attend, especially parties and meetings, appear repeatedly among the strongest examples."
+  },
+  {
+    "kind": "sae",
+    "index": 900,
+    "title": "Parts of the body",
+    "description": "Words for body parts and organs, such as eyes, hands, stomach, heart, and brain, often light up."
+  },
+  {
+    "kind": "sae",
+    "index": 545,
+    "title": "Choices and decisions",
+    "description": "The feature often highlights choice and decision when describing options or actions people decide to take."
+  },
+  {
+    "kind": "sae",
+    "index": 200,
+    "title": "Code indentation",
+    "description": "Runs of spaces used to indent code are especially strong examples. Whitespace is a model token too."
+  },
+  {
+    "kind": "sae",
+    "index": 480,
+    "title": "Measurable quantities",
+    "description": "Words naming quantities, such as concentration, frequency, temperature, height, and length, stand out."
+  },
+  {
+    "kind": "sae",
+    "index": 130,
+    "title": "Organisms in biology",
+    "description": "Strong examples discuss organisms and their biology, often highlighting animal, plant, humans, or parts of biological classification words."
+  },
+  {
+    "kind": "sae",
+    "index": 127,
+    "clue": "chat:8b77ea67-ad53-4822-883d-27ccd81825ad:1-51",
+    "title": "Contributing and helping",
+    "description": "Words such as contribute, help, and aid often activate when something has an effect on a larger outcome."
+  },
+  {
+    "kind": "neuron",
+    "index": 320,
+    "title": "Residual coordinate 320",
+    "description": "An experimental target: the positive value of coordinate 320 after layer 21. A single residual coordinate can mix several patterns, so it has no curated semantic label."
+  }
+]

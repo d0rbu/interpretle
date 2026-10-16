@@ -1,0 +1,301 @@
+{
+  "extraction": {
+    "model": "google/gemma-4-E4B",
+    "model_revision": "411aa17b749aa952df1359d2dcea73917a544d9a",
+    "sae": "decoderesearch/gemma-4-saes",
+    "sae_revision": "bb8e6b333def5cf2667f2cd4b9e67258dae7029b",
+    "sae_id": "gemma-4-e4b/btk-mat-layer-21-k-100",
+    "hook": "model.language_model.layers.21",
+    "dtype": "float16",
+    "sae_dtype": "float32",
+    "features": 2048,
+    "neurons": [
+      100,
+      500,
+      1000,
+      0,
+      160,
+      320,
+      480,
+      640,
+      800,
+      960,
+      1120,
+      1280,
+      1440,
+      1600,
+      1760,
+      1920,
+      2080,
+      2240,
+      2400
+    ],
+    "documents": 12504,
+    "context": "complete-source-document",
+    "bos": 2,
+    "corpus_sha256": "c093b3681f2f0b1e0ef2925f9c6d66ff21b2c5db49edcfceb0f97f2a020ea965",
+    "prefix_parity": "exact against full-model layer-21 hook",
+    "versions": {
+      "torch": "2.13.0+cu130",
+      "transformers": "5.14.1"
+    }
+  },
+  "passages": 86194,
+  "documents_by_source": {
+    "chat": 3531,
+    "reference": 4000,
+    "prose": 4000,
+    "code": 973
+  },
+  "sources": {
+    "chat": {
+      "dataset": "OpenAssistant/oasst1",
+      "revision": "fdf72ae0827c1cda404aff25b6603abec9e3399b",
+      "license": "Apache-2.0"
+    },
+    "reference": {
+      "dataset": "wikimedia/wikipedia",
+      "revision": "b04c8d1ceb2f5cd4588862100d08de323dccfbaa",
+      "license": "CC-BY-SA-3.0"
+    },
+    "prose": {
+      "dataset": "roneneldan/TinyStories",
+      "revision": "f54c09fd23315a6f9c86f9dc80f725de7d8f9c64",
+      "license": "CDLA-Sharing-1.0"
+    },
+    "code": {
+      "dataset": "google-research-datasets/mbpp",
+      "revision": "4bb6404fdc6cacfda99d4ac4205087b89d32030c",
+      "license": "CC-BY-4.0"
+    }
+  },
+  "scoring": "strict lower rank among positive passage maxima in this fixed corpus",
+  "reference_population": "all non-overlapping displayed passages in the selected corpus",
+  "targets": [
+    {
+      "id": "gemma4-l21-sae-678-v1",
+      "positive_passages": 59942,
+      "inactive_passages": 26252,
+      "starter_percentile": 49.96162957525608,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "179467beab517b6dfac0d6606897d6a05c47088fa0e6c12748a6559fcacba923"
+    },
+    {
+      "id": "gemma4-l21-sae-58-v1",
+      "positive_passages": 41594,
+      "inactive_passages": 44600,
+      "starter_percentile": 49.9206616338895,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "839bb794f5232cc7939349a108cd8d85959b214a21fba024b7fee7d93082b334"
+    },
+    {
+      "id": "gemma4-l21-sae-959-v1",
+      "positive_passages": 13497,
+      "inactive_passages": 72697,
+      "starter_percentile": 49.99629547306809,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 13
+      },
+      "sha256": "71ddfcadf63006dd3f86356c0230924f7b5fa752f3fd72430e399421eefd5762"
+    },
+    {
+      "id": "gemma4-l21-sae-671-v1",
+      "positive_passages": 17804,
+      "inactive_passages": 68390,
+      "starter_percentile": 49.921365985171875,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 17
+      },
+      "sha256": "774229f2a107e3c0cddfc61174cec0bb429d3589902f864f30fd26906700a689"
+    },
+    {
+      "id": "gemma4-l21-sae-327-v1",
+      "positive_passages": 34312,
+      "inactive_passages": 51882,
+      "starter_percentile": 49.9533690837025,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "4df5c38ff0262edd41580e0d6020f22b00349a5f6c03598b6f054d4d1960074f"
+    },
+    {
+      "id": "gemma4-l21-sae-196-v1",
+      "positive_passages": 40006,
+      "inactive_passages": 46188,
+      "starter_percentile": 50.0,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "9bfaece6202225a73caf7090f75306fcc6d254563a2e5de85ae5294780204cdb"
+    },
+    {
+      "id": "gemma4-l21-sae-859-v1",
+      "positive_passages": 16986,
+      "inactive_passages": 69208,
+      "starter_percentile": 49.964676792652774,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 12
+      },
+      "sha256": "f7258a6117f218ebd6bcbaf4b3f649ed82dbdbce8f883e8bcd80dbce0b0d967e"
+    },
+    {
+      "id": "gemma4-l21-sae-114-v1",
+      "positive_passages": 41979,
+      "inactive_passages": 44215,
+      "starter_percentile": 49.99880892827366,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "c1a13c38fd32144cd0cd6ff162f733183a362062f3024d163f3e92c456c848f4"
+    },
+    {
+      "id": "gemma4-l21-sae-900-v1",
+      "positive_passages": 49242,
+      "inactive_passages": 36952,
+      "starter_percentile": 50.0,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "53e94efa60e3a3a05a3f3553117b3e96534b13827e7768a34718613d5f71131e"
+    },
+    {
+      "id": "gemma4-l21-sae-545-v1",
+      "positive_passages": 51373,
+      "inactive_passages": 34821,
+      "starter_percentile": 49.999026726101256,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "aa1bb0fc96781ef4790b71e63e9d29c9257c0758bcfa54e8d5beabce3ae4cb93"
+    },
+    {
+      "id": "gemma4-l21-sae-200-v1",
+      "positive_passages": 20485,
+      "inactive_passages": 65709,
+      "starter_percentile": 49.997559189650964,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 17
+      },
+      "sha256": "8fd7610d3b190f5c14a2336866af528c04ec545dbc8e5e98c805d03bc5c29da2"
+    },
+    {
+      "id": "gemma4-l21-sae-480-v1",
+      "positive_passages": 31456,
+      "inactive_passages": 54738,
+      "starter_percentile": 50.0,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "bcec17e65c340c8c21eac14a86e603046f40cd9bd670fa464d9eeceb2a240808"
+    },
+    {
+      "id": "gemma4-l21-sae-130-v1",
+      "positive_passages": 50320,
+      "inactive_passages": 35874,
+      "starter_percentile": 50.0,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "da38759d74a3cf79a0f0ff03e4f80ba00d656850ce7dae568e97fec4def6ff4b"
+    },
+    {
+      "id": "gemma4-l21-sae-127-v1",
+      "positive_passages": 36749,
+      "inactive_passages": 49445,
+      "starter_percentile": 49.982312443876026,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "a0ad9cbbde2ad616ee5850d887ea33138e8a693ad298d2d94e4bf44ac5377b8e"
+    },
+    {
+      "id": "gemma4-l21-neuron-320-v1",
+      "positive_passages": 74507,
+      "inactive_passages": 11687,
+      "starter_percentile": 49.996644610573505,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 24
+      },
+      "sha256": "9270db6f5be4dbe56da4d40241981356c380411c6f4f678c708ec481eae0f814"
+    }
+  ]
+}

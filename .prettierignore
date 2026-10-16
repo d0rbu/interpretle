@@ -4,3 +4,6 @@ package-lock.json
 test-results
 playwright-report
 artifacts
+.venv
+public/puzzles
+public/model

@@ -15,8 +15,8 @@ complexity and a low bar for removing it.
   in the player's browser via WebGPU. Never add a server inference fallback.
 - Do not replace the requested base model with an instruction-tuned model or a
   different quantization without validating the activation/scoring contract.
-- Keep demo scores unmistakably separate from measured activations. Do not
-  represent word-level fixture highlights as real model tokenization.
+- Publish only measured activations and actual tokenizer offsets. Numerical
+  fixtures belong in tests and must never be imported by application code.
 - Daily puzzles use curated SAE features. Practice may use experimental targets.
 - Preserve the eight-attempt limit, two-custom limit, free 50th-percentile clue,
   positive-passage percentile definition, and per-token feedback.

@@ -11,3 +11,5 @@ test-results/
 *.tsbuildinfo
 artifacts/
 data/private/
+.venv/
+__pycache__/

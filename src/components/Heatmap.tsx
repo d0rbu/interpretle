@@ -1,48 +1,96 @@
-import { useState } from 'react'
-import type { TokenActivation } from '../lib/types'
+import { useMemo, useState } from 'react'
+import { calibration } from '../lib/scoring'
+import { scoreLabel } from '../lib/game'
+import type { Feature, TokenActivation } from '../lib/types'
+
+// Some Unicode characters span several tokenizer tokens. Merge overlapping
+// offsets for display, retaining each underlying token in the inspection text.
+export function segments(text: string, tokens: TokenActivation[]) {
+  const result: { start: number; end: number; tokens: TokenActivation[] }[] = []
+  for (const token of tokens) {
+    const previous = result.at(-1)
+    if (previous && token.start < previous.end) {
+      previous.end = Math.max(previous.end, token.end)
+      previous.tokens.push(token)
+    } else result.push({ start: token.start, end: token.end, tokens: [token] })
+  }
+  let end = 0
+  return result
+    .flatMap((segment) => {
+      const items = []
+      if (segment.start > end)
+        items.push({
+          text: text.slice(end, segment.start),
+          tokens: [] as TokenActivation[],
+        })
+      items.push({
+        text: text.slice(segment.start, segment.end),
+        tokens: segment.tokens,
+      })
+      end = segment.end
+      return items
+    })
+    .concat(end < text.length ? [{ text: text.slice(end), tokens: [] }] : [])
+}
 
 export default function Heatmap({
+  text,
   tokens,
-  compact = false,
+  feature,
 }: {
+  text: string
   tokens: TokenActivation[]
-  compact?: boolean
+  feature: Feature
 }) {
-  const [inspected, setInspected] = useState<number | null>(null)
-  const token = inspected === null ? null : tokens[inspected]
+  const [selected, setSelected] = useState<number | null>(null)
+  const parts = useMemo(() => segments(text, tokens), [text, tokens])
+  const reference = useMemo(
+    () => calibration(feature.reference),
+    [feature.reference],
+  )
+  const inspected = selected === null ? null : parts[selected]
   return (
-    <div className={`heatmap ${compact ? 'compact' : ''}`}>
+    <div className="heatmap">
       <p className="heatmap-text">
-        {tokens.map((item, index) =>
-          /^\s+$/u.test(item.text) ? (
-            item.text
-          ) : (
+        {parts.map((part, index) => {
+          if (!part.tokens.length) return part.text
+          const activation = Math.max(
+            ...part.tokens.map((token) => token.activation),
+          )
+          return (
             <button
-              key={index}
               type="button"
-              className={`token ${inspected === index ? 'inspected' : ''}`}
+              key={index}
+              className="token"
+              aria-pressed={selected === index}
+              aria-label={`${JSON.stringify(part.text)}: activation ${activation.toPrecision(5)}`}
               style={{
                 backgroundColor:
-                  item.activation > 0
-                    ? `rgba(212, 119, 57, ${0.1 + (item.percentile / 100) * 0.47})`
+                  activation > 0
+                    ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
                     : 'transparent',
               }}
-              title={`${item.text} · demo activation ${item.activation.toFixed(3)} · ${item.percentile}th percentile`}
-              aria-label={`${item.text}: demo activation ${item.activation.toFixed(3)}, ${item.percentile}th percentile. Inspect token.`}
-              aria-pressed={inspected === index}
-              onClick={() => setInspected(inspected === index ? null : index)}
+              title={`Activation ${activation.toPrecision(5)} · ${scoreLabel(reference.percentile(activation), activation > 0)}`}
+              onClick={() => setSelected(selected === index ? null : index)}
             >
-              {item.text}
+              {part.text}
             </button>
-          ),
-        )}
+          )
+        })}
       </p>
-      {token && (
-        <p className="token-readout" role="status">
-          <strong>{token.text}</strong>
-          <span>Demo activation {token.activation.toFixed(3)}</span>
-          <span>{token.percentile}th percentile</span>
-        </p>
+      {inspected && (
+        <div className="token-readout" role="status">
+          {inspected.tokens.map((token, index) => (
+            <span key={index}>
+              Token {token.id}:{' '}
+              <strong>{token.activation.toPrecision(5)}</strong> ·{' '}
+              {scoreLabel(
+                reference.percentile(token.activation),
+                token.activation > 0,
+              )}
+            </span>
+          ))}
+        </div>
       )}
     </div>
   )

@@ -1,47 +1,22 @@
-# Interpretle
+# interpretle
 
-**Find the words. Follow the signal.**
+[Play interpretle.com](https://interpretle.com). Find text that activates a hidden
+feature in a language model. Reach the 99.9th percentile within eight attempts,
+with at most two custom sentences. A highlighted passage near the median is your
+free starting clue. Daily puzzles roll over at midnight UTC; the day dropdown
+opens the archive. Practice keeps separate progress.
 
-A Wordle-inspired interpretability game at **[interpretle.com](https://interpretle.com)**. Start with a highlighted passage, form a theory about a hidden feature, and find text that reaches the 99.9th percentile of activation.
+The backend is **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
+There is no inference endpoint, database, account system, or application server.
 
-**Status: live playable prototype.** All current scores and word highlights are illustrative. Suggested passages have hand-authored scores; custom sentences use a toy keyword rule. Real corpus activations and a Gemma WebGPU export are not connected yet. This distinction is also visible in the game.
+## Develop and deploy
 
-![Interpretle prototype with a highlighted starter, eight passage choices, and field notes](docs/screenshots/desktop.png)
-
-[Mobile preview](docs/screenshots/mobile.png)
-
-## Play locally
-
-Use Node 24 or newer (`.nvmrc` selects 24).
+Use Node 24 or newer:
 
 ```sh
 npm ci
 npm run dev
 ```
-
-Open the local URL Vite prints. For a production build, run `npm run build` and then `npm run preview`.
-
-## The game so far
-
-- A shared daily puzzle, changing at midnight UTC, plus a separate practice mode.
-- A free starter passage whose strongest highlighted word scores at the 50th percentile.
-- Eight attempts. Each round offers eight passages with scores hidden until played.
-- Expandable context that does not use an attempt.
-- Highlighted words and the passage maximum revealed after every guess. Click a word for its illustrative activation and percentile.
-- Up to two custom sentences, each using one of the eight attempts.
-- Adaptive passage sampling based on the player's best score; the starter is a clue and does not advance that score.
-- A win at an **unrounded** score of at least 99.9. Feature explanation on either a win or loss, and a spoiler-free share result.
-- Local progress persistence, mobile layout, keyboard access, and a reduced-motion mode.
-
-The demo has three authored themes. Practice reshuffles these themes; it is not an unlimited library of measured features. Scores and answers are in the browser bundle, so this version makes no anti-cheating claim. Browser-local limits are for playtesting, not production abuse protection.
-
-## Agreed direction
-
-The intended first measured target is **Gemma 4 E4B, layer 21**, using Decode Research's SAE release. Daily puzzles will use curated, interpretable SAE features. Practice can include experimental features and individual neurons. The passage pool should mix chat, prose, code, and technical text.
-
-Scores rank the maximum activation in a passage **among activating reference passages**; genuinely inactive passages show zero. Extract activations with full source context, but show and score only the displayed passage. The corpus and score reference must be frozen per feature. [Game design](docs/game-design.md) records the current rules and unresolved choices. [Scoring plan](docs/scoring.md) records the exact checkpoint metadata, calibration convention, data requirements, and production boundary.
-
-## Checks
 
 ```sh
 npm run check
@@ -50,25 +25,88 @@ npm run test:e2e
 npm run deploy:check
 ```
 
-The unit suite exercises the sampler, budget limits, win/loss conditions, heatmap maxima, save replay, and percentile calibration. Playwright checks desktop and mobile play, persistence, custom limits, UTC rollover, sharing, and automated accessibility. `deploy:check` builds and validates the static Cloudflare deployment locally without deploying it.
+After authenticating your Cloudflare account, `npm run build` followed by
+`npx wrangler deploy` publishes the static site to `interpretle.com`. Credentials
+stay outside this repository. GitHub Actions runs checks; deployment is manual.
+Keep the `no-transform` response header, which prevents automatic analytics
+injection. Game progress and custom text stay in the player's browser.
 
-## Cloudflare
+## Scores
 
-`wrangler.jsonc` deploys this app with **Cloudflare Workers Static Assets**. The prototype needs no application server or GPU at runtime. Fonts are bundled locally and custom text stays in the browser.
+Stored passages are measured offline with
+[Gemma 4 E4B](https://huggingface.co/google/gemma-4-E4B), decoder layer 21, and
+[Decode Research's SAE](https://huggingface.co/decoderesearch/gemma-4-saes).
+The checkpoint revisions, corpus identity, population sizes, and pack hashes are
+published in [the data provenance](public/puzzles/provenance.json).
 
-To publish an update, authenticate the intended Cloudflare account, run `npm run build`, then `npx wrangler deploy`. The configuration attaches `interpretle.com` as a Worker custom domain in that account. Deployments are manual; GitHub Actions runs checks only. See [deployment notes](docs/deployment.md).
+The model reads each complete source document. We then split its stored token
+activations into displayed passages. Only a passage's own tokens contribute to
+its heatmap and maximum; expanded context has no additional scores. For a
+positive maximum `a`, the percentile is `100 × count(reference < a) / N`, where
+the reference contains **positive passage maxima** from the fixed corpus.
+Raw zero is inactive. Ties use the strict lower rank, and winning uses the
+unrounded percentile. Sampling bands are approximate; displayed scores are
+always calculated from actual activations.
 
-**The entire backend is static file hosting.** Run the selected corpus through the model/SAE offline, then publish stored token activations as puzzle data. Support both SAE features and neuron/activation coordinates in those artifacts. The browser samples rounds and stores progress. The measured version will run custom guesses locally through WebGPU; the current demo uses the labeled toy scorer. No server inference, scoring API, database, queue, account system, or server-side sessions. See [the small architecture](docs/architecture.md).
+Daily targets are curated SAE features. Practice can also use positive residual
+coordinates (`max(0, hidden[index])`) at the same hook. The feature description is
+revealed when the game ends. Data and answers are inspectable in this static
+game; it does not attempt to prevent cheating.
 
-## Repository map
+The initial library has 14 curated SAE features and one experimental coordinate.
+The daily catalog rotates these targets; practice uses a fresh passage order.
 
-| Path                                        | Purpose                                                         |
-| ------------------------------------------- | --------------------------------------------------------------- |
-| `src/App.tsx`, `src/components/Heatmap.tsx` | Game interface and inspectable highlights                       |
-| `src/lib/game.ts`                           | Deterministic rounds, attempts, persistence, toy custom scoring |
-| `src/lib/scoring.ts`                        | Positive-passage empirical percentile calculation               |
-| `src/data/demo.ts`                          | Original demo passages and illustrative scores                  |
-| `data/model-target.json`                    | Pinned model and SAE metadata; explicitly unscored              |
-| `docs/`                                     | Design decisions, production scoring contract, deployment notes |
+## Custom sentences
 
-Code and original demo text are MIT-licensed. Model weights, SAE weights, future datasets, and bundled font packages keep their own licenses. No external dataset excerpts or model weights are included.
+Custom scoring is opt-in WebGPU inference on the player's device. The first use
+downloads the model prefix, 11.2 GB, and caches it in browser storage.
+It needs a compatible GPU with FP16 support and enough storage. Loading,
+cancelled runs, unsupported devices, and failed inference do not consume an
+attempt. The passage game works without downloading any model.
+
+The browser runs small ONNX graphs one layer at a time. It reads weights from
+the pinned public checkpoint, checks download hashes, and never contacts an
+inference service. All required weight chunks are downloaded **before** looking
+up input tokens, so input-dependent embedding requests cannot disclose text.
+Weights and hidden states use FP16, with FP32 matrix accumulation and reductions.
+The ONNX Runtime binary is loaded from a version-pinned CDN only after opt-in.
+Custom text is scored as a complete document with a BOS token and no chat
+template. Unlike a source excerpt, it has no preceding source context.
+See [validation and reproduction steps](docs/validation.md) for the native and
+browser scoring checks and their limits.
+
+## Rebuild the data
+
+Offline extraction needs a CUDA GPU; the deployed site does not. Install the
+Python dependencies from `requirements.txt` in an isolated Python 3.13
+environment, then run:
+
+```sh
+python scripts/prepare_corpus.py
+python scripts/verify_model.py
+python scripts/extract.py
+python scripts/build_puzzles.py --discover
+# Inspect artifacts/activations/discovery.json and curate data/features.json.
+python scripts/build_puzzles.py
+python scripts/export_browser.py
+```
+
+The corpus mixes complete OpenAssistant conversations, TinyStories, MBPP Python
+problems, and Wikipedia articles. Documents longer than 1,024 tokens are skipped,
+not truncated. Extraction stores sparse SAE activations, neuron coordinates,
+token IDs, and original offsets. The large intermediate cache lives in ignored
+`artifacts/`; only curated game packs and small model graphs are published.
+See [data sources and licenses](docs/data.md).
+
+| File                         | Purpose                                      |
+| ---------------------------- | -------------------------------------------- |
+| `src/App.tsx`                | Header, instructions, and game board         |
+| `src/lib/game.ts`            | Rounds, budgets, daily progress, and results |
+| `src/components/Heatmap.tsx` | Actual model-token highlights                |
+| `src/lib/model.worker.ts`    | Optional local model execution               |
+| `src/lib/model-cache.ts`     | Fixed, verified model downloads              |
+| `scripts/`                   | Offline extraction and static export         |
+| `public/puzzles/`            | Measured puzzle packs and provenance         |
+
+Application code is MIT-licensed. Source passages and model weights retain their
+own licenses; the application license does not relicense those materials.
