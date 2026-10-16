@@ -1,0 +1,25 @@
+# Interpretle
+
+Keep this project small and easy to read. There is a very high bar for adding
+complexity and a low bar for removing it.
+
+- The deployed server serves static files. No server GPU inference, inference
+  API, game-session service, database, queue, or authentication is needed.
+- Run the selected dataset through the model and SAE **offline**, preserving
+  per-token activations. Also support neuron/activation targets with explicit
+  hook, coordinate, and sign conventions.
+- Offline extraction uses **full source context**. Show scores/highlights only
+  for the displayed passage and take its maximum over that span. Expanded
+  context is readable text without extra scores. Do not re-score isolated excerpts.
+- Suggested passages use stored activations. Custom passages must run locally
+  in the player's browser via WebGPU. Never add a server inference fallback.
+- Do not replace the requested base model with an instruction-tuned model or a
+  different quantization without validating the activation/scoring contract.
+- Keep demo scores unmistakably separate from measured activations. Do not
+  represent word-level fixture highlights as real model tokenization.
+- Daily puzzles use curated SAE features. Practice may use experimental targets.
+- Preserve the eight-attempt limit, two-custom limit, free 50th-percentile clue,
+  positive-passage percentile definition, and per-token feedback.
+- Use Node 24+. Run `npm run check` and the relevant Playwright checks. UI changes
+  should be inspected on desktop and mobile. Do not rent GPUs or run a full
+  corpus pass merely to validate a UI change.

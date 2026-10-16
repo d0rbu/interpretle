@@ -1,0 +1,40 @@
+{
+  "status": "planned-not-scored",
+  "metadataCheckedAt": "2026-10-16",
+  "execution": {
+    "corpus": "offline",
+    "customPassages": "browser-webgpu",
+    "hosting": "static-files-only"
+  },
+  "model": {
+    "id": "google/gemma-4-E4B",
+    "revision": "411aa17b749aa952df1359d2dcea73917a544d9a"
+  },
+  "sae": {
+    "repository": "decoderesearch/gemma-4-saes",
+    "revision": "bb8e6b333def5cf2667f2cd4b9e67258dae7029b",
+    "id": "gemma-4-e4b/btk-mat-layer-21-k-100",
+    "hook": "model.language_model.layers.21",
+    "inputWidth": 2560,
+    "featureCount": 65536,
+    "inferenceArchitecture": "jumprelu",
+    "trainingArchitecture": "matryoshka_batchtopk",
+    "trainingSaeLensVersion": "6.39.0",
+    "trainingContextTokens": 1024,
+    "prependBos": true,
+    "excludeSpecialTokens": true,
+    "normalizeActivations": "none",
+    "applyDecoderBiasToInput": true
+  },
+  "gameScoring": {
+    "target": "sae-latent",
+    "featureId": null,
+    "pooling": "max-over-non-special-non-padding-tokens",
+    "referencePopulation": "positive-passage-maxima",
+    "empiricalRank": "strict-lower",
+    "winPercentile": 99.9,
+    "contextPolicy": "full-source-context-displayed-span-scores",
+    "corpusManifest": null,
+    "calibrationArtifact": null
+  }
+}
