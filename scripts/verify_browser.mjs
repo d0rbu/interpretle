@@ -1,17 +1,13 @@
-// Run with the Vite dev server on port 5173. Optionally pass a local copy of the
-// pinned model.safetensors to serve unchanged normalization weights locally.
-// The exported FP4 matrix chunks are served by Vite from public/model/weights.
+// Run with the Vite dev server on port 5173. All model and tokenizer assets are
+// served locally from public/model/weights, exactly as they are on Cloudflare.
 // This is a local test harness; it is never part of the deployed server.
 import assert from 'node:assert/strict'
-import { open, readFile, mkdir, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 
 const descriptor = JSON.parse(
   await readFile('public/puzzles/index.json', 'utf8'),
 ).browserModel
-const model = JSON.parse(await readFile('public' + descriptor.manifest, 'utf8'))
-const checkpoint = process.argv.find((arg) => arg.endsWith('.safetensors'))
 const referencePath =
   process.argv.find((arg) => arg.startsWith('--reference='))?.slice(12) ??
   'artifacts/validation/reference.json'
@@ -32,53 +28,22 @@ const context = await chromium.launchPersistentContext(
   { headless: true, args: flags },
 )
 let weightRequests = 0
-const file = checkpoint ? await open(checkpoint) : null
 try {
+  await context.route('**/api/events', (route) =>
+    route.fulfill({ status: 204 }),
+  )
   // Keep frontend hot reloads from interrupting a numerical validation run.
   await context.routeWebSocket('**/*', (socket) => socket.close())
   context.on('request', (request) => {
     if (new URL(request.url()).pathname.startsWith('/model/weights/'))
       weightRequests++
   })
-  if (file) {
-    await context.route(model.sources.model.url, async (route) => {
-      const match = /^bytes=(\d+)-(\d+)$/.exec(route.request().headers().range)
-      assert(match, 'Expected a fixed byte-range download')
-      const start = Number(match[1]),
-        size = Number(match[2]) - start + 1
-      const body = Buffer.alloc(size)
-      const { bytesRead } = await file.read(body, 0, size, start)
-      assert.equal(bytesRead, size)
-      weightRequests++
-      await route.fulfill({
-        status: 206,
-        body,
-        headers: {
-          'access-control-allow-origin': '*',
-          'content-type': 'application/octet-stream',
-          'content-range': `bytes ${start}-${start + size - 1}/${(await file.stat()).size}`,
-        },
-      })
-    })
-    for (const [name, url] of Object.entries(model.tokenizer)) {
-      await context.route(url, (route) =>
-        route.fulfill({
-          path: join(dirname(checkpoint), `${name}.json`),
-          headers: {
-            'access-control-allow-origin': '*',
-            'content-type': 'application/json',
-          },
-        }),
-      )
-    }
-  }
   const page = await context.newPage()
   page.on('pageerror', (error) => console.error(error.message))
   page.on('console', (message) => {
     if (message.type() === 'error') console.error(message.text())
   })
   await page.goto(process.env.INTERPRETLE_TEST_URL ?? 'http://127.0.0.1:5173')
-  await page.waitForLoadState('networkidle')
   const adapter = await page.evaluate(async () => {
     let adapter = await navigator.gpu?.requestAdapter({
       powerPreference: 'high-performance',
@@ -93,7 +58,7 @@ try {
       f16: adapter?.features.has('shader-f16'),
     }
   })
-  console.log(JSON.stringify({ adapter, flags, localWeightMirror: !!file }))
+  console.log(JSON.stringify({ adapter, flags }))
   let previous = ''
   await page.exposeFunction('modelProgress', (message) => {
     const key = message.startsWith('Downloading')
@@ -195,5 +160,4 @@ try {
   }
 } finally {
   await context.close()
-  await file?.close()
 }

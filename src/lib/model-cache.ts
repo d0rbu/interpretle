@@ -11,13 +11,58 @@ interface Chunk {
   url?: string
 }
 export interface WeightSource {
-  url: string
+  url?: string
   tensors: Record<string, TensorInfo>
   chunks: Chunk[]
 }
 
 const key = (chunk: Chunk) =>
   new URL(`/__model_cache/${chunk.sha256}`, location.origin).href
+
+class DownloadError extends Error {
+  constructor(
+    message: string,
+    readonly retry = true,
+  ) {
+    super(message)
+  }
+}
+
+async function download(
+  url: string,
+  hash?: string,
+  bytes?: number,
+  range?: string,
+) {
+  const file = new URL(url, location.origin)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: range ? { Range: range } : undefined,
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(300000),
+      })
+      if (response.status !== (range ? 206 : 200))
+        throw new DownloadError(
+          `HTTP ${response.status} from ${file.hostname} (${file.pathname.split('/').at(-1)?.slice(0, 16)}).`,
+          response.status === 408 ||
+            response.status === 429 ||
+            response.status >= 500,
+        )
+      const data = await verifiedBytes(response, hash)
+      if (bytes !== undefined && data.byteLength !== bytes)
+        throw new Error('The downloaded file was incomplete.')
+      return data
+    } catch (cause) {
+      if (attempt === 3 || (cause instanceof DownloadError && !cause.retry))
+        throw new Error(
+          `Could not download from ${file.hostname}: ${cause instanceof Error ? cause.message : String(cause)} Completed files are saved; retry to resume.`,
+        )
+      await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
+    }
+  }
+}
 
 export async function verifiedBytes(response: Response, hash?: string) {
   if (!response.ok)
@@ -42,10 +87,7 @@ export async function cachedFile(cache: Cache, url: string, hash?: string) {
     : url
   const saved = await cache.match(cacheKey)
   if (saved) return new Uint8Array(await saved.arrayBuffer())
-  const data = await verifiedBytes(
-    await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' }),
-    hash,
-  )
+  const data = await download(url, hash)
   await cache.put(cacheKey, new Response(data))
   return data
 }
@@ -54,12 +96,28 @@ export async function cachedFile(cache: Cache, url: string, hash?: string) {
  * fetch missing rows, keeping the player's token IDs out of network requests. */
 export async function downloadWeights(
   cache: Cache,
-  source: WeightSource,
+  sources: WeightSource[],
   progress: (message: string, fraction?: number) => void,
 ) {
   const saved = new Set((await cache.keys()).map((request) => request.url))
-  const missing = source.chunks.filter((chunk) => !saved.has(key(chunk)))
-  const total = source.chunks.reduce((sum, chunk) => sum + chunk.bytes, 0)
+  const chunks = [
+    ...new Map(
+      sources.flatMap((source) =>
+        source.chunks.map(
+          (chunk) =>
+            [
+              chunk.sha256,
+              {
+                ...chunk,
+                downloadUrl: chunk.url ?? source.url!,
+              },
+            ] as const,
+        ),
+      ),
+    ).values(),
+  ]
+  const missing = chunks.filter((chunk) => !saved.has(key(chunk)))
+  const total = chunks.reduce((sum, chunk) => sum + chunk.bytes, 0)
   let done = total - missing.reduce((sum, chunk) => sum + chunk.bytes, 0)
   const report = () =>
     progress(
@@ -76,22 +134,14 @@ export async function downloadWeights(
       while (cursor < missing.length && !failed) {
         const chunk = missing[cursor++]
         try {
-          const response = await fetch(chunk.url ?? source.url, {
-            headers: chunk.url
+          const data = await download(
+            chunk.downloadUrl,
+            chunk.sha256,
+            chunk.bytes,
+            chunk.url
               ? undefined
-              : {
-                  Range: `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
-                },
-            credentials: 'omit',
-            referrerPolicy: 'no-referrer',
-          })
-          if (response.status !== (chunk.url ? 200 : 206))
-            throw new Error(
-              `Model download returned HTTP ${response.status}; expected ${chunk.url ? 200 : 206}. Please retry.`,
-            )
-          const data = await verifiedBytes(response, chunk.sha256)
-          if (data.byteLength !== chunk.bytes)
-            throw new Error('The model download was incomplete. Please retry.')
+              : `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
+          )
           // CacheStorage does not accept HTTP 206; save verified bytes as a local 200 response.
           await cache.put(key(chunk), new Response(data))
           done += data.byteLength
@@ -111,6 +161,28 @@ export async function downloadWeights(
     }),
   )
   for (const job of jobs) if (job.status === 'rejected') throw job.reason
+}
+
+/** Full encoder is cached once; read only this feature's FP32 row into memory. */
+export async function saeEncoder(
+  cache: Cache,
+  source: WeightSource,
+  index: number,
+) {
+  const matrix = source.tensors.W_enc
+  if (!Number.isInteger(index) || index < 0 || index >= matrix.shape[0])
+    throw new Error('This SAE feature is outside the downloaded dictionary.')
+  const width = matrix.shape[1]
+  const parts = await Promise.all([
+    readRange(cache, source, matrix.offset + index * width * 4, width * 4),
+    readRange(cache, source, source.tensors.b_enc.offset + index * 4, 4),
+    readRange(cache, source, source.tensors.threshold.offset + index * 4, 4),
+  ])
+  return {
+    weight: new Float32Array(parts[0].buffer),
+    bias: new DataView(parts[1].buffer).getFloat32(0, true),
+    threshold: new DataView(parts[2].buffer).getFloat32(0, true),
+  }
 }
 
 export async function readRange(

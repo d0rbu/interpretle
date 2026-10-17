@@ -9,6 +9,12 @@ only the first 22 layer-specific embedding columns and projection rows; repack
 the embedding columns into hashed static chunks; expose the gated MLP output;
 quantize matrix weights to FP4 E2M1 with block size 32 and FP16 scales. These
 approximate browser weights do not replace the original model's offline scores.
-Normalization vectors and the selected SAE encoder retain their precision.
+Normalization vectors and all 65,536 SAE encoder features retain their precision.
+The complete FP32 SAE encoder, encoder biases, and thresholds are cached;
+the shared input bias is included, but the SAE decoder matrix is omitted.
+SAE source: decoderesearch/gemma-4-saes, revision
+bb8e6b333def5cf2667f2cd4b9e67258dae7029b,
+gemma-4-e4b/btk-mat-layer-21-k-100. The tokenizer JSON is minified without
+changing its parsed content. All these assets are hosted on Cloudflare.
 The upstream model and this model
 subset are not covered by the application code MIT license.

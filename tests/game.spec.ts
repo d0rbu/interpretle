@@ -4,6 +4,7 @@ import { catalog, feature } from './fixture'
 import { choices, createGame } from '../src/lib/game'
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/events', (route) => route.fulfill({ status: 204 }))
   const reported = new Set<string>()
   const counts = Array<number>(8).fill(0)
   let failed = 0
@@ -702,6 +703,11 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
 test('prefetches without blocking play, joins on focus, and charges only successful write-ins', async ({
   page,
 }) => {
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
   await page.route('**/puzzles/index.json', (route) =>
     route.fulfill({
       json: {
@@ -857,6 +863,18 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect(page.locator('.game-status')).toContainText('Attempt 3 of 6')
   await expect(input).toBeDisabled()
   await expect(input).toHaveAttribute('placeholder', 'Write your own (0 left)')
+  await expect
+    .poll(() => events.filter((event) => event.event === 'guess').length)
+    .toBe(2)
+  expect(JSON.stringify(events)).not.toContain('custom sentence')
+  expect(
+    events
+      .filter((event) => event.event === 'guess')
+      .every(
+        (event) =>
+          !('passage' in event) && !('text' in event) && !('tokens' in event),
+      ),
+  ).toBe(true)
 })
 
 test('shows the worker failure reason without growing the card or losing a draft', async ({
@@ -925,6 +943,11 @@ test('shows the worker failure reason without growing the card or losing a draft
 test('keeps failed background loading silent and reuses a successful retry', async ({
   page,
 }) => {
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
   await page.route('**/puzzles/index.json', (route) =>
     route.fulfill({
       json: {
@@ -977,6 +1000,90 @@ test('keeps failed background loading silent and reuses a successful retry', asy
   expect(await messages()).toEqual(['prepare', 'prepare'])
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
+  await expect
+    .poll(() =>
+      events.some(
+        (event) => event.event === 'model_error' && event.problem === 'network',
+      ),
+    )
+    .toBe(true)
+  expect(JSON.stringify(events)).not.toContain('A test download failure')
+})
+
+test('counts passage choices, outcomes and practice starts with a reusable random browser ID', async ({
+  page,
+}) => {
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const browserId = await page.evaluate(() =>
+    localStorage.getItem('interpretle:visitor'),
+  )
+  const { playPassage } = await import('../src/lib/game')
+  let game = createGame('daily', '2026-10-18', feature.id)
+  for (const band of [90, 99.9]) {
+    const options = choices(game, feature)
+    const slot = options.findIndex((passage) => passage.band === band)
+    const selected = options[slot]
+    await page.getByRole('button', { name: selected.text, exact: true }).click()
+    game = playPassage(game, feature, selected.id)
+    await expect
+      .poll(() =>
+        events.find(
+          (event) =>
+            event.event === 'guess' && event.attempt === game.guesses.length,
+        ),
+      )
+      .toMatchObject({
+        player: browserId,
+        mode: 'daily',
+        passage: selected.id,
+        slot: slot + 1,
+        band,
+      })
+  }
+  await expect
+    .poll(() =>
+      events.some(
+        (event) =>
+          event.event === 'finish' &&
+          event.outcome === 'won' &&
+          event.attempt === 2,
+      ),
+    )
+    .toBe(true)
+  await page.getByRole('button', { name: 'Practice', exact: true }).click()
+  await page.getByRole('button', { name: 'New puzzle', exact: true }).click()
+  await page.locator('.passage-select').first().click()
+  await expect
+    .poll(
+      () =>
+        events.filter(
+          (event) => event.event === 'game_start' && event.mode === 'practice',
+        ).length,
+    )
+    .toBe(1)
+  const completed = events.find((event) => event.event === 'finish')!
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { name: 'Solved.', exact: true }),
+  ).toBeVisible()
+  expect(
+    await page.evaluate(() => localStorage.getItem('interpretle:visitor')),
+  ).toBe(browserId)
+  expect(events.filter((event) => event.event === 'finish')).toEqual([
+    completed,
+  ])
+  expect(
+    events.every(
+      (event) =>
+        !('text' in event) && !('tokens' in event) && !('score' in event),
+    ),
+  ).toBe(true)
 })
 
 test('records a failed daily game in the X bar without counting a reload twice', async ({

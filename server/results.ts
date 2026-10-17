@@ -1,5 +1,6 @@
 import catalog from '../public/puzzles/index.json'
 import { puzzleDay } from '../src/lib/day'
+export { GameAnalytics } from './analytics'
 
 // Only the small slice of Cloudflare's bindings used by this counter.
 interface Sql {
@@ -9,6 +10,9 @@ interface Sql {
   ): Iterable<Record<string, string | number>>
 }
 interface Env {
+  ANALYTICS?: {
+    getByName(name: string): { fetch(request: Request): Promise<Response> }
+  }
   RESULTS: {
     getByName(day: string): { fetch(request: Request): Promise<Response> }
   }
@@ -96,6 +100,20 @@ export class DailyResults {
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url)
+    if (url.pathname === '/api/events' || url.pathname === '/api/stats') {
+      const method = url.pathname === '/api/events' ? 'POST' : 'GET'
+      if (request.method !== method)
+        return json({ error: 'Method not allowed.' }, 405)
+      const origin = request.headers.get('Origin')
+      if (method === 'POST' && origin && origin !== url.origin)
+        return json({ error: 'Invalid origin.' }, 403)
+      try {
+        if (!env.ANALYTICS) throw new Error('Unavailable')
+        return await env.ANALYTICS.getByName('gameplay').fetch(request)
+      } catch {
+        return json({ error: 'Counters are temporarily unavailable.' }, 503)
+      }
+    }
     const day = /^\/api\/results\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname)?.[1]
     if (!day || !Object.hasOwn(catalog.daily, day) || day > puzzleDay())
       return json({ error: 'Unknown puzzle.' }, 404)

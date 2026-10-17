@@ -5,6 +5,7 @@ import { puzzleDay } from '../lib/day'
 import type { Feature, Game } from '../lib/types'
 import extraction from '../../data/model.json'
 import Chevron from './Chevron'
+import { track } from '../lib/analytics'
 
 export default function Outcome({
   game,
@@ -82,6 +83,12 @@ export default function Outcome({
   }, [game.mode, game.seed, game.guesses.length, won])
 
   async function share() {
+    track('share', {
+      mode: game.mode,
+      feature: game.featureId,
+      outcome: won ? 'won' : 'lost',
+      attempt: game.guesses.length,
+    })
     const text = shareText(game, firstDay, feature)
     try {
       await navigator.clipboard.writeText(text)

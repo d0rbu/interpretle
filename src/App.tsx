@@ -6,6 +6,7 @@ import Chevron from './components/Chevron'
 import Outcome from './components/Outcome'
 import { cachedFeature, loadCatalog, loadFeature } from './data/puzzles'
 import { puzzleDay } from './lib/day'
+import { trackGame, trackVisit } from './lib/analytics'
 import {
   browserModelReady,
   prefetchBrowserModel,
@@ -349,6 +350,9 @@ function Board({
     setSaveWarning(!remember(storageKey(game), serializeGame(game)))
   }, [game])
   useEffect(() => () => controller.current?.abort(), [])
+  useEffect(() => {
+    trackGame('puzzle_view', game)
+  }, [])
 
   function reportProgress(message: string, fraction?: number) {
     setBusy(message)
@@ -427,6 +431,23 @@ function Board({
       setCelebrate(status(next) === 'won')
       setText('')
       const guess = next.guesses.at(-1)!
+      if (next.guesses.length === 1) trackGame('game_start', next)
+      const selected = cards.findIndex((passage) => passage.id === passageId)
+      trackGame('guess', next, {
+        attempt: next.guesses.length,
+        ...(selected < 0
+          ? {}
+          : {
+              passage: passageId,
+              slot: selected + 1,
+              band: cards[selected].band,
+            }),
+      })
+      if (status(next) !== 'playing')
+        trackGame('finish', next, {
+          attempt: next.guesses.length,
+          outcome: status(next) as 'won' | 'lost',
+        })
       setAnnouncement(
         `Attempt ${next.guesses.length}: ${guess.approximate ? 'approximately ' : ''}${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${game.maxGuesses - next.guesses.length} attempts left.`}`,
       )
@@ -578,7 +599,12 @@ function Board({
                       .join(''),
                   )
                 }
-                onFocus={() => void loadModel()}
+                onFocus={() => {
+                  trackGame('writein_open', game, {
+                    attempt: game.guesses.length + 1,
+                  })
+                  void loadModel()
+                }}
                 onKeyDown={(event) => {
                   if (
                     event.key === 'Enter' &&
@@ -731,6 +757,7 @@ export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
+    trackVisit()
     loadCatalog()
       .then((value) => {
         setCatalog(value)

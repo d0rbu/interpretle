@@ -9,10 +9,11 @@ opens the archive. Practice keeps separate progress.
 Games started before the six-attempt update keep their original limit.
 
 The game is served as **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
-The only backend is [a small daily solve counter](server/results.ts): one
+The backend is [a small daily solve counter](server/results.ts) and
+[first-party game counters](server/analytics.ts). Daily results use one
 Cloudflare Durable Object per puzzle day, with eight solve counts, an X bucket
 for games that exhausted all attempts, and random
-submission IDs to avoid counting reloads twice. It stores no text or scores and
+submission IDs to avoid counting reloads twice. They store no text or scores and
 does no inference. Results are browser-reported, not a verified leaderboard.
 The counter begins collecting when deployed; older saved results are included
 when those players return. Practice does not contribute to daily counts.
@@ -38,9 +39,8 @@ before deploying a fresh checkout. After authenticating your Cloudflare account,
 `npm run deploy` verifies those assets and publishes the site and its counter to
 `interpretle.com`. Credentials
 stay outside this repository. GitHub Actions runs checks; deployment is manual.
-Keep the `no-transform` response header, which prevents automatic analytics
-injection. Game progress and custom text stay in the player's browser; only a
-per-puzzle random ID and outcome are sent when a daily puzzle finishes.
+Keep the `no-transform` response header, which prevents automatic script injection
+and preserves model integrity. Game progress and custom text stay in the player's browser.
 To run the counter locally, build the site and run `npx wrangler dev`.
 
 ## Scores
@@ -95,7 +95,7 @@ measurements stay fixed as the library expands.
 ## Custom sentences
 
 Custom scoring is WebGPU inference on the player's device. Opening the page starts
-preparing the model prefix in the background, about **2.39 GB** on the first visit,
+preparing the model prefix and complete SAE encoder in the background, about **3.08 GB** on the first visit,
 and caches it in browser storage. Stored passages remain playable during background loading.
 Focusing the write-in card joins that download and shows progress beside a Cancel
 button. Type directly into the card; Enter submits and Shift+Enter adds a newline.
@@ -107,10 +107,16 @@ attempt. The passage game also works on devices that cannot load the model.
 The browser runs small ONNX graphs one layer at a time. It uses only layers 0–21,
 with the unused layer-specific embedding columns removed. Matrix weights use
 block-scaled FP4 E2M1; normalization parameters retain their original precision.
-Each SAE puzzle contains only its own 2,560-value FP32 encoder vector, bias, and
-threshold. A shared FP32 input-bias vector is also required. No full SAE encoder,
-SAE decoder matrix, or later model layers are downloaded.
-The catalog selects the [versioned FP4 manifest](public/model/manifest-v2-fp4.json).
+All **65,536 FP32 SAE encoder rows**, biases, and thresholds are cached together
+with the shared input bias. This adds about **672 MB**, letting future features
+reuse the same download. The SAE decoder matrix and later model layers are omitted.
+Only the selected encoder row is read into memory for scoring.
+The tokenizer and all model parameters are hosted as Cloudflare static assets;
+players no longer need Hugging Face requests. The tokenizer JSON is losslessly
+minified to fit Cloudflare's per-file limit. Downloads retry temporary failures
+and reuse verified, completed chunks after a retry or browser restart. Browser
+storage can still be cleared or evicted by the browser.
+The catalog selects the [versioned FP4 manifest](public/model/manifest-v3-fp4.json).
 Original manifest and graph URLs remain available for already-open older tabs.
 
 Stored passages and percentile reference arrays retain **the original model's
@@ -128,6 +134,30 @@ Custom text is scored as a complete document with a BOS token and no chat
 template. Unlike a source excerpt, it has no preceding source context.
 See [validation and reproduction steps](docs/validation.md) for the native and
 browser scoring checks and their limits.
+
+## Gameplay analytics
+
+The game counters use a random first-party browser ID in local storage to
+recognize returning players, plus a session ID in session storage. They count
+visits, puzzle views, starts, selected public passage IDs/positions/bands,
+attempt numbers, completed outcomes, practice rounds, write-in selections,
+shares, and model loading outcomes. Model errors use fixed categories, never
+raw error messages. No custom text, tokens, activation values, IP addresses,
+or fingerprints are stored by this counter.
+
+The backend keeps aggregate dimensions, daily per-browser visit/practice counts,
+first-visit dates, and opaque event hashes for deduplication. It does not keep
+a raw click history. Browser-reported counters are approximate and may be blocked.
+Public aggregate reports contain no browser or session IDs:
+
+```sh
+curl https://interpretle.com/api/stats
+curl 'https://interpretle.com/api/stats?day=2026-10-18'
+```
+
+Reports include unique/returning players, visits, a practice-round histogram per
+player, and event counts broken down by the applicable public dimensions.
+The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data
 

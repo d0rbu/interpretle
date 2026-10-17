@@ -22,6 +22,7 @@ from transformers.models.gemma4.modeling_gemma4 import (
 
 from extract import MODEL, REVISION, SAE, SAE_ID, SAE_REVISION
 from quantization import pack_fp4
+from browser_assets import host_assets
 
 PREFIX = "model.language_model."
 MAX_TOKENS = 512
@@ -254,7 +255,8 @@ def main():
                 "sae": {"repository": SAE, "revision": SAE_REVISION, "id": SAE_ID, "inputBias": input_bias},
                 "bytes": sum(chunk["bytes"] for source in sources.values() for chunk in source["chunks"])}
     # Old open tabs still use the original manifest and graph URLs.
-    manifest_path = args.output / f"manifest-v2{'-fp4' if args.fp4 else ''}.json"
+    manifest = host_assets(manifest, args.output, checkpoint, sae_checkpoint)
+    manifest_path = args.output / f"manifest-v3{'-fp4' if args.fp4 else ''}.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     catalog_path = Path('public/puzzles/index.json')
     if catalog_path.exists() and args.output.resolve() == Path('public/model').resolve():

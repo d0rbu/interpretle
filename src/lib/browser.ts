@@ -1,5 +1,6 @@
 import type { Catalog, Feature, TokenActivation } from './types'
 import { modelError } from './model-error'
+import { modelProblem, track } from './analytics'
 
 type Progress = (message: string, fraction?: number) => void
 type BrowserModel = NonNullable<Catalog['browserModel']>
@@ -72,6 +73,7 @@ function run<T>(
 
 function startPreparation(model: BrowserModel) {
   if (preparation) return preparation
+  track('model_start')
   const job: Preparation = {
     controller: new AbortController(),
     latest: ['Loading…'],
@@ -86,6 +88,15 @@ function startPreparation(model: BrowserModel) {
           job.controller.signal,
         ),
       )
+      .then(() => {
+        track('model_ready')
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === 'AbortError')
+          track('model_cancel')
+        else track('model_error', { problem: modelProblem(cause) })
+        throw cause
+      })
       .finally(() => {
         if (preparation === job) preparation = undefined
       }),
@@ -134,10 +145,14 @@ export function scoreInBrowser(
       target: {
         kind: feature.kind,
         index: feature.index,
-        encoder: feature.encoder,
       },
     },
     progress,
     signal,
-  )
+  ).catch((cause) => {
+    if (cause instanceof DOMException && cause.name === 'AbortError')
+      track('model_cancel')
+    else track('model_error', { problem: modelProblem(cause) })
+    throw cause
+  })
 }

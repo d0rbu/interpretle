@@ -67,17 +67,18 @@ preserve the original activation scores near the winning boundary.
 
 The chosen product contract keeps native stored scores and reference arrays.
 Only browser write-ins use the smaller FP4 model and display `≈`.
-The selected SAE encoder stays FP32: just one 2,560-value vector plus bias and
-threshold per feature, with a shared input-bias vector. Quantizing it saves
-little and adds error. The server performs no inference.
+The SAE encoder stays FP32, with a shared input-bias vector. The original
+per-feature export used one 2,560-value vector; the v3 export caches the complete
+dictionary, as described below. The server performs no inference.
 
 ## Browser export and execution
 
 The export contains decoder layers **0 through 21**, with the unused 20 layers'
 columns removed from the per-layer embedding table and its projection. It
-contains no later decoder weights or SAE decoder matrix. FP4 weights occupy
-**2,390,408,748 bytes**; tokenizer, small graphs, positional data and runtime are
-additional. The original unquantized trimmed export used 8,497,724,972 weight
+contains no later decoder weights or SAE decoder matrix. The v2 FP4 model weights
+occupied **2,390,408,748 bytes**, before adding the full encoder in v3;
+tokenizer, small graphs, positional data and runtime are additional.
+The original unquantized trimmed export used 8,497,724,972 weight
 bytes, down from the first 11,208,293,932-byte browser selection.
 
 Every exported chunk's SHA-256 hash, byte count and tensor coverage was audited.
@@ -110,9 +111,10 @@ claim of bitwise parity across GPUs. The browser always evaluates one unpadded
 input. FP4 padding probes differed by `0.099365234375` and `0.05859375`; FP4 was
 not qualified for batched offline extraction.
 
-The test download served local hashed FP4 chunks and used a local mirror of the
-pinned public checkpoint for unchanged normalization ranges. The browser still
-verified all hashes. Tokenizer and runtime requests use public pinned URLs.
+The original numerical test served local hashed FP4 chunks and used a local
+mirror of the pinned public checkpoint for unchanged normalization ranges.
+V3 hosts those ranges and the tokenizer on Cloudflare; the runtime still uses
+a public pinned CDN URL. The browser verifies model and tokenizer hashes.
 Custom text is evaluated as a complete document with a BOS token and no chat
 template or preceding source context.
 
@@ -124,7 +126,7 @@ python scripts/compare_precision.py
 python scripts/export_browser.py --fp4
 python scripts/verify_model.py --fp4 --output artifacts/validation-fp4
 npm run dev
-# In another terminal; optionally add the pinned local model.safetensors path:
+# In another terminal:
 node scripts/verify_browser.mjs --reference=artifacts/validation-fp4/reference.json
 ```
 
@@ -165,4 +167,27 @@ restart persistence, date separation, invalid requests and the X bucket for
 failed games. Original win counts are preserved. Completed outcomes are
 browser-reported, not a verified leaderboard. Real stored puzzles were played
 through on the deployed desktop and mobile layouts without submitting test
-results to public counters. Only this small counter runs server code.
+results to public counters. The server also collects first-party game counters;
+neither backend runs inference or receives custom text.
+
+## Complete browser encoder and hosted assets
+
+The v3 export transposes all **167,772,160 FP32 encoder values** into contiguous
+feature rows in static chunks. Every value was checked for exact equality with
+the pinned SAE checkpoint, including all biases/thresholds and the shared input
+bias. The 79 published SAE encoder vectors also match exactly. All 272 existing
+FP4 model matrix chunks and model tensor descriptors are unchanged.
+
+The tokenizer is losslessly minified from 32,170,070 to 13,593,553 bytes. Its
+parsed JSON is identical. Tokenizer configuration and the remaining 177 model
+parameter chunks are hosted on Cloudflare alongside the model and full encoder.
+All 501 asset references have verified hashes and fit the 25 MiB per-file limit.
+Duplicate content is downloaded once. Weights total 3,062,013,994 bytes; including
+the tokenizer, graphs and positions the download is **3,077,297,211 bytes**.
+The SAE decoder and layers after 21 are not included.
+
+The cache tests cover network retries, integrity failures, permanent HTTP errors,
+storage exhaustion, reuse after a completed download, and reading feature 65,535
+without a network request. Analytics SQLite tests cover duplicate events after
+restart, Pacific-day boundaries, returning browsers, practice counts, option
+dimensions, and rejecting custom text or raw errors.

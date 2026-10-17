@@ -5,6 +5,7 @@ import {
   downloadWeights,
   embeddingRows,
   readRange,
+  saeEncoder,
 } from './model-cache'
 import type { TensorInfo, WeightSource } from './model-cache'
 import {
@@ -17,18 +18,18 @@ import {
 import type { Feature, TokenActivation } from './types'
 import { modelError } from './model-error'
 
-type Asset = { url: string; sha256: string }
+type Asset = { url: string; sha256: string; bytes?: number }
 type Graph = Asset & { weights: Record<string, string> }
 interface Manifest {
   version: string
   maxTokens: number
   bos: number
   specialIds: number[]
-  tokenizer: { tokenizer: string; tokenizer_config: string }
+  tokenizer: { tokenizer: Asset; tokenizer_config: Asset }
   graphs: Record<string, Graph>
   positions: Record<string, Asset & { shape: number[] }>
   layers: string[]
-  sources: { model: WeightSource }
+  sources: { model: WeightSource; sae: WeightSource }
   sae: { inputBias: number[] }
 }
 
@@ -108,16 +109,26 @@ async function prepare(url: string) {
   const decoder = new TextDecoder()
   tokenizer = new Tokenizer(
     JSON.parse(
-      decoder.decode(await cachedFile(cache, manifest.tokenizer.tokenizer)),
+      decoder.decode(
+        await cachedFile(
+          cache,
+          manifest.tokenizer.tokenizer.url,
+          manifest.tokenizer.tokenizer.sha256,
+        ),
+      ),
     ),
     JSON.parse(
       decoder.decode(
-        await cachedFile(cache, manifest.tokenizer.tokenizer_config),
+        await cachedFile(
+          cache,
+          manifest.tokenizer.tokenizer_config.url,
+          manifest.tokenizer.tokenizer_config.sha256,
+        ),
       ),
     ),
   )
   stage = 'Model weight download'
-  await downloadWeights(cache, manifest.sources.model, progress)
+  await downloadWeights(cache, Object.values(manifest.sources), progress)
   prepared = true
   progress('Local model ready. Your sentence stays on this device.')
 }
@@ -161,7 +172,7 @@ function halfBits(tensor: ort.Tensor) {
 
 async function score(
   text: string,
-  target: Pick<Feature, 'kind' | 'index' | 'encoder'>,
+  target: Pick<Feature, 'kind' | 'index'>,
 ): Promise<TokenActivation[]> {
   stage = 'Text tokenization'
   const encoded = tokenizer.encode(text, { add_special_tokens: false })
@@ -240,13 +251,16 @@ async function score(
     throw new Error(
       'The local model returned non-finite values. No attempt was used.',
     )
+  const encoder =
+    target.kind === 'sae'
+      ? await saeEncoder(cache, manifest.sources.sae, target.index)
+      : undefined
   const result = encoded.ids.map((id, index) => {
     const start = (index + 1) * (target.kind === 'mlp' ? 10240 : 2560)
     let activation: number
     if (target.kind === 'neuron' || target.kind === 'mlp')
       activation = Math.max(0, halfToFloat(values[start + target.index]))
     else {
-      const encoder = target.encoder
       if (!encoder || encoder.weight.length !== 2560)
         throw new Error('This puzzle is missing its SAE encoder.')
       let sum = 0

@@ -3,9 +3,9 @@
 Keep this project small and easy to read. There is a very high bar for adding
 complexity and a low bar for removing it.
 
-- Serve the game as static files. The one backend exception is the small daily
-  results counter in `server/results.ts`, requested by the user. Keep it limited
-  to aggregate completed-game counts and deduplication; no server inference, game-session
+- Serve the game as static files. Backend exceptions are the small daily
+  results counter and first-party gameplay counters in `server/`, requested by the user.
+  Keep them limited to aggregates, random browser IDs, and deduplication; no server inference, game-session
   service, queue, authentication, or storage of custom text.
 - Run the selected dataset through the model and SAE **offline**, preserving
   per-token activations. Also support neuron/activation targets with explicit

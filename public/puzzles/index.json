@@ -153,8 +153,8 @@
     "gemma4-l21-neuron-320-v2"
   ],
   "browserModel": {
-    "manifest": "/model/manifest-v2-fp4.json",
-    "bytes": 2390408748,
+    "manifest": "/model/manifest-v3-fp4.json",
+    "bytes": 3062013994,
     "approximate": true
   }
 }

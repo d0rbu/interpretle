@@ -16,7 +16,8 @@ assert.equal(manifest.bytes, catalog.browserModel.bytes, 'Catalog model size')
 const local = [
   ...Object.values(manifest.graphs),
   ...Object.values(manifest.positions),
-  ...manifest.sources.model.chunks.filter((chunk) => chunk.url),
+  ...Object.values(manifest.tokenizer),
+  ...Object.values(manifest.sources).flatMap((source) => source.chunks),
 ]
 for (const asset of local) {
   assert(asset.url.startsWith('/'), 'Expected a local model asset')
