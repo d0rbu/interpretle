@@ -308,15 +308,17 @@ export function shareText(
   firstDay: string,
   feature: Feature,
 ): string {
-  const number =
-    game.mode === 'daily' ? dayNumber(game.seed, firstDay) : 'Practice'
+  const title =
+    game.mode === 'daily'
+      ? `interpretle ${dayNumber(game.seed, firstDay)}`
+      : 'interpretable practice'
   const result = status(game) === 'won' ? game.guesses.length : 'X'
   const squares = game.guesses
     .map(({ score, passageId }) =>
       scoreEmoji(score, feature.passages.find((p) => p.id === passageId)?.band),
     )
     .join('')
-  return `interpretle ${number} · ${result}/${game.maxGuesses}\n${squares}\nhttps://interpretle.com`
+  return `${title} · ${result}/${game.maxGuesses}\n${squares}\nhttps://interpretle.com`
 }
 
 const colorStops = [

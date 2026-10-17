@@ -81,12 +81,8 @@ export default function Heatmap({
           style={{
             backgroundColor:
               feature && activation > 0
-                ? `color-mix(in srgb, light-dark(#ea963ed1, #f4bf6580) ${100 * Math.min(1, activation / feature.displayScale)}%, transparent)`
+                ? `color-mix(in srgb, light-dark(#ea963ed1, #445bc4) ${100 * Math.min(1, activation / feature.displayScale)}%, transparent)`
                 : 'transparent',
-            color:
-              feature && activation > 0
-                ? 'light-dark(#202420, #fff)'
-                : undefined,
           }}
         >
           {value}
