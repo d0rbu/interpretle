@@ -86,7 +86,14 @@ export async function cachedFile(cache: Cache, url: string, hash?: string) {
     ? `${new URL(url, location.origin).href}?sha256=${hash}`
     : url
   const saved = await cache.match(cacheKey)
-  if (saved) return new Uint8Array(await saved.arrayBuffer())
+  if (saved) {
+    try {
+      return await verifiedBytes(saved, hash)
+    } catch {
+      // Repair an incomplete/corrupted cached tokenizer or graph automatically.
+      await cache.delete(cacheKey)
+    }
+  }
   const data = await download(url, hash)
   await cache.put(cacheKey, new Response(data))
   return data

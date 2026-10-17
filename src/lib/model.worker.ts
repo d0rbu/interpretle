@@ -1,4 +1,4 @@
-import * as ort from 'onnxruntime-web/webgpu'
+import type * as Ort from 'onnxruntime-web'
 import { Tokenizer } from '@huggingface/tokenizers'
 import {
   cachedFile,
@@ -27,6 +27,8 @@ interface Manifest {
   specialIds: number[]
   tokenizer: { tokenizer: Asset; tokenizer_config: Asset }
   graphs: Record<string, Graph>
+  cpuGraphs: Record<string, Graph>
+  cpuRuntime: { mjs: Asset; wasm: Asset }
   positions: Record<string, Asset & { shape: number[] }>
   layers: string[]
   sources: { model: WeightSource; sae: WeightSource }
@@ -39,27 +41,13 @@ const progress = (message: string, fraction?: number) =>
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
 let prepared = false
 let stage = 'Model startup'
-const sessions: Record<string, ort.InferenceSession> = {}
+let ort: typeof Ort, graphs: Record<string, Graph>
+let cpu = false
+const sessions: Record<string, Ort.InferenceSession> = {}
 const positions: Record<string, Uint16Array> = {}
 
 async function prepare(url: string) {
   if (prepared) return
-  stage = 'WebGPU setup'
-  if (!navigator.gpu)
-    throw new Error(
-      'This browser does not support WebGPU. Try a current desktop Chrome or Edge. No attempt was used.',
-    )
-  let adapter = await navigator.gpu.requestAdapter({
-    powerPreference: 'high-performance',
-  })
-  if (!adapter?.features.has('shader-f16'))
-    adapter = await navigator.gpu.requestAdapter({
-      powerPreference: 'low-power',
-    })
-  if (!adapter?.features.has('shader-f16'))
-    throw new Error(
-      'This device needs WebGPU with 16-bit float support. Suggested passages still work.',
-    )
   if (!('caches' in self))
     throw new Error(
       'Browser model storage is unavailable. Suggested passages still work.',
@@ -72,30 +60,6 @@ async function prepare(url: string) {
   manifest = await response.json()
   stage = 'Browser storage'
   cache = await caches.open('interpretle:model-v1')
-  ort.env.wasm.numThreads = 1
-  // The upstream runtime binary exceeds Cloudflare's per-file asset limit.
-  // Use a pinned runtime while preparing the model in the background.
-  ort.env.wasm.wasmPaths =
-    'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
-  ort.env.webgpu.adapter = adapter
-  stage = 'GPU initialization'
-  const device = await adapter.requestDevice({
-    requiredFeatures: ['shader-f16'],
-    requiredLimits: {
-      maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
-      maxBufferSize: adapter.limits.maxBufferSize,
-    },
-  })
-  for (const [name, graph] of Object.entries(manifest.graphs)) {
-    stage = `Loading the ${name} model graph`
-    sessions[name] ??= await ort.InferenceSession.create(
-      await cachedFile(cache, graph.url, graph.sha256),
-      {
-        executionProviders: [{ name: 'webgpu', device }],
-        graphOptimizationLevel: 'disabled',
-      },
-    )
-  }
   stage = 'Model data download'
   for (const [name, asset] of Object.entries(manifest.positions)) {
     const bytes = await cachedFile(cache, asset.url, asset.sha256)
@@ -105,32 +69,114 @@ async function prepare(url: string) {
       bytes.byteLength / 2,
     )
   }
-  stage = 'Tokenizer loading'
   const decoder = new TextDecoder()
-  tokenizer = new Tokenizer(
-    JSON.parse(
-      decoder.decode(
-        await cachedFile(
-          cache,
-          manifest.tokenizer.tokenizer.url,
-          manifest.tokenizer.tokenizer.sha256,
-        ),
-      ),
-    ),
-    JSON.parse(
-      decoder.decode(
-        await cachedFile(
-          cache,
-          manifest.tokenizer.tokenizer_config.url,
-          manifest.tokenizer.tokenizer_config.sha256,
-        ),
-      ),
-    ),
-  )
+  const files: Record<string, object> = {}
+  for (const [name, asset] of Object.entries(manifest.tokenizer)) {
+    stage = `Tokenizer ${name === 'tokenizer' ? 'vocabulary' : 'configuration'} download`
+    const bytes = await cachedFile(cache, asset.url, asset.sha256)
+    stage = `Parsing the tokenizer ${name === 'tokenizer' ? 'vocabulary' : 'configuration'}`
+    const parsed: unknown = JSON.parse(decoder.decode(bytes))
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error(
+        `Expected a JSON object in ${name}.json. Retry the download.`,
+      )
+    files[name] = parsed
+  }
+  stage = 'Tokenizer initialization'
+  tokenizer = new Tokenizer(files.tokenizer, files.tokenizer_config)
+  stage = 'Local runtime setup'
+  let adapter: GPUAdapter | null = null
+  try {
+    adapter =
+      (await navigator.gpu?.requestAdapter({
+        powerPreference: 'high-performance',
+      })) ?? null
+    if (!adapter?.features.has('shader-f16'))
+      adapter =
+        (await navigator.gpu?.requestAdapter({
+          powerPreference: 'low-power',
+        })) ?? null
+  } catch {
+    /* CPU also works when the browser blocks GPU access. */
+  }
+  let device: GPUDevice | undefined
+  if (adapter?.features.has('shader-f16')) {
+    try {
+      device = await adapter.requestDevice({
+        requiredFeatures: ['shader-f16'],
+        requiredLimits: {
+          maxStorageBufferBindingSize:
+            adapter.limits.maxStorageBufferBindingSize,
+          maxBufferSize: adapter.limits.maxBufferSize,
+        },
+      })
+    } catch {
+      /* Fall back to CPU if a usable device cannot be created. */
+    }
+  }
+  try {
+    await loadSessions(device, adapter)
+  } catch (cause) {
+    if (!device) throw cause
+    for (const name of Object.keys(sessions)) {
+      await sessions[name].release()
+      delete sessions[name]
+    }
+    device.destroy()
+    progress('GPU unavailable; preparing the CPU model…')
+    await loadSessions()
+  }
   stage = 'Model weight download'
   await downloadWeights(cache, Object.values(manifest.sources), progress)
   prepared = true
-  progress('Local model ready. Your sentence stays on this device.')
+  progress(
+    `Local model ready (${cpu ? 'CPU' : 'GPU'}). Your sentence stays on this device.`,
+  )
+}
+
+async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
+  stage = `Preparing the ${device ? 'GPU' : 'CPU'} runtime`
+  progress(`Preparing the local ${device ? 'GPU' : 'CPU'} model…`)
+  cpu = !device
+  ort = cpu
+    ? await import('onnxruntime-web/wasm')
+    : await import('onnxruntime-web/webgpu')
+  ort.env.wasm.numThreads =
+    cpu && self.crossOriginIsolated
+      ? Math.min(4, navigator.hardwareConcurrency || 1)
+      : 1
+  if (cpu) {
+    ort.env.wasm.wasmPaths = {
+      mjs: new URL(manifest.cpuRuntime.mjs.url, location.origin).href,
+    }
+    ort.env.wasm.wasmBinary = await cachedFile(
+      cache,
+      manifest.cpuRuntime.wasm.url,
+      manifest.cpuRuntime.wasm.sha256,
+    )
+  } else {
+    // The GPU runtime exceeds Cloudflare's per-file asset limit.
+    ort.env.wasm.wasmPaths =
+      'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
+    ort.env.webgpu.adapter = adapter!
+  }
+  graphs = cpu ? manifest.cpuGraphs : manifest.graphs
+  for (const [name, graph] of Object.entries(graphs)) {
+    stage = `Loading the ${name} ${cpu ? 'CPU' : 'GPU'} model graph`
+    sessions[name] = await ort.InferenceSession.create(
+      await cachedFile(cache, graph.url, graph.sha256),
+      {
+        executionProviders: device ? [{ name: 'webgpu', device }] : ['wasm'],
+        graphOptimizationLevel: 'disabled',
+      },
+    )
+  }
+}
+
+function tensor(bits: Uint16Array, shape: number[]) {
+  return cpu
+    ? new ort.Tensor('float32', Float32Array.from(bits, halfToFloat), shape)
+    : new ort.Tensor('float16', bits, shape)
 }
 
 function half(bytes: Uint8Array, info: TensorInfo) {
@@ -149,13 +195,12 @@ function half(bytes: Uint8Array, info: TensorInfo) {
 }
 
 async function weights(graph: Graph, layer?: number) {
-  const result: Record<string, ort.Tensor> = {}
+  const result: Record<string, Ort.Tensor> = {}
   const source = manifest.sources.model
   for (const [input, template] of Object.entries(graph.weights)) {
     const name = template.replace('{layer}', String(layer)),
       info = source.tensors[name]
-    result[input] = new ort.Tensor(
-      'float16',
+    result[input] = tensor(
       half(await readRange(cache, source, info.offset, info.bytes), info),
       info.shape,
     )
@@ -163,7 +208,8 @@ async function weights(graph: Graph, layer?: number) {
   return result
 }
 
-function halfBits(tensor: ort.Tensor) {
+function halfBits(tensor: Ort.Tensor) {
+  if (tensor.type === 'float32') return floatToHalf(tensor.data as Float32Array)
   // ORT returns Float16Array on newer browsers and Uint16Array on older ones.
   // Read the same underlying bits in either case.
   const data = tensor.data as Uint16Array
@@ -189,14 +235,13 @@ async function score(
     )
   const source = manifest.sources.model
   stage = 'Reading model weights'
-  const embeddingFeeds = await weights(manifest.graphs.embedding)
+  const embeddingFeeds = await weights(graphs.embedding)
   for (const [input, name] of [
     ['token_rows', 'embed_tokens.weight'],
     ['layer_rows', 'embed_tokens_per_layer.weight'],
   ]) {
     const info = source.tensors[prefix + name]
-    embeddingFeeds[input] = new ort.Tensor(
-      'float16',
+    embeddingFeeds[input] = tensor(
       half(await embeddingRows(cache, source, info, ids), info),
       [1, length, info.shape[1]],
     )
@@ -206,33 +251,33 @@ async function score(
   const embedding = await sessions.embedding.run(embeddingFeeds)
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
   let hidden = embedding.hidden
-  let mlp: ort.Tensor | undefined
+  let mlp: Ort.Tensor | undefined
   const allPerLayer = halfBits(embedding.per_layer)
   const maskData = new Uint16Array(length * length)
   for (let row = 0; row < length; row++)
     maskData.fill(0xfbff, row * length + row + 1, (row + 1) * length)
-  const mask = new ort.Tensor('float16', maskData, [1, 1, length, length])
+  const mask = tensor(maskData, [1, 1, length, length])
   for (const [index, kind] of manifest.layers.entries()) {
     stage = `Scoring layer ${index + 1} of ${manifest.layers.length}`
     progress(
-      `Scoring locally: layer ${index + 1} of ${manifest.layers.length}…`,
+      `Scoring locally${cpu ? ' on CPU' : ''}: layer ${index + 1} of ${manifest.layers.length}…`,
       index / manifest.layers.length,
     )
-    const feeds = await weights(manifest.graphs[kind], index)
+    const feeds = await weights(graphs[kind], index)
     const perLayer = new Uint16Array(length * 256)
     for (let token = 0; token < length; token++) {
       const start = (token * manifest.layers.length + index) * 256
       perLayer.set(allPerLayer.subarray(start, start + 256), token * 256)
     }
-    feeds.per_layer = new ort.Tensor('float16', perLayer, [1, length, 256])
+    feeds.per_layer = tensor(perLayer, [1, length, 256])
     for (const part of ['cosine', 'sine']) {
       const key = `${kind}_${part}`,
         dim = manifest.positions[key].shape[2]
-      feeds[part] = new ort.Tensor(
-        'float16',
-        positions[key].subarray(0, length * dim),
-        [1, length, dim],
-      )
+      feeds[part] = tensor(positions[key].subarray(0, length * dim), [
+        1,
+        length,
+        dim,
+      ])
     }
     const captureMlp =
       target.kind === 'mlp' && index === manifest.layers.length - 1

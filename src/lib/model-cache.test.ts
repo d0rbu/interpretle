@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { downloadWeights, saeEncoder } from './model-cache'
+import { cachedFile, downloadWeights, saeEncoder } from './model-cache'
 import type { WeightSource } from './model-cache'
 
 let entries: Map<string, Response>
@@ -17,10 +17,23 @@ beforeEach(() => {
   cache = {
     keys: async () => [...entries.keys()].map((url) => new Request(url)),
     match: async (url: string) => entries.get(url)?.clone(),
+    delete: async (url: string) => entries.delete(url),
     put: async (url: string, response: Response) => {
       entries.set(url, response)
     },
   } as unknown as Cache
+})
+
+it('repairs a damaged cached tokenizer and validates it before reuse', async () => {
+  const data = new TextEncoder().encode('{"model":{}}')
+  const asset = chunk(data)
+  const key = `https://interpretle.com${asset.url}?sha256=${asset.sha256}`
+  entries.set(key, new Response('damaged cached tokenizer'))
+  const fetch = vi.fn().mockResolvedValue(new Response(data))
+  vi.stubGlobal('fetch', fetch)
+  expect(await cachedFile(cache, asset.url, asset.sha256)).toEqual(data)
+  expect(await cachedFile(cache, asset.url, asset.sha256)).toEqual(data)
+  expect(fetch).toHaveBeenCalledTimes(1)
 })
 afterEach(() => {
   vi.useRealTimers()

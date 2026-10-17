@@ -94,13 +94,15 @@ measurements stay fixed as the library expands.
 
 ## Custom sentences
 
-Custom scoring is WebGPU inference on the player's device. Opening the page starts
-preparing the model prefix and complete SAE encoder in the background, about **3.08 GB** on the first visit,
+Custom scoring runs on the player's device, preferring WebGPU and falling back
+to the CPU through WebAssembly when no compatible GPU is available. Opening the page starts
+preparing the model prefix and complete SAE encoder in the background, about **3.1 GB** on the first visit,
 and caches it in browser storage. Stored passages remain playable during background loading.
 Focusing the write-in card joins that download and shows progress beside a Cancel
 button. Type directly into the card; Enter submits and Shift+Enter adds a newline.
 Enter during loading waits for the model to be ready. Each puzzle allows two write-ins.
-It needs a compatible GPU with FP16 support and enough storage. Loading,
+It needs enough browser storage and memory; a dedicated graphics card is not required.
+CPU scoring can take longer, and stays in a worker so the game remains responsive. Loading,
 cancelled runs, unsupported devices, and failed inference do not consume an
 attempt. The passage game also works on devices that cannot load the model.
 
@@ -128,8 +130,11 @@ The client checks download hashes and never contacts an
 inference service. All required weight chunks are downloaded **before** looking
 up input tokens, so input-dependent embedding requests cannot disclose text.
 Packed weights are restored to FP16 for inference, with FP32 matrix accumulation
-and reductions. Quantization reduces the download, not the GPU's computation precision.
-The ONNX Runtime binary is loaded from a version-pinned CDN during preparation.
+and reductions. The CPU graphs compute in FP32 and explicitly preserve the
+FP16 rounding boundaries, reusing the same downloaded weights and SAE.
+CPU execution uses up to four threads when the browser allows shared memory,
+otherwise one. Its pinned runtime is hosted on Cloudflare; the larger GPU runtime
+is loaded from a version-pinned CDN during preparation.
 Custom text is scored as a complete document with a BOS token and no chat
 template. Unlike a source excerpt, it has no preceding source context.
 See [validation and reproduction steps](docs/validation.md) for the native and

@@ -370,6 +370,11 @@ main {
   background: light-dark(white, #202820);
   overflow: hidden;
 }
+.choice:has(.passage-select:not(:disabled)),
+.passage-select:not(:disabled),
+.passage-select:not(:disabled) * {
+  cursor: pointer;
+}
 .write-in {
   /* Errors take space from the textarea without changing the grid row. */
   contain: size;

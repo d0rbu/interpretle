@@ -113,7 +113,7 @@ not qualified for batched offline extraction.
 
 The original numerical test served local hashed FP4 chunks and used a local
 mirror of the pinned public checkpoint for unchanged normalization ranges.
-V3 hosts those ranges and the tokenizer on Cloudflare; the runtime still uses
+V3 hosts those ranges and the tokenizer on Cloudflare; the GPU runtime uses
 a public pinned CDN URL. The browser verifies model and tokenizer hashes.
 Custom text is evaluated as a complete document with a BOS token and no chat
 template or preceding source context.
@@ -134,6 +134,42 @@ The browser harness downloads the selected weights if its cache is empty.
 Results and its persistent browser cache stay in ignored `artifacts/`.
 `npm run deploy` checks every generated static model asset before uploading;
 a fresh Git checkout must first run the exporter to create the ignored chunks.
+
+## Browser CPU fallback
+
+On 2026-10-17, real Firefox CPU inference passed two SAE cases, including the
+Unicode/whitespace input, and one gated MLP case against the native FP4 reference.
+All tokenizer IDs, UTF-16 offsets and activation masks matched. Maximum relative
+L2 error was **0.0828%**, with maximum absolute error **0.035788**. The compiled
+production worker was checked for the SAE cases; the MLP case also passed through
+the development browser harness. These measure runtime agreement with FP4,
+separately from FP4's error against the original model above.
+
+Chromium also completed a real CPU case after an intentionally failed GPU runtime
+download: 0.0559% relative L2 error and identical activation masks. A WebGPU
+regression case passed with 0.0311% relative L2 error. No case requested
+input-dependent weights after model preparation.
+
+The CPU graphs perform FP32 arithmetic with explicit casts preserving the
+original FP16 rounding boundaries; model weights, SAE parameters and stored
+scores are unchanged. The CPU runtime is hosted on Cloudflare. Cross-origin
+isolation enables up to four CPU threads, with a single-thread fallback.
+Short 19–22-token inputs took 80.8–189.3 seconds on an AMD Ryzen 9 9950X
+running Linux under concurrent host load. These are not macOS measurements.
+
+To reproduce using the same FP4 reference and a local development server:
+
+```sh
+python scripts/browser_cpu.py
+node scripts/verify_browser.mjs --firefox --reference=artifacts/validation-fp4/reference.json
+# Chromium without WebGPU:
+node scripts/verify_browser.mjs --cpu --reference=artifacts/validation-fp4/reference.json
+```
+
+The cache tests cover repairing a corrupted cached tokenizer before reuse.
+Tokenizer download, JSON parsing, initialization and runtime failures now have
+separate error stages. The reported macOS tokenizer failure was not reproduced
+on the Linux Firefox test machine.
 
 ## Interface and results
 
@@ -181,9 +217,11 @@ FP4 model matrix chunks and model tensor descriptors are unchanged.
 The tokenizer is losslessly minified from 32,170,070 to 13,593,553 bytes. Its
 parsed JSON is identical. Tokenizer configuration and the remaining 177 model
 parameter chunks are hosted on Cloudflare alongside the model and full encoder.
-All 501 asset references have verified hashes and fit the 25 MiB per-file limit.
+All 506 asset references, including the CPU graphs and runtime, have verified
+hashes and fit the 25 MiB per-file limit.
 Duplicate content is downloaded once. Weights total 3,062,013,994 bytes; including
-the tokenizer, graphs and positions the download is **3,077,297,211 bytes**.
+the tokenizer, graphs and positions the GPU download is **3,077,297,211 bytes**
+before its runtime. The CPU download including its runtime is **3,091,624,923 bytes**.
 The SAE decoder and layers after 21 are not included.
 
 The cache tests cover network retries, integrity failures, permanent HTTP errors,

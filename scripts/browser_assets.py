@@ -11,6 +11,7 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 from safetensors import safe_open
+from browser_cpu import cpu_graphs
 
 
 def host_assets(manifest, output, checkpoint=None, sae_checkpoint=None):
@@ -70,7 +71,7 @@ def host_assets(manifest, output, checkpoint=None, sae_checkpoint=None):
     manifest['version'] = manifest['version'].replace('-v2', '-v3')
     unique = {chunk['sha256']: chunk for source in manifest['sources'].values() for chunk in source['chunks']}
     manifest['bytes'] = sum(chunk['bytes'] for chunk in unique.values())
-    return manifest
+    return cpu_graphs(manifest, output)
 
 
 def main():

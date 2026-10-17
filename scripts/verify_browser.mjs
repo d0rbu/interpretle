@@ -3,7 +3,7 @@
 // This is a local test harness; it is never part of the deployed server.
 import assert from 'node:assert/strict'
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
-import { chromium } from '@playwright/test'
+import { chromium, firefox } from '@playwright/test'
 
 const descriptor = JSON.parse(
   await readFile('public/puzzles/index.json', 'utf8'),
@@ -14,18 +14,33 @@ const referencePath =
 const resultsPath =
   process.argv.find((arg) => arg.startsWith('--results='))?.slice(10) ??
   'artifacts/browser-validation/results.json'
-const flags = [
-  '--enable-unsafe-webgpu',
-  '--enable-features=Vulkan',
-  '--use-angle=vulkan',
-  '--disable-vulkan-surface',
-]
-if (process.env.INTERPRETLE_TEST_NVIDIA === '1')
+const useFirefox = process.argv.includes('--firefox')
+const cpu = useFirefox || process.argv.includes('--cpu')
+const flags = cpu
+  ? useFirefox
+    ? []
+    : ['--disable-webgpu']
+  : [
+      '--enable-unsafe-webgpu',
+      '--enable-features=Vulkan',
+      '--use-angle=vulkan',
+      '--disable-vulkan-surface',
+    ]
+if (!cpu && process.env.INTERPRETLE_TEST_NVIDIA === '1')
   flags.push('--enable-dawn-features=vulkan_enable_f16_on_nvidia')
-await mkdir('artifacts/browser-validation', { recursive: true })
-const context = await chromium.launchPersistentContext(
-  'artifacts/browser-validation',
-  { headless: true, args: flags },
+const profile =
+  process.env.INTERPRETLE_TEST_PROFILE ??
+  (useFirefox
+    ? 'artifacts/browser-validation-firefox'
+    : 'artifacts/browser-validation')
+await mkdir(profile, { recursive: true })
+const context = await (useFirefox ? firefox : chromium).launchPersistentContext(
+  profile,
+  {
+    headless: true,
+    args: flags,
+    ...(useFirefox && { firefoxUserPrefs: { 'dom.webgpu.enabled': false } }),
+  },
 )
 let weightRequests = 0
 try {
@@ -155,7 +170,7 @@ try {
       'Scoring must never fetch input-dependent weights',
     )
     console.log(
-      `Passed ${results.length} real WebGPU reference cases, with no weight requests during scoring.`,
+      `Passed ${results.length} real ${cpu ? 'CPU' : 'WebGPU'} reference cases, with no weight requests during scoring.`,
     )
   }
 } finally {

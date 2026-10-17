@@ -1,6 +1,8 @@
 # Preserve model bytes in transit and revalidate application files.
 /*
   Cache-Control: public, max-age=0, must-revalidate, no-transform
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
 
 /model/weights/*
   ! Cache-Control

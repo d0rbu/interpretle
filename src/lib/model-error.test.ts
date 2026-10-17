@@ -12,6 +12,24 @@ it('preserves runtime rejections that are not Error instances', () => {
       'Model worker',
     ),
   ).toContain('Uncaught shader compilation error')
+  expect(
+    modelError(
+      {
+        message: '',
+        error: new TypeError('Tokenizer cache could not be read'),
+      },
+      'Tokenizer vocabulary download',
+    ),
+  ).toContain('Tokenizer cache could not be read')
+  expect(
+    modelError({ type: 'error', code: 23 }, 'Tokenizer initialization'),
+  ).toContain('type: error, code: 23')
+  expect(
+    modelError(
+      new DOMException('', 'NotSupportedError'),
+      'Tokenizer initialization',
+    ),
+  ).toContain('NotSupportedError')
 })
 
 it('keeps the cause and adds recovery advice for known failures', () => {

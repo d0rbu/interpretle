@@ -18,3 +18,7 @@ gemma-4-e4b/btk-mat-layer-21-k-100. The tokenizer JSON is minified without
 changing its parsed content. All these assets are hosted on Cloudflare.
 The upstream model and this model
 subset are not covered by the application code MIT license.
+
+ONNX Runtime Web 1.30.0 — Microsoft Corporation
+The unmodified CPU runtime is hosted here as hashed static assets.
+License: onnxruntime-LICENSE.txt; third-party notices: onnxruntime-ThirdPartyNotices.txt.

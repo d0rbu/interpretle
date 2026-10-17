@@ -1,13 +1,24 @@
-// The runtime can reject with a string or numeric code, not just an Error.
+// Browser APIs can reject with DOM events, nested errors, strings, or codes.
+function errorDetail(cause: unknown, depth = 0): string {
+  if (typeof cause === 'string') return cause.trim()
+  if (typeof cause === 'number') return `Runtime error code ${cause}.`
+  if (!cause || typeof cause !== 'object') return ''
+  const value = cause as Record<string, unknown>
+  const nested = value.error ?? value.cause ?? value.reason
+  const message = typeof value.message === 'string' ? value.message.trim() : ''
+  if (message) return message
+  if (nested !== undefined && nested !== cause && depth < 2) {
+    const detail = errorDetail(nested, depth + 1)
+    if (detail) return detail
+  }
+  return ['name', 'type', 'code', 'status']
+    .filter((key) => ['string', 'number'].includes(typeof value[key]))
+    .map((key) => `${key}: ${value[key]}`)
+    .join(', ')
+}
+
 export function modelError(cause: unknown, stage: string) {
-  let detail =
-    cause && typeof cause === 'object' && 'message' in cause
-      ? String(cause.message)
-      : typeof cause === 'string'
-        ? cause
-        : typeof cause === 'number'
-          ? `Runtime error code ${cause}.`
-          : ''
+  let detail = errorDetail(cause)
   const name = cause instanceof Error ? cause.name : ''
   let hint = ''
   if (/QuotaExceededError|quota.*exceed/i.test(`${name} ${detail}`))
