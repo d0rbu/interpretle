@@ -1,4 +1,5 @@
 import type { Catalog, Feature, TokenActivation } from './types'
+import { modelError } from './model-error'
 
 type Progress = (message: string, fraction?: number) => void
 type BrowserModel = NonNullable<Catalog['browserModel']>
@@ -57,16 +58,12 @@ function run<T>(
         }
       }
     }
-    current.onerror = () => {
+    current.onerror = (event) => {
       current.terminate()
       worker = undefined
       ready = false
       finish()
-      reject(
-        new Error(
-          'The local model stopped. Please try again. No attempt was used.',
-        ),
-      )
+      reject(new Error(modelError(event, 'Model worker')))
     }
     signal.addEventListener('abort', cancel, { once: true })
     current.postMessage(message)

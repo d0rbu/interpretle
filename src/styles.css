@@ -162,6 +162,29 @@ h1 {
 main {
   padding-top: 24px;
 }
+.highlight-switch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 14px;
+  color: #596159;
+  font-size: 12px;
+}
+.highlight-switch span {
+  margin-right: 4px;
+}
+.highlight-switch button {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 5px 8px;
+}
+.highlight-switch button[aria-pressed='true'] {
+  background: #e7ede3;
+  color: #2b5139;
+  font-weight: 650;
+}
 .game-status {
   display: flex;
   align-items: center;
@@ -242,6 +265,12 @@ main {
 }
 .token {
   padding: 2px 0;
+  background-color: rgb(
+    234 150 62 / calc(0.74 * var(--activation) * var(--activation))
+  );
+}
+[data-highlight-curve='linear'] .token {
+  background-color: rgb(234 150 62 / calc(0.74 * var(--activation)));
 }
 .token-space[data-flow] {
   position: relative;
@@ -319,6 +348,11 @@ main {
   background: white;
   overflow: hidden;
 }
+.write-in {
+  /* Errors take space from the textarea without changing the grid row. */
+  contain: size;
+  min-height: 152px;
+}
 .write-in:focus-within {
   border-color: #3b6d4e;
   box-shadow: 0 0 0 1px #3b6d4e;
@@ -350,12 +384,12 @@ main {
 }
 .write-in textarea {
   flex: 1;
-  min-height: 150px;
+  min-height: 0;
   margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 14px 16px 36px;
+  padding: 14px 16px 4px;
   font-size: 14px;
   line-height: 1.6;
   resize: none;
@@ -368,13 +402,11 @@ main {
   cursor: not-allowed;
 }
 .write-in-footer {
-  position: absolute;
-  right: 14px;
-  left: 14px;
-  bottom: 10px;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
+  padding: 0 14px 8px;
 }
 .write-in-footer progress {
   min-width: 0;
@@ -429,8 +461,11 @@ textarea {
   color: #a02b1e;
 }
 .write-in .error {
+  flex-shrink: 0;
+  max-height: 50%;
   margin: 0;
-  padding: 0 16px 36px;
+  padding: 0 16px 4px;
+  overflow: auto;
   overflow-wrap: anywhere;
 }
 .reveal {

@@ -713,6 +713,9 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect(
     page.getByText('Downloading model…', { exact: true }),
   ).toHaveCount(0)
+  const card = page.locator('.write-in')
+  const cardHeight = (await card.boundingBox())!.height
+  const inputHeight = (await input.boundingBox())!.height
   await page
     .locator('.write-in')
     .getByRole('button', { name: 'Cancel', exact: true })
@@ -738,6 +741,8 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect(page.locator('.write-in').getByRole('alert')).toContainText(
     'No attempt was used.',
   )
+  expect((await card.boundingBox())!.height).toBe(cardHeight)
+  expect((await input.boundingBox())!.height).toBeLessThan(inputHeight)
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
   await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
   await input.press('Enter')
@@ -770,6 +775,67 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect(page.locator('.game-status')).toContainText('Attempt 3 of 6')
   await expect(input).toBeDisabled()
   await expect(input).toHaveAttribute('placeholder', 'Write your own (0 left)')
+})
+
+test('shows the worker failure reason without growing the card or losing a draft', async ({
+  page,
+}) => {
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: { manifest: '/model/test.json', bytes: 12e9 },
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    window.Worker = class {
+      onmessage: ((event: { data: object }) => void) | null = null
+      onerror: ((event: { message: string }) => void) | null = null
+      postMessage() {
+        this.onmessage?.({ data: { progress: 'Loading model…' } })
+        Object.assign(window, {
+          failModel: () =>
+            this.onerror?.({
+              message:
+                'Failed to fetch dynamically imported module: https://cdn.example/model-runtime.js?diagnostic=' +
+                'long-runtime-detail-'.repeat(30),
+            }),
+        })
+      }
+      terminate() {}
+    } as unknown as typeof Worker
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  const card = page.locator('.write-in')
+  await input.fill('Keep my draft.')
+  const before = (await card.boundingBox())!
+  const inputHeight = (await input.boundingBox())!.height
+  await page.evaluate(() =>
+    (window as unknown as { failModel(): void }).failModel(),
+  )
+  const alert = card.getByRole('alert')
+  await expect(alert).toContainText('Model worker failed: Failed to fetch')
+  await expect(alert).toContainText('Check your connection or content blocker')
+  await expect(input).toHaveValue('Keep my draft.')
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
+  await expect(input).toHaveAttribute('aria-describedby', /custom-error/)
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  expect((await card.boundingBox())!.height).toBe(before.height)
+  expect((await input.boundingBox())!.height).toBeLessThan(inputHeight)
+  const errorBox = (await alert.boundingBox())!
+  const counter = (await card.locator('.character-count').boundingBox())!
+  expect(errorBox.y + errorBox.height).toBeLessThanOrEqual(counter.y)
+  expect(counter.y + counter.height).toBeLessThan(before.y + before.height)
+  expect(await alert.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  )
 })
 
 test('keeps failed background loading silent and reuses a successful retry', async ({

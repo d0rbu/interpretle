@@ -673,6 +673,7 @@ export default function App() {
   const [today, setToday] = useState(puzzleDay)
   const [day, setDay] = useState(puzzleDay)
   const [mode, setMode] = useState<Mode>('daily')
+  const [quadratic, setQuadratic] = useState(true)
   const [practiceSeed, setPracticeSeed] = useState(
     () => stored(PRACTICE_KEY) ?? crypto.randomUUID(),
   )
@@ -739,7 +740,10 @@ export default function App() {
       if (target) void loadFeature(target).catch(() => {})
   }, [catalog, today, day, practiceSeed, nextPracticeSeed])
   return (
-    <div className="shell">
+    <div
+      className="shell"
+      data-highlight-curve={quadratic ? 'quadratic' : 'linear'}
+    >
       <a className="skip-link" href="#puzzle">
         Skip to puzzle
       </a>
@@ -798,6 +802,23 @@ export default function App() {
         </button>
       </header>
       <main id="puzzle">
+        <div
+          className="highlight-switch"
+          role="group"
+          aria-label="Highlight curve"
+        >
+          <span>Highlights</span>
+          {['Linear', 'Quadratic'].map((label) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={quadratic === (label === 'Quadratic')}
+              onClick={() => setQuadratic(label === 'Quadratic')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {error ? (
           <p role="alert">{error}</p>
         ) : catalog && id ? (

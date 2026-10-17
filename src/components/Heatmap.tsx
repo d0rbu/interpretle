@@ -80,10 +80,10 @@ export default function Heatmap({
           }
           style={
             {
-              backgroundColor:
+              '--activation':
                 feature && activation > 0
-                  ? `rgb(234 150 62 / ${0.12 + 0.62 * Math.min(1, activation / feature.displayScale)})`
-                  : 'transparent',
+                  ? Math.min(1, activation / feature.displayScale)
+                  : 0,
             } as CSSProperties
           }
         >

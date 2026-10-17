@@ -15,6 +15,7 @@ import {
   tokenOffsets,
 } from './model-math'
 import type { Feature, TokenActivation } from './types'
+import { modelError } from './model-error'
 
 type Asset = { url: string; sha256: string }
 type Graph = Asset & { weights: Record<string, string> }
@@ -36,11 +37,13 @@ const progress = (message: string, fraction?: number) =>
   self.postMessage({ progress: message, fraction })
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
 let prepared = false
+let stage = 'Model startup'
 const sessions: Record<string, ort.InferenceSession> = {}
 const positions: Record<string, Uint16Array> = {}
 
 async function prepare(url: string) {
   if (prepared) return
+  stage = 'WebGPU setup'
   if (!navigator.gpu)
     throw new Error(
       'This browser does not support WebGPU. Try a current desktop Chrome or Edge. No attempt was used.',
@@ -61,10 +64,12 @@ async function prepare(url: string) {
       'Browser model storage is unavailable. Suggested passages still work.',
     )
   progress('Preparing the local model…')
+  stage = 'Model manifest download'
   const response = await fetch(url)
   if (!response.ok)
-    throw new Error('The browser model manifest could not be loaded.')
+    throw new Error(`The model manifest returned HTTP ${response.status}.`)
   manifest = await response.json()
+  stage = 'Browser storage'
   cache = await caches.open('interpretle:model-v1')
   ort.env.wasm.numThreads = 1
   // The upstream runtime binary exceeds Cloudflare's per-file asset limit.
@@ -72,6 +77,7 @@ async function prepare(url: string) {
   ort.env.wasm.wasmPaths =
     'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
   ort.env.webgpu.adapter = adapter
+  stage = 'GPU initialization'
   const device = await adapter.requestDevice({
     requiredFeatures: ['shader-f16'],
     requiredLimits: {
@@ -80,6 +86,7 @@ async function prepare(url: string) {
     },
   })
   for (const [name, graph] of Object.entries(manifest.graphs)) {
+    stage = `Loading the ${name} model graph`
     sessions[name] ??= await ort.InferenceSession.create(
       await cachedFile(cache, graph.url, graph.sha256),
       {
@@ -88,6 +95,7 @@ async function prepare(url: string) {
       },
     )
   }
+  stage = 'Model data download'
   for (const [name, asset] of Object.entries(manifest.positions)) {
     const bytes = await cachedFile(cache, asset.url, asset.sha256)
     positions[name] = new Uint16Array(
@@ -96,6 +104,7 @@ async function prepare(url: string) {
       bytes.byteLength / 2,
     )
   }
+  stage = 'Tokenizer loading'
   const decoder = new TextDecoder()
   tokenizer = new Tokenizer(
     JSON.parse(
@@ -107,6 +116,7 @@ async function prepare(url: string) {
       ),
     ),
   )
+  stage = 'Model weight download'
   await downloadWeights(cache, manifest.sources.model, progress)
   prepared = true
   progress('Local model ready. Your sentence stays on this device.')
@@ -153,6 +163,7 @@ async function score(
   text: string,
   target: Pick<Feature, 'kind' | 'index' | 'encoder'>,
 ): Promise<TokenActivation[]> {
+  stage = 'Text tokenization'
   const encoded = tokenizer.encode(text, { add_special_tokens: false })
   const offsets = tokenOffsets(text, encoded.tokens)
   const ids = [manifest.bos, ...encoded.ids],
@@ -166,6 +177,7 @@ async function score(
       'Please use ordinary text without model control tokens. No attempt was used.',
     )
   const source = manifest.sources.model
+  stage = 'Reading model weights'
   const embeddingFeeds = await weights(manifest.graphs.embedding)
   for (const [input, name] of [
     ['token_rows', 'embed_tokens.weight'],
@@ -178,6 +190,7 @@ async function score(
       [1, length, info.shape[1]],
     )
   }
+  stage = 'Scoring embeddings'
   progress('Scoring locally: embeddings…')
   const embedding = await sessions.embedding.run(embeddingFeeds)
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
@@ -189,6 +202,7 @@ async function score(
     maskData.fill(0xfbff, row * length + row + 1, (row + 1) * length)
   const mask = new ort.Tensor('float16', maskData, [1, 1, length, length])
   for (const [index, kind] of manifest.layers.entries()) {
+    stage = `Scoring layer ${index + 1} of ${manifest.layers.length}`
     progress(
       `Scoring locally: layer ${index + 1} of ${manifest.layers.length}…`,
       index / manifest.layers.length,
@@ -220,6 +234,7 @@ async function score(
     hidden = output.output
     if (captureMlp) mlp = output.mlp
   }
+  stage = 'Reading activations'
   const values = halfBits(mlp ?? hidden)
   if (values.some((value) => (value & 0x7c00) === 0x7c00))
     throw new Error(
@@ -265,11 +280,6 @@ self.onmessage = async ({ data }) => {
         data.type === 'score' ? await score(data.text, data.target) : null,
     })
   } catch (cause) {
-    self.postMessage({
-      error:
-        cause instanceof Error
-          ? cause.message
-          : 'Local scoring failed. No attempt was used.',
-    })
+    self.postMessage({ error: modelError(cause, stage) })
   }
 }

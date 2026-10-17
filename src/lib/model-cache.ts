@@ -87,7 +87,7 @@ export async function downloadWeights(
           })
           if (response.status !== (chunk.url ? 200 : 206))
             throw new Error(
-              'The model host did not honor the partial download. Please retry.',
+              `Model download returned HTTP ${response.status}; expected ${chunk.url ? 200 : 206}. Please retry.`,
             )
           const data = await verifiedBytes(response, chunk.sha256)
           if (data.byteLength !== chunk.bytes)
