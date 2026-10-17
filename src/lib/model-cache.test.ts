@@ -98,7 +98,7 @@ it('retries a transient failure, caches both sources, and resumes without downlo
   ]
   const progress = vi.fn()
   const downloading = downloadWeights(cache, sources, progress)
-  await vi.runAllTimersAsync()
+  await vi.advanceTimersByTimeAsync(1000)
   await downloading
   expect(fetch).toHaveBeenCalledTimes(3)
   expect(entries.size).toBe(2)
@@ -167,6 +167,47 @@ it('reports incoming bytes before a file is complete without caching unverified 
   await downloading
   expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
   expect(entries.size).toBe(1)
+})
+
+it('updates the remaining-time estimate every second, including while waiting for more bytes', async () => {
+  vi.useFakeTimers()
+  const data = new Uint8Array(1000).fill(7)
+  let stream!: ReadableStreamDefaultController<Uint8Array>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            stream = controller
+          },
+        }),
+      ),
+    ),
+  )
+  const progress = vi.fn()
+  const downloading = downloadWeights(
+    cache,
+    [{ tensors: {}, chunks: [chunk(data)] }],
+    progress,
+  )
+  await vi.advanceTimersByTimeAsync(1500)
+  expect(progress.mock.calls.at(-1)?.[0]).toContain('Estimating…')
+  stream.enqueue(data.subarray(0, 10))
+  await vi.advanceTimersByTimeAsync(0)
+  expect(progress.mock.calls.at(-1)?.[0]).toContain('~2m 29s left')
+  await vi.advanceTimersByTimeAsync(500)
+  expect(progress.mock.calls.at(-1)?.[0]).toContain('~3m 18s left')
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(0.01)
+  stream.enqueue(data.subarray(10))
+  stream.close()
+  await downloading
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
+  expect(progress.mock.calls.at(-1)?.[0]).not.toContain('left')
+  expect(vi.getTimerCount()).toBe(0)
+  const count = progress.mock.calls.length
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(progress).toHaveBeenCalledTimes(count)
 })
 
 it('keeps a slow download alive beyond five minutes while bytes keep arriving', async () => {

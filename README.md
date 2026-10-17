@@ -122,7 +122,8 @@ Startup removes obsolete model files while retaining the current weights,
 complete encoder and both execution paths. Downloads bypass the separate HTTP
 cache, keeping one verified copy in CacheStorage. Storage failures stop retries
 and keep completed files so a later retry can resume.
-The write-in card reports incoming bytes and average transfer speed. Transfers
+The write-in card reports incoming bytes, average transfer speed, and an estimated
+time remaining that refreshes every second. Transfers
 retry after 30 seconds without data; a slow file that is still receiving bytes
 can continue without a fixed time limit. Only verified, complete files enter the
 persistent cache.

@@ -795,6 +795,7 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect(page.locator('.write-in button')).toHaveCount(0)
   await expect(page.locator('.character-count')).toHaveCount(0)
   await expect(page.getByText('Scored locally with WebGPU')).toHaveCount(0)
+  const inputHeight = (await input.boundingBox())!.height
   await input.focus()
   await expect(page.locator('.character-count')).toHaveText('0/280')
   await expect.poll(messages).toEqual(['prepare'])
@@ -807,7 +808,6 @@ test('prefetches without blocking play, joins on focus, and charges only success
   )
   const card = page.locator('.write-in')
   const cardHeight = (await card.boundingBox())!.height
-  const inputHeight = (await input.boundingBox())!.height
   await page
     .locator('.write-in')
     .getByRole('button', { name: 'Cancel', exact: true })
@@ -910,7 +910,8 @@ test('keeps stored choices playable during downloads and cancels after blur with
           data:
             type === 'prepare'
               ? {
-                  progress: 'Downloading model: 0.75 / 3.06 GB',
+                  progress:
+                    'Downloading model: 0.75 / 3.06 GB · 2.50 MB/s · ~15m 24s left',
                   fraction: 0.25,
                 }
               : {
@@ -940,7 +941,18 @@ test('keeps stored choices playable during downloads and cancels after blur with
       exact: true,
     }),
   ).toBeVisible()
-  await expect(card.getByText('0.75 / 3.06 GB', { exact: true })).toBeVisible()
+  await expect(
+    card.getByText('0.75 / 3.06 GB · 2.50 MB/s · ~15m 24s left', {
+      exact: true,
+    }),
+  ).toBeVisible()
+  const bar = (await card.locator('progress').boundingBox())!
+  const cancel = (await card
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .boundingBox())!
+  expect(
+    Math.abs(bar.y + bar.height / 2 - cancel.y - cancel.height / 2),
+  ).toBeLessThan(1)
   expect((await card.boundingBox())!.height).toBeCloseTo(
     heightBeforeProgress,
     0,

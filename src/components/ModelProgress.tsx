@@ -14,14 +14,12 @@ export default function ModelProgress({
       : 'Loading model'
   return (
     <>
-      <div className="model-progress-track">
-        <span className="model-progress-label" title={message}>
-          {message
-            .replace('Downloading model: ', '')
-            .replace('Scoring locally on ', '')}
-        </span>
-        <progress aria-label={message} title={message} value={value} max={1} />
-      </div>
+      <span className="model-progress-label" title={message}>
+        {message
+          .replace('Downloading model: ', '')
+          .replace('Scoring locally on ', '')}
+      </span>
+      <progress aria-label={message} title={message} value={value} max={1} />
       <svg
         className="model-progress-icon"
         viewBox="0 0 20 20"

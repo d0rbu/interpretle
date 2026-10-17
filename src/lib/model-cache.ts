@@ -202,12 +202,22 @@ export async function downloadWeights(
     if (!force && now - lastReport < 200) return
     lastReport = now
     const loaded = done + [...inFlight.values()].reduce((sum, n) => sum + n, 0)
-    const speed =
-      transferred && now > started
-        ? ` · ${(transferred / (now - started) / 1000).toFixed(2)} MB/s`
-        : ''
+    const rate = now > started ? transferred / ((now - started) / 1000) : 0
+    const remaining = Math.max(0, total - loaded)
+    let estimate = remaining ? ' · Estimating…' : ''
+    if (remaining && rate) {
+      const seconds = Math.ceil(remaining / rate)
+      const minutes = Math.floor(seconds / 60)
+      const hours = Math.floor(minutes / 60)
+      const time = hours
+        ? `${hours}h ${minutes % 60}m`
+        : minutes
+          ? `${minutes}m ${seconds % 60}s`
+          : `${seconds}s`
+      estimate = ` · ~${time} left`
+    }
     progress(
-      `Downloading model: ${(loaded / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB${speed}`,
+      `Downloading model: ${(loaded / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB · ${(rate / 1e6).toFixed(2)} MB/s${estimate}`,
       total ? Math.min(done < total ? 0.999 : 1, loaded / total) : 1,
     )
   }
@@ -215,6 +225,7 @@ export async function downloadWeights(
   // Quota estimates are approximate; stop on actual storage errors below.
   let cursor = 0,
     failed = false
+  const refresh = setInterval(() => report(true), 1000)
   const jobs = await Promise.allSettled(
     Array.from({ length: 3 }, async () => {
       while (cursor < missing.length && !failed) {
@@ -247,7 +258,7 @@ export async function downloadWeights(
         }
       }
     }),
-  )
+  ).finally(() => clearInterval(refresh))
   for (const job of jobs) if (job.status === 'rejected') throw job.reason
 }
 
