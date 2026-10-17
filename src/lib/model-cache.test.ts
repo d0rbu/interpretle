@@ -195,15 +195,15 @@ it('updates the remaining-time estimate every second, including while waiting fo
   expect(progress.mock.calls.at(-1)?.[0]).toContain('Estimating…')
   stream.enqueue(data.subarray(0, 10))
   await vi.advanceTimersByTimeAsync(0)
-  expect(progress.mock.calls.at(-1)?.[0]).toContain('~2m 29s left')
+  expect(progress.mock.calls.at(-1)?.[0]).toContain(' · 02:29')
   await vi.advanceTimersByTimeAsync(500)
-  expect(progress.mock.calls.at(-1)?.[0]).toContain('~3m 18s left')
+  expect(progress.mock.calls.at(-1)?.[0]).toContain(' · 03:18')
   expect(progress.mock.calls.at(-1)?.[1]).toBe(0.01)
   stream.enqueue(data.subarray(10))
   stream.close()
   await downloading
   expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
-  expect(progress.mock.calls.at(-1)?.[0]).not.toContain('left')
+  expect(progress.mock.calls.at(-1)?.[0]).toMatch(/ MB\/s$/)
   expect(vi.getTimerCount()).toBe(0)
   const count = progress.mock.calls.length
   await vi.advanceTimersByTimeAsync(1000)

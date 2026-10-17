@@ -911,7 +911,7 @@ test('keeps stored choices playable during downloads and cancels after blur with
             type === 'prepare'
               ? {
                   progress:
-                    'Downloading model: 0.75 / 3.06 GB · 2.50 MB/s · ~15m 24s left',
+                    'Downloading model: 0.75 / 3.06 GB · 2.50 MB/s · 15:24',
                   fraction: 0.25,
                 }
               : {
@@ -942,7 +942,7 @@ test('keeps stored choices playable during downloads and cancels after blur with
     }),
   ).toBeVisible()
   await expect(
-    card.getByText('0.75 / 3.06 GB · 2.50 MB/s · ~15m 24s left', {
+    card.getByText('0.75 / 3.06 GB · 2.50 MB/s · 15:24', {
       exact: true,
     }),
   ).toBeVisible()

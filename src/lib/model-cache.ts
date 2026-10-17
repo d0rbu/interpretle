@@ -209,12 +209,14 @@ export async function downloadWeights(
       const seconds = Math.ceil(remaining / rate)
       const minutes = Math.floor(seconds / 60)
       const hours = Math.floor(minutes / 60)
+      const mm = String(minutes % 60).padStart(2, '0')
+      const ss = String(seconds % 60).padStart(2, '0')
       const time = hours
-        ? `${hours}h ${minutes % 60}m`
+        ? `${String(hours).padStart(2, '0')}:${mm}:${ss}`
         : minutes
-          ? `${minutes}m ${seconds % 60}s`
+          ? `${mm}:${ss}`
           : `${seconds}s`
-      estimate = ` · ~${time} left`
+      estimate = ` · ${time}`
     }
     progress(
       `Downloading model: ${(loaded / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB · ${(rate / 1e6).toFixed(2)} MB/s${estimate}`,
