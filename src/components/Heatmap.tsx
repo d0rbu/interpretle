@@ -57,18 +57,27 @@ export default function Heatmap({
   parts.forEach((part, index) => {
     const activation = Math.max(...part.tokens.map((token) => token.activation))
     let content = part.text
+    let start = 0
     if (!feature && before === undefined) {
-      if (index === 0) content = content.replace(/^\n+/, '')
+      if (index === 0) {
+        content = content.replace(/^\n+/, '')
+        start = part.text.length - content.length
+      }
       if (index === parts.length - 1) content = content.replace(/\n+$/, '')
     }
-    // Keep words together and whitespace outside moving pieces so a token
-    // spanning a line break never stretches during the transition.
-    for (const [piece, value] of (content.match(/\s+|\S+/g) ?? []).entries()) {
+    // Spaces stay inline to preserve wrapping, but move with the highlighted
+    // text. Track original offsets so trimming blank lines keeps stable IDs.
+    for (const match of content.matchAll(/[^\S\r\n]+|\r\n?|\n|\S+/g)) {
+      const value = match[0]
+      const piece = start + match.index
       const space = /^\s+$/.test(value)
       const node = (
         <span
           key={`${index}-${piece}`}
           className={`${feature && part.tokens.length ? 'token' : 'passage-token'}${space ? ' token-space' : ''}`}
+          data-flow={
+            space && !/[\r\n]/.test(value) ? `${index}-${piece}` : undefined
+          }
           style={
             {
               backgroundColor:

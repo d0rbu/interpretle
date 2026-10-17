@@ -158,12 +158,28 @@ function PassageContent({
     // card. A shrinking token must not wrap inside its narrower final width.
     for (const { piece, from, rect, fontWeight } of pieces) {
       if (!from) continue
+      const x = from.left - (rect.left - end.left)
+      const y = from.top - (rect.top - end.top)
+      // Transforms do not move inline spaces. Relative offsets preserve their
+      // natural line breaks; blank glyphs keep the destination font metrics.
+      if (piece.classList.contains('token-space')) {
+        motion.push(
+          piece.animate(
+            [
+              { left: `${x}px`, top: `${y}px` },
+              { left: '0px', top: '0px' },
+            ],
+            timing,
+          ),
+        )
+        continue
+      }
       const width = `${rect.width}px`
       motion.push(
         piece.animate(
           [
             {
-              transform: `translate(${from.left - (rect.left - end.left)}px, ${from.top - (rect.top - end.top)}px)`,
+              transform: `translate(${x}px, ${y}px)`,
               fontWeight: from.fontWeight,
               width,
             },

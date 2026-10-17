@@ -147,7 +147,8 @@ input or changing the reference distribution. Two affected practice clues use
 clean replacements near the median from the existing native extraction cache;
 their pack provenance hashes are updated.
 
-Spaces and letters have identical highlight heights. Mid-animation screenshots
+Spaces and letters have identical highlight heights. Space highlights animate
+in both directions while keeping native inline wrapping. Mid-animation screenshots
 remain identical relative to the card when the page scrolls. Token motion animates
 the actual elements relative to their card with the Web Animations API; it does
 not require view transitions. Collapsing context keeps tokens on one line while

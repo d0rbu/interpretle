@@ -211,6 +211,62 @@ test('keeps highlights compact and the moving tokens attached to their card whil
   ).toBe(0)
 })
 
+test('moves highlighted spaces continuously during expansion and collapse', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const clue = page.locator('.result')
+  const positions = () =>
+    clue.locator('.token-space').evaluateAll((spaces) =>
+      spaces.map((space) => {
+        const root = space.closest('.result')!.getBoundingClientRect()
+        const rect = space.getBoundingClientRect()
+        return { x: rect.x - root.x, y: rect.y - root.y }
+      }),
+    )
+  const pauseAt = (time: number) =>
+    page.evaluate((time) => {
+      document.getAnimations().forEach((animation) => {
+        animation.pause()
+        animation.currentTime = time
+      })
+    }, time)
+  for (const expanded of [true, false]) {
+    const start = await positions()
+    expect(start.length).toBeGreaterThan(0)
+    await clue
+      .getByRole('button', {
+        name: expanded ? 'Show preceding context' : 'Hide preceding context',
+      })
+      .click()
+    await pauseAt(0)
+    ;(await positions()).forEach((space, i) => {
+      expect(space.x).toBeCloseTo(start[i].x, 1)
+      expect(space.y).toBeCloseTo(start[i].y, 1)
+    })
+    await pauseAt(275)
+    const middle = await positions()
+    await page.evaluate(() =>
+      document.getAnimations().forEach((animation) => animation.finish()),
+    )
+    await expect(clue).not.toHaveClass(/context-motion/)
+    const end = await positions()
+    let moved = 0
+    end.forEach((space, i) => {
+      const distance = Math.hypot(space.x - start[i].x, space.y - start[i].y)
+      if (distance < 10) return
+      moved++
+      expect(
+        Math.hypot(middle[i].x - start[i].x, middle[i].y - start[i].y),
+      ).toBeGreaterThan(1)
+      expect(
+        Math.hypot(middle[i].x - space.x, middle[i].y - space.y),
+      ).toBeGreaterThan(1)
+    })
+    expect(moved).toBeGreaterThan(0)
+  }
+})
+
 test('collapses bold context without splitting tokens or jumping at the first frame', async ({
   page,
 }) => {
@@ -243,7 +299,7 @@ test('collapses bold context without splitting tokens or jumping at the first fr
             .getBoundingClientRect()
           const rect = piece.getBoundingClientRect()
           const range = document.createRange()
-          range.selectNodeContents(piece.firstElementChild!)
+          range.selectNodeContents(piece.firstElementChild ?? piece)
           return {
             x: rect.x - root.x,
             y: rect.y - root.y,

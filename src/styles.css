@@ -243,6 +243,9 @@ main {
 .token {
   padding: 2px 0;
 }
+.token-space[data-flow] {
+  position: relative;
+}
 .passage-word {
   display: inline-block;
   max-width: 100%;
