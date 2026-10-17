@@ -134,6 +134,117 @@ it('does not cache damaged bytes, and does not retry a missing static file', asy
   expect(entries.size).toBe(0)
 })
 
+it('reports incoming bytes before a file is complete without caching unverified data', async () => {
+  vi.useFakeTimers()
+  const data = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
+  let stream!: ReadableStreamDefaultController<Uint8Array>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            stream = controller
+          },
+        }),
+      ),
+    ),
+  )
+  const progress = vi.fn()
+  const downloading = downloadWeights(
+    cache,
+    [{ tensors: {}, chunks: [chunk(data)] }],
+    progress,
+  )
+  await vi.advanceTimersByTimeAsync(250)
+  stream.enqueue(data.subarray(0, 4))
+  await vi.advanceTimersByTimeAsync(1)
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(0.5)
+  expect(progress.mock.calls.at(-1)?.[0]).toContain('MB/s')
+  expect(entries.size).toBe(0)
+  stream.enqueue(data.subarray(4))
+  stream.close()
+  await downloading
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
+  expect(entries.size).toBe(1)
+})
+
+it('keeps a slow download alive beyond five minutes while bytes keep arriving', async () => {
+  vi.useFakeTimers()
+  const data = new Uint8Array(20).fill(7)
+  let stream!: ReadableStreamDefaultController<Uint8Array>
+  let signal!: AbortSignal
+  const fetch = vi.fn().mockImplementation(async (_url, options) => {
+    signal = options.signal
+    return new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          stream = controller
+          signal.addEventListener('abort', () =>
+            controller.error(signal.reason),
+          )
+        },
+      }),
+    )
+  })
+  vi.stubGlobal('fetch', fetch)
+  const downloading = downloadWeights(
+    cache,
+    [{ tensors: {}, chunks: [chunk(data)] }],
+    () => {},
+  )
+  for (const byte of data) {
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(signal.aborted).toBe(false)
+    stream.enqueue(new Uint8Array([byte]))
+    await vi.advanceTimersByTimeAsync(1)
+  }
+  stream.close()
+  await downloading
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(entries.size).toBe(1)
+})
+
+it('retries a stalled response instead of leaving the bar frozen for five minutes', async () => {
+  vi.useFakeTimers()
+  const data = new Uint8Array([1, 2, 3, 4])
+  const fetch = vi
+    .fn()
+    .mockImplementationOnce(
+      async (_url, { signal }) =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(data.subarray(0, 2))
+              signal.addEventListener('abort', () =>
+                controller.error(signal.reason),
+              )
+            },
+          }),
+        ),
+    )
+    .mockResolvedValue(new Response(data))
+  vi.stubGlobal('fetch', fetch)
+  const progress = vi.fn()
+  const downloading = downloadWeights(
+    cache,
+    [{ tensors: {}, chunks: [chunk(data)] }],
+    progress,
+  )
+  await vi.advanceTimersByTimeAsync(31000)
+  await downloading
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
+  expect(entries.size).toBe(1)
+})
+
+it('rejects local-file URLs without asking the browser to access them', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await expect(cachedFile(cache, 'file:///')).rejects.toThrow('HTTP or HTTPS')
+  expect(fetch).not.toHaveBeenCalled()
+})
+
 it.each(['QuotaExceededError', 'NS_ERROR_FILE_NO_DEVICE_SPACE'])(
   'preserves completed files on %s without retrying a failed write',
   async (name) => {

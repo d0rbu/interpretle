@@ -637,13 +637,7 @@ function Board({
                 <div className="write-in-footer">
                   {busy && (
                     <>
-                      <progress
-                        aria-label={busy}
-                        title={busy}
-                        value={progress}
-                        max={1}
-                      />
-                      <ModelProgress message={busy} />
+                      <ModelProgress message={busy} value={progress} />
                       <button
                         type="button"
                         className="cancel-model"

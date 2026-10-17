@@ -1,29 +1,50 @@
-export default function ModelProgress({ message }: { message: string }) {
+export default function ModelProgress({
+  message,
+  value,
+}: {
+  message: string
+  value?: number
+}) {
   const scoring = message.startsWith('Scoring locally')
+  const downloading = message.startsWith('Downloading model')
   const label = scoring
     ? 'Scoring your passage'
-    : 'Downloading and loading model'
+    : downloading
+      ? 'Downloading model'
+      : 'Loading model'
   return (
-    <svg
-      className="model-progress-icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      role="img"
-      aria-label={label}
-    >
-      <title>{`${label}: ${message}`}</title>
-      {scoring ? (
-        <>
-          <rect x="5" y="5" width="10" height="10" rx="1.5" />
-          <path d="M8 2v3m4-3v3m-4 10v3m4-3v3M2 8h3m-3 4h3m10-4h3m-3 4h3" />
-        </>
-      ) : (
-        <path d="M10 2v10m-4-4 4 4 4-4M3 13v4h14v-4" />
-      )}
-    </svg>
+    <>
+      <div className="model-progress-track">
+        <span className="model-progress-label" title={message}>
+          {message
+            .replace('Downloading model: ', '')
+            .replace('Scoring locally on ', '')}
+        </span>
+        <progress aria-label={message} title={message} value={value} max={1} />
+      </div>
+      <svg
+        className="model-progress-icon"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        role="img"
+        aria-label={label}
+      >
+        <title>{`${label}: ${message}`}</title>
+        {scoring ? (
+          <>
+            <rect x="5" y="5" width="10" height="10" rx="1.5" />
+            <path d="M8 2v3m4-3v3m-4 10v3m4-3v3M2 8h3m-3 4h3m10-4h3m-3 4h3" />
+          </>
+        ) : downloading ? (
+          <path d="M10 3v14m-5-5 5 5 5-5" />
+        ) : (
+          <path d="M16.1 6a7 7 0 1 0 .9 6M16 2v4h-4" />
+        )}
+      </svg>
+    </>
   )
 }

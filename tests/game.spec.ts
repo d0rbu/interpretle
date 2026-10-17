@@ -802,9 +802,9 @@ test('prefetches without blocking play, joins on focus, and charges only success
     'value',
     '0.25',
   )
-  await expect(
-    page.getByText('Downloading model…', { exact: true }),
-  ).toHaveCount(0)
+  await expect(page.locator('.write-in .model-progress-label')).toHaveText(
+    'Downloading model…',
+  )
   const card = page.locator('.write-in')
   const cardHeight = (await card.boundingBox())!.height
   const inputHeight = (await input.boundingBox())!.height
@@ -932,13 +932,19 @@ test('keeps stored choices playable during downloads and cancels after blur with
     exact: true,
   })
   const card = page.locator('.write-in')
+  const heightBeforeProgress = (await card.boundingBox())!.height
   await input.focus()
   await expect(
     card.getByRole('img', {
-      name: 'Downloading and loading model',
+      name: 'Downloading model',
       exact: true,
     }),
   ).toBeVisible()
+  await expect(card.getByText('0.75 / 3.06 GB', { exact: true })).toBeVisible()
+  expect((await card.boundingBox())!.height).toBeCloseTo(
+    heightBeforeProgress,
+    0,
+  )
   await input.blur()
   await expect(card.locator('.character-count')).toHaveCount(0)
   const inactive = choices(
@@ -968,7 +974,7 @@ test('keeps stored choices playable during downloads and cancels after blur with
   await input.fill('A custom passage.')
   await expect(
     card.getByRole('img', {
-      name: 'Downloading and loading model',
+      name: 'Downloading model',
       exact: true,
     }),
   ).toBeVisible()

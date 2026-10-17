@@ -51,17 +51,38 @@ async function download(
   hash?: string,
   bytes?: number,
   range?: string,
+  received?: (bytes: number) => void,
 ) {
   const file = new URL(url, location.origin)
+  if (!['http:', 'https:'].includes(file.protocol))
+    throw new Error('The model download URL must use HTTP or HTTPS.')
   for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController()
+    let timeout: ReturnType<typeof setTimeout>
+    // Slow transfers may take minutes; only a lack of incoming data times out.
+    const keepAlive = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(
+        () =>
+          controller.abort(
+            new DOMException(
+              'No download data arrived for 30 seconds.',
+              'TimeoutError',
+            ),
+          ),
+        30000,
+      )
+    }
     try {
+      received?.(0)
+      keepAlive()
       const response = await fetch(url, {
         // CacheStorage holds the verified copy; do not also fill the HTTP cache.
         cache: 'no-store',
         headers: range ? { Range: range } : undefined,
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(300000),
+        signal: controller.signal,
       })
       if (response.status !== (range ? 206 : 200))
         throw new DownloadError(
@@ -70,25 +91,51 @@ async function download(
             response.status === 429 ||
             response.status >= 500,
         )
-      const data = await verifiedBytes(response, hash)
+      keepAlive()
+      const data = await verifiedBytes(response, hash, (loaded) => {
+        keepAlive()
+        received?.(loaded)
+      })
       if (bytes !== undefined && data.byteLength !== bytes)
         throw new Error('The downloaded file was incomplete.')
       return data
-    } catch (cause) {
+    } catch (error) {
+      const cause = controller.signal.aborted ? controller.signal.reason : error
       if (isStorageFull(cause)) throw cause
       if (attempt === 3 || (cause instanceof DownloadError && !cause.retry))
         throw new Error(
           `Could not download from ${file.hostname}: ${cause instanceof Error ? cause.message : String(cause)} Completed files are saved; retry to resume.`,
         )
       await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
+    } finally {
+      clearTimeout(timeout!)
     }
   }
 }
 
-export async function verifiedBytes(response: Response, hash?: string) {
+export async function verifiedBytes(
+  response: Response,
+  hash?: string,
+  received?: (bytes: number) => void,
+) {
   if (!response.ok)
     throw new Error(`Model download failed (${response.status}). Please retry.`)
-  const data = new Uint8Array(await response.arrayBuffer())
+  let loaded = 0
+  const body =
+    received && response.body
+      ? new Response(
+          response.body.pipeThrough(
+            new TransformStream<Uint8Array, Uint8Array>({
+              transform(chunk, stream) {
+                loaded += chunk.byteLength
+                received(loaded)
+                stream.enqueue(chunk)
+              },
+            }),
+          ),
+        )
+      : response
+  const data = new Uint8Array(await body.arrayBuffer())
   if (hash) {
     const digest = await crypto.subtle.digest('SHA-256', data)
     const actual = Array.from(new Uint8Array(digest), (b) =>
@@ -146,12 +193,25 @@ export async function downloadWeights(
   const missing = chunks.filter((chunk) => !saved.has(key(chunk)))
   const total = chunks.reduce((sum, chunk) => sum + chunk.bytes, 0)
   let done = total - missing.reduce((sum, chunk) => sum + chunk.bytes, 0)
-  const report = () =>
+  const inFlight = new Map<string, number>()
+  const started = Date.now()
+  let transferred = 0,
+    lastReport = 0
+  const report = (force = false) => {
+    const now = Date.now()
+    if (!force && now - lastReport < 200) return
+    lastReport = now
+    const loaded = done + [...inFlight.values()].reduce((sum, n) => sum + n, 0)
+    const speed =
+      transferred && now > started
+        ? ` · ${(transferred / (now - started) / 1000).toFixed(2)} MB/s`
+        : ''
     progress(
-      `Downloading model: ${(done / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB`,
-      total ? done / total : 1,
+      `Downloading model: ${(loaded / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB${speed}`,
+      total ? Math.min(done < total ? 0.999 : 1, loaded / total) : 1,
     )
-  report()
+  }
+  report(true)
   // Quota estimates are approximate; stop on actual storage errors below.
   let cursor = 0,
     failed = false
@@ -167,11 +227,20 @@ export async function downloadWeights(
             chunk.url
               ? undefined
               : `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
+            (loaded) => {
+              transferred += Math.max(
+                0,
+                loaded - (inFlight.get(chunk.sha256) ?? 0),
+              )
+              inFlight.set(chunk.sha256, loaded)
+              report()
+            },
           )
           // CacheStorage does not accept HTTP 206; save verified bytes as a local 200 response.
           await cache.put(key(chunk), new Response(data))
+          inFlight.delete(chunk.sha256)
           done += data.byteLength
-          report()
+          report(true)
         } catch (error) {
           failed = true
           throw error

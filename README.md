@@ -122,6 +122,10 @@ Startup removes obsolete model files while retaining the current weights,
 complete encoder and both execution paths. Downloads bypass the separate HTTP
 cache, keeping one verified copy in CacheStorage. Storage failures stop retries
 and keep completed files so a later retry can resume.
+The write-in card reports incoming bytes and average transfer speed. Transfers
+retry after 30 seconds without data; a slow file that is still receiving bytes
+can continue without a fixed time limit. Only verified, complete files enter the
+persistent cache.
 The catalog selects the [versioned FP4 manifest](public/model/manifest-v3-fp4.json).
 Original manifest and graph URLs remain available for already-open older tabs.
 
