@@ -56,6 +56,10 @@ export default function Heatmap({
   }
   parts.forEach((part, index) => {
     const activation = Math.max(...part.tokens.map((token) => token.activation))
+    const strength =
+      feature && activation > 0
+        ? Math.min(1, activation / feature.displayScale)
+        : 0
     let content = part.text
     let start = 0
     if (!feature && before === undefined) {
@@ -80,8 +84,8 @@ export default function Heatmap({
           }
           style={{
             backgroundColor:
-              feature && activation > 0
-                ? `color-mix(in srgb, light-dark(#ea963ed1, #445bc4) ${100 * Math.min(1, activation / feature.displayScale)}%, transparent)`
+              strength > 0
+                ? `light-dark(color-mix(in srgb, #ea963ed1 ${100 * strength}%, transparent), color-mix(in srgb, #445bc4 ${Math.min(100, 200 * strength)}%, transparent))`
                 : 'transparent',
           }}
         >
