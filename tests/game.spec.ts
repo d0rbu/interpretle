@@ -329,7 +329,11 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   const clue = page.locator('.result')
   const clueTokens = await clue.locator('.token').count()
-  await clue.getByRole('button', { name: 'Show preceding context' }).click()
+  const clueToggle = clue.getByRole('button', {
+    name: 'Show preceding context',
+  })
+  await expect(clueToggle).toContainText('50th percentile')
+  await clueToggle.getByText('50th percentile', { exact: true }).click()
   await expect(clue.locator('.heatmap-text')).toHaveText(
     feature.starter.before + feature.starter.text,
   )
@@ -877,6 +881,119 @@ test('prefetches without blocking play, joins on focus, and charges only success
   ).toBe(true)
 })
 
+test('keeps stored choices playable during downloads and cancels after blur without focusing the input', async ({
+  page,
+}) => {
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: { manifest: '/model/test.json', bytes: 3.1e9 },
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    let pending: TestWorker
+    const state = {
+      terminations: 0,
+      ready() {
+        pending.onmessage?.({ data: { result: null } })
+      },
+    }
+    Object.assign(window, { progressTest: state })
+    class TestWorker {
+      onmessage: ((event: { data: object }) => void) | null = null
+      onerror = null
+      postMessage({ type }: { type: string }) {
+        pending = this
+        this.onmessage?.({
+          data:
+            type === 'prepare'
+              ? {
+                  progress: 'Downloading model: 0.75 / 3.06 GB',
+                  fraction: 0.25,
+                }
+              : {
+                  progress: 'Scoring locally on CPU: layer 2 of 22…',
+                  fraction: 1 / 22,
+                },
+        })
+      }
+      terminate() {
+        state.terminations++
+      }
+    }
+    window.Worker = TestWorker as unknown as typeof Worker
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  const card = page.locator('.write-in')
+  await input.focus()
+  await expect(
+    card.getByRole('img', {
+      name: 'Downloading and loading model',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await input.blur()
+  await expect(card.locator('.character-count')).toHaveCount(0)
+  const inactive = choices(
+    createGame('daily', '2026-10-18', feature.id),
+    feature,
+  ).find((passage) => passage.band === 0)!
+  const option = page.getByRole('button', { name: inactive.text, exact: true })
+  await expect(option).toBeEnabled()
+  await option.click()
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  await expect(card.locator('progress')).toBeVisible()
+  await expect(card.locator('.character-count')).toHaveCount(0)
+  const guessToggle = page.locator('.history .context-toggle')
+  await guessToggle.getByText('Inactive', { exact: true }).click()
+  await expect(guessToggle).toHaveAttribute('aria-expanded', 'true')
+  await card.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(card.locator('progress')).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { progressTest: { terminations: number } })
+          .progressTest.terminations,
+    ),
+  ).toBe(1)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(input).not.toBeFocused()
+  await input.fill('A custom passage.')
+  await expect(
+    card.getByRole('img', {
+      name: 'Downloading and loading model',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await page.evaluate(() =>
+    (
+      window as unknown as { progressTest: { ready(): void } }
+    ).progressTest.ready(),
+  )
+  await input.press('Enter')
+  await expect(
+    card.getByRole('img', { name: 'Scoring your passage', exact: true }),
+  ).toBeVisible()
+  await expect(card.locator('.model-progress-icon title')).toHaveText(
+    'Scoring your passage: Scoring locally on CPU: layer 2 of 22…',
+  )
+  await expect(page.locator('.passage-select').first()).toBeDisabled()
+  await input.blur()
+  await card.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(card.locator('progress')).toHaveCount(0)
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  await expect(input).toHaveValue('A custom passage.')
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
+  await expect(page.locator('.passage-select').first()).toBeEnabled()
+})
+
 test('shows the worker failure reason without growing the card or losing a draft', async ({
   page,
 }) => {
@@ -1092,6 +1209,67 @@ test('counts passage choices, outcomes and practice starts with a reusable rando
     events.every(
       (event) =>
         !('text' in event) && !('tokens' in event) && !('score' in event),
+    ),
+  ).toBe(true)
+})
+
+test('tracks selected and resolved themes, including system changes, once per visit combination', async ({
+  page,
+}) => {
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const rawThemes = () => events.filter((event) => event.event === 'theme')
+  const themes = () => [
+    ...new Map(rawThemes().map((event) => [event.id, event])).values(),
+  ]
+  await expect.poll(themes).toHaveLength(1)
+  expect(themes()[0]).toMatchObject({
+    themePreference: 'system',
+    theme: 'light',
+  })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect.poll(themes).toHaveLength(2)
+  expect(themes()[1]).toMatchObject({
+    themePreference: 'system',
+    theme: 'dark',
+  })
+  await page.getByRole('button', { name: 'Dark mode', exact: true }).click()
+  await expect.poll(themes).toHaveLength(3)
+  expect(themes()[2]).toMatchObject({ themePreference: 'dark', theme: 'dark' })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.getByRole('button', { name: 'Light mode', exact: true }).click()
+  await expect.poll(themes).toHaveLength(4)
+  expect(themes()[3]).toMatchObject({
+    themePreference: 'light',
+    theme: 'light',
+  })
+  const system = page.getByRole('button', { name: 'System mode', exact: true })
+  await system.click()
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.getByRole('button', { name: 'Dark mode', exact: true }).click()
+  expect(themes()).toHaveLength(4)
+  const initialDark = themes()[2]
+  await page.reload()
+  await expect
+    .poll(
+      () => rawThemes().filter((event) => event.id === initialDark.id).length,
+    )
+    .toBe(2)
+  expect(rawThemes().at(-1)).toEqual(initialDark)
+  expect(themes()).toHaveLength(4)
+  expect(
+    themes().every((event) =>
+      Object.keys(event).every((key) =>
+        ['event', 'id', 'player', 'theme', 'themePreference'].includes(key),
+      ),
     ),
   ).toBe(true)
 })

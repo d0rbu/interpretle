@@ -3,10 +3,11 @@ import type { MouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import Heatmap from './components/Heatmap'
 import Chevron from './components/Chevron'
+import ModelProgress from './components/ModelProgress'
 import Outcome from './components/Outcome'
 import { cachedFeature, loadCatalog, loadFeature } from './data/puzzles'
 import { puzzleDay } from './lib/day'
-import { trackGame, trackVisit } from './lib/analytics'
+import { trackGame, trackTheme, trackVisit } from './lib/analytics'
 import {
   browserModelReady,
   prefetchBrowserModel,
@@ -63,6 +64,12 @@ function ThemeSwitch() {
   })
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    const system = matchMedia('(prefers-color-scheme: dark)')
+    const report = () => trackTheme(theme, system.matches)
+    report()
+    if (theme !== 'system') return
+    system.addEventListener('change', report)
+    return () => system.removeEventListener('change', report)
   }, [theme])
   return (
     <div
@@ -154,6 +161,14 @@ function PassageContent({
 }) {
   const [expanded, setExpanded] = useState(false)
   const animations = useRef<Animation[]>([])
+  const scoreDisplay = score && (
+    <span
+      title={`${score.approximate ? 'Estimated with the local FP4 model. ' : ''}Maximum activation: ${score.rawMax.toPrecision(6)}`}
+    >
+      {score.approximate && '≈ '}
+      {scoreLabel(score.score, score.rawMax > 0)}
+    </span>
+  )
   useEffect(() => () => animations.current.forEach((item) => item.cancel()), [])
   function toggle(event: MouseEvent<HTMLButtonElement>) {
     const container = event.currentTarget.closest(
@@ -258,26 +273,19 @@ function PassageContent({
       <div className="result-heading">
         {label && <h2>{label}</h2>}
         <div className="passage-actions">
-          {score && (
-            <span
-              title={`${score.approximate ? 'Estimated with the local FP4 model. ' : ''}Maximum activation: ${score.rawMax.toPrecision(6)}`}
-            >
-              {score.approximate && '≈ '}
-              {scoreLabel(score.score, score.rawMax > 0)}
-            </span>
-          )}
-          {passage && (
+          {passage ? (
             <button
               type="button"
               className="context-toggle"
-              aria-label={
-                expanded ? 'Hide preceding context' : 'Show preceding context'
-              }
+              aria-label={`${expanded ? 'Hide preceding context' : 'Show preceding context'}${score ? `, ${score.approximate ? 'approximately ' : ''}${scoreLabel(score.score, score.rawMax > 0)}` : ''}`}
               aria-expanded={expanded}
               onClick={toggle}
             >
+              {scoreDisplay}
               <Chevron />
             </button>
+          ) : (
+            scoreDisplay
           )}
         </div>
       </div>
@@ -395,7 +403,7 @@ function Board({
   }
 
   async function submit(passageId?: string) {
-    if (submitting || (passageId && busy)) return
+    if (submitting) return
     if (!passageId && !text.trim()) return
     setError('')
     try {
@@ -486,7 +494,7 @@ function Board({
           <button
             className="new-puzzle"
             onClick={newPractice}
-            disabled={!!busy}
+            disabled={submitting}
           >
             New puzzle
           </button>
@@ -558,7 +566,7 @@ function Board({
                     <button
                       type="button"
                       className="passage-select"
-                      disabled={!!busy}
+                      disabled={submitting}
                       onClick={() => submit(passage.id)}
                     >
                       <Heatmap
@@ -573,7 +581,6 @@ function Board({
             ))}
             <article
               className="choice write-in"
-              onFocusCapture={() => setWriting(true)}
               onBlurCapture={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget))
                   setWriting(false)
@@ -600,6 +607,7 @@ function Board({
                   )
                 }
                 onFocus={() => {
+                  setWriting(true)
                   trackGame('writein_open', game, {
                     attempt: game.guesses.length + 1,
                   })
@@ -635,6 +643,7 @@ function Board({
                         value={progress}
                         max={1}
                       />
+                      <ModelProgress message={busy} />
                       <button
                         type="button"
                         className="cancel-model"

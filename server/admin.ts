@@ -67,6 +67,27 @@ export async function statsPage(response: Response) {
 </style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><button>View</button></form>
 <dl>${summary.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>
 <p>Browsers use a random saved ID, not a count of people. Rounds begin with the first submitted guess. Custom text stays on the player's device.</p>
+<h2>Color theme usage</h2>${table(
+      ['Selected setting', 'Displayed theme', 'Visits'],
+      [
+        ['light', 'light'],
+        ['dark', 'dark'],
+        ['system', 'light'],
+        ['system', 'dark'],
+      ].map(([preference, theme]) => [
+        preference[0].toUpperCase() + preference.slice(1),
+        theme[0].toUpperCase() + theme.slice(1),
+        stats.counters
+          .filter(
+            (row) =>
+              row.event === 'theme' &&
+              row.themePreference === preference &&
+              row.theme === theme,
+          )
+          .reduce((sum, row) => sum + row.count, 0),
+      ]),
+    )}
+<p>Each visit counts once per selected/displayed combination. A visit can use more than one combination. Theme tracking starts with this release.</p>
 <h2>Practice rounds per browser</h2>${table(
       ['Rounds', 'Browsers'],
       stats.practice.map((row) => [row.rounds, row.players]),

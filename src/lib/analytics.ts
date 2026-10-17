@@ -4,6 +4,7 @@ import { isStorageFull } from './model-error'
 
 export const EVENTS = [
   'visit',
+  'theme',
   'puzzle_view',
   'game_start',
   'guess',
@@ -15,6 +16,7 @@ export const EVENTS = [
   'model_error',
   'model_cancel',
 ] as const
+export const THEMES = ['light', 'dark', 'system'] as const
 export const PROBLEMS = [
   'network',
   'storage',
@@ -23,6 +25,8 @@ export const PROBLEMS = [
   'runtime',
 ] as const
 export type EventFields = {
+  theme?: 'light' | 'dark'
+  themePreference?: (typeof THEMES)[number]
   mode?: Game['mode']
   feature?: string
   passage?: string
@@ -96,6 +100,21 @@ export function trackVisit() {
   // Session storage survives reloads; another tab gets a separate visit.
   identify()
   track('visit', {}, `${puzzleDay()}:visit:${visit}`)
+}
+
+/** Count each selected/displayed combination once per visit and Pacific day. */
+export function trackTheme(
+  preference: (typeof THEMES)[number],
+  systemDark: boolean,
+) {
+  identify()
+  const theme =
+    preference === 'system' ? (systemDark ? 'dark' : 'light') : preference
+  track(
+    'theme',
+    { themePreference: preference, theme },
+    `${puzzleDay()}:theme:${visit}:${preference}:${theme}`,
+  )
 }
 
 export function trackGame(

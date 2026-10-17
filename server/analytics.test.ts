@@ -143,6 +143,47 @@ it('recognizes a browser on another Pacific day and keeps daily activity separat
   })
 })
 
+it('preserves existing data and privately aggregates selected and displayed themes', async () => {
+  await request(event())
+  const themes = [
+    ['light', 'light'],
+    ['dark', 'dark'],
+    ['system', 'light'],
+    ['system', 'dark'],
+  ]
+  const events = themes.map(([themePreference, theme]) =>
+    event('theme', { themePreference, theme }),
+  )
+  for (const data of events) expect((await request(data)).status).toBe(204)
+  restart()
+  for (const data of events) expect((await request(data)).status).toBe(204)
+  const result = await stats()
+  expect(result.visits).toBe(1)
+  const counters = result.counters.filter(
+    (row: { event: string }) => row.event === 'theme',
+  )
+  expect(counters).toHaveLength(4)
+  for (const [themePreference, theme] of themes)
+    expect(counters).toContainEqual({
+      event: 'theme',
+      themePreference,
+      theme,
+      count: 1,
+    })
+  const response = await request(undefined, '/admin', {
+    headers: {
+      Authorization:
+        'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+    },
+  })
+  const html = await response.text()
+  expect(html).toContain('Color theme usage')
+  expect(html).toContain('<td>System</td><td>Light</td><td>1</td>')
+  expect(html).toContain('<td>System</td><td>Dark</td><td>1</td>')
+  expect((await request(undefined, '/admin')).status).toBe(401)
+  expect((await request(undefined, '/api/stats')).status).toBe(404)
+})
+
 it('rejects text, raw errors, unknown targets, malformed fields, and cross-site writes', async () => {
   for (const fields of [
     { text: 'Never store this custom sentence.' },
@@ -156,10 +197,14 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
     { attempt: 9 },
     { outcome: 'unknown' },
     { problem: 'raw error' },
+    { theme: 'system' },
+    { theme: 'dark', themePreference: 'light' },
+    { themePreference: 'auto' },
     { player: {} },
     { id: {} },
   ])
     expect((await request(event('guess', fields))).status).toBe(400)
+  expect((await request(event('theme'))).status).toBe(400)
   expect(
     (
       await request(event(), '/api/events', {

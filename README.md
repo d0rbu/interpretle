@@ -151,7 +151,9 @@ recognize returning players, plus a session ID in session storage. They count
 visits, puzzle views, starts, selected public passage IDs/positions/bands,
 attempt numbers, completed outcomes, practice rounds, write-in selections,
 shares, and model loading outcomes. Model errors use fixed categories, never
-raw error messages. No custom text, tokens, activation values, IP addresses,
+raw error messages. Theme usage records the selected Light/Dark/System setting
+and the actual light/dark appearance, including system changes, once per
+combination per visit and Pacific day. No custom text, tokens, activation values, IP addresses,
 or fingerprints are stored by this counter.
 
 The backend keeps aggregate dimensions, daily per-browser visit/practice counts,

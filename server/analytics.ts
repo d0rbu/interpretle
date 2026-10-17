@@ -1,6 +1,6 @@
 import catalog from '../public/puzzles/index.json'
 import { puzzleDay } from '../src/lib/day'
-import { EVENTS, PROBLEMS } from '../src/lib/analytics'
+import { EVENTS, PROBLEMS, THEMES } from '../src/lib/analytics'
 
 interface Sql {
   exec(
@@ -17,6 +17,8 @@ const targets = new Set([...Object.values(catalog.daily), ...catalog.practice])
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const fields = [
+  'theme',
+  'themePreference',
   'mode',
   'feature',
   'passage',
@@ -115,7 +117,15 @@ export class GameAnalytics {
           data.attempt < 1 ||
           data.attempt > 8)) ||
       (data.outcome !== undefined && !['won', 'lost'].includes(data.outcome)) ||
-      (data.problem !== undefined && !PROBLEMS.includes(data.problem))
+      (data.problem !== undefined && !PROBLEMS.includes(data.problem)) ||
+      (data.theme !== undefined && !['light', 'dark'].includes(data.theme)) ||
+      (data.themePreference !== undefined &&
+        !THEMES.includes(data.themePreference)) ||
+      (data.event === 'theme' && (!data.theme || !data.themePreference)) ||
+      (data.theme &&
+        data.themePreference &&
+        data.themePreference !== 'system' &&
+        data.theme !== data.themePreference)
     )
       return json({ error: 'Invalid event.' }, 400)
     if (
