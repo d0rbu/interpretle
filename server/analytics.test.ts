@@ -184,6 +184,29 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
   expect(await stats()).toMatchObject({ players: 0, counters: [] })
 })
 
+it('redirects HTTP stats visits to HTTPS before requesting credentials or reading storage', async () => {
+  for (const path of ['/admin', '/admin/?day=2026-10-18']) {
+    const response = await worker.fetch(
+      new Request('http://interpretle.com' + path),
+      {
+        get STATS_PASSWORD(): string {
+          throw new Error('Must redirect before checking credentials')
+        },
+        RESULTS: {
+          getByName() {
+            throw new Error('Must redirect before reading storage')
+          },
+        },
+      },
+    )
+    expect(response.status).toBe(308)
+    expect(response.headers.get('Location')).toBe(
+      'https://interpretle.com' + path,
+    )
+    expect(response.headers.has('WWW-Authenticate')).toBe(false)
+  }
+})
+
 it('serves stats only on the private authenticated page and disables the old public API', async () => {
   await request(event())
   const password = 'a-test-password-not-used-in-production'

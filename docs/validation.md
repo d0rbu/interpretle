@@ -156,14 +156,18 @@ scores are unchanged. The CPU runtime is hosted on Cloudflare. Cross-origin
 isolation enables up to four CPU threads, with a single-thread fallback.
 Short 19–22-token inputs took 80.8–189.3 seconds on an AMD Ryzen 9 9950X
 running Linux under concurrent host load. These are not macOS measurements.
+The compiled worker also passed the Unicode case on the live domain in Firefox,
+using Cloudflare's actual isolation headers and CPU runtime: 108.4 seconds,
+0.0559% relative L2 error, and no weight requests during scoring.
 
-To reproduce using the same FP4 reference and a local development server:
+For quick SAE and MLP checks using the FP4 reference and a local development server:
 
 ```sh
 python scripts/browser_cpu.py
-node scripts/verify_browser.mjs --firefox --reference=artifacts/validation-fp4/reference.json
+node scripts/verify_browser.mjs --firefox --case=3 --reference=artifacts/validation-fp4/reference.json
+node scripts/verify_browser.mjs --firefox --case=8 --reference=artifacts/validation-fp4/reference.json
 # Chromium without WebGPU:
-node scripts/verify_browser.mjs --cpu --reference=artifacts/validation-fp4/reference.json
+node scripts/verify_browser.mjs --cpu --case=3 --reference=artifacts/validation-fp4/reference.json
 ```
 
 The cache tests cover repairing a corrupted cached tokenizer before reuse.

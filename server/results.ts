@@ -103,6 +103,10 @@ export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url)
     if (url.pathname === '/admin' || url.pathname === '/admin/') {
+      if (url.protocol !== 'https:') {
+        url.protocol = 'https:'
+        return Response.redirect(url.href, 308)
+      }
       if (!(await authorized(request, env.STATS_PASSWORD)))
         return new Response('Authentication required.', {
           status: 401,
