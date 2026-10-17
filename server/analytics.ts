@@ -30,8 +30,20 @@ const fields = [
   'problem',
 ] as const
 
-// Random browser IDs, aggregate counters and round summaries. No IPs,
-// custom text, scores, or raw event timestamps. Reads stay behind /admin auth.
+function normalizeIp(value: string | null) {
+  if (!value || !/^[\da-f:.]{2,45}$/i.test(value)) return undefined
+  const ipv6 = value.includes(':')
+  if (!ipv6 && !/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) return undefined
+  try {
+    const host = new URL(`http://${ipv6 ? `[${value}]` : value}/`).hostname
+    return ipv6 ? host.slice(1, -1) : host === value ? host : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Browser/IP counters and round summaries. No custom text, scores, or raw
+// event timestamps. Reads stay behind /admin auth.
 export class GameAnalytics {
   sql: Sql
   constructor(state: { storage: { sql: Sql } }) {
@@ -52,6 +64,12 @@ export class GameAnalytics {
         PRIMARY KEY (player, day, event, dimensions)
       ) WITHOUT ROWID;
       CREATE INDEX IF NOT EXISTS browser_counters_day ON browser_counters (day);
+      CREATE TABLE IF NOT EXISTS ip_counters (
+        ip TEXT, day TEXT, player TEXT, event TEXT, dimensions TEXT, count INTEGER NOT NULL,
+        PRIMARY KEY (ip, day, player, event, dimensions)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS ip_counters_day ON ip_counters (day);
+      CREATE INDEX IF NOT EXISTS ip_counters_player ON ip_counters (player);
     `)
   }
 
@@ -61,10 +79,13 @@ export class GameAnalytics {
       const params = new URL(request.url).searchParams
       const selected = params.get('day') || day
       const selectedBrowser = params.get('browser') || undefined
+      const selectedIp = normalizeIp(params.get('ip'))
       if (!/^\d{4}-\d{2}-\d{2}$/.test(selected) || selected > day)
         return json({ error: 'Invalid day.' }, 400)
       if (selectedBrowser && !uuid.test(selectedBrowser))
         return json({ error: 'Invalid browser ID.' }, 400)
+      if (params.get('ip') && !selectedIp)
+        return json({ error: 'Invalid IP address.' }, 400)
       const counts = [
         ...this.sql.exec(
           'SELECT event, dimensions, count FROM counters WHERE day = ? ORDER BY event, dimensions',
@@ -93,7 +114,11 @@ export class GameAnalytics {
         COALESCE(SUM(CASE WHEN event = 'guess' AND json_extract(dimensions, '$.passage') IS NULL THEN count ELSE 0 END), 0) AS writeins,
         COALESCE(SUM(CASE WHEN event = 'finish' AND json_extract(dimensions, '$.outcome') = 'won' THEN count ELSE 0 END), 0) AS wins,
         COALESCE(SUM(CASE WHEN event = 'finish' AND json_extract(dimensions, '$.outcome') = 'lost' THEN count ELSE 0 END), 0) AS losses,
-        GROUP_CONCAT(DISTINCT CASE WHEN event = 'theme' THEN json_extract(dimensions, '$.themePreference') || ' / ' || json_extract(dimensions, '$.theme') END) AS themes`
+        GROUP_CONCAT(DISTINCT json_extract(dimensions, '$.themePreference') || ' / ' || json_extract(dimensions, '$.theme')) AS themes`
+      const ipMetrics = `
+        COALESCE(SUM(CASE WHEN event = 'visit' THEN count ELSE 0 END), 0) AS visits,
+        COALESCE(SUM(CASE WHEN event = 'game_start' AND json_extract(dimensions, '$.mode') = 'practice' THEN count ELSE 0 END), 0) AS practiceRounds,
+        ${metrics}`
       const browsers = [
         ...this.sql.exec(
           `WITH usage AS (SELECT player, ${metrics} FROM browser_counters WHERE day = ? GROUP BY player)
@@ -103,6 +128,18 @@ export class GameAnalytics {
         FROM activity a LEFT JOIN usage u ON u.player = a.player
         WHERE a.day = ? ORDER BY a.visits DESC, guesses DESC, a.player LIMIT 200`,
           selected,
+          selected,
+        ),
+      ]
+      const [{ ipCount }] = this.sql.exec(
+        'SELECT COUNT(DISTINCT ip) AS ipCount FROM ip_counters WHERE day = ?',
+        selected,
+      )
+      const ips = [
+        ...this.sql.exec(
+          `SELECT ip AS id, COUNT(DISTINCT player) AS browserCount, ${ipMetrics}
+          FROM ip_counters WHERE day = ? GROUP BY ip
+          ORDER BY visits DESC, guesses DESC, ip LIMIT 200`,
           selected,
         ),
       ]
@@ -131,13 +168,64 @@ export class GameAnalytics {
           ...JSON.parse(String(dimensions)),
           count,
         }))
+        const addresses = [
+          ...this.sql.exec(
+            `SELECT ip AS id, MIN(day) AS firstDay, MAX(day) AS lastDay
+            FROM ip_counters WHERE player = ? GROUP BY ip ORDER BY lastDay DESC, ip LIMIT 200`,
+            selectedBrowser,
+          ),
+        ]
         browser = {
           id: selectedBrowser,
           ...person,
           ...activity,
           ...totals,
           history,
+          addresses,
         }
+      }
+      let ip
+      if (selectedIp) {
+        const [totals] = this.sql.exec(
+          `SELECT MIN(day) AS firstDay, MAX(day) AS lastDay,
+          COUNT(DISTINCT player) AS browserCount, ${ipMetrics} FROM ip_counters WHERE ip = ?`,
+          selectedIp,
+        )
+        if (!totals.firstDay)
+          return json({ error: 'IP address not found.' }, 404)
+        const browsers = [
+          ...this.sql.exec(
+            `SELECT player AS id, ${ipMetrics} FROM ip_counters WHERE ip = ?
+            GROUP BY player ORDER BY visits DESC, guesses DESC, player LIMIT 200`,
+            selectedIp,
+          ),
+        ]
+        const history = [
+          ...this.sql.exec(
+            `SELECT day, player, dimensions, count FROM ip_counters WHERE ip = ? AND event = 'finish'
+            ORDER BY day DESC, player, dimensions LIMIT 200`,
+            selectedIp,
+          ),
+        ].map(({ day, player, dimensions, count }) => ({
+          day,
+          player,
+          ...JSON.parse(String(dimensions)),
+          count,
+        }))
+        const counters = [
+          ...this.sql.exec(
+            `SELECT event, json_remove(dimensions, '$.round') AS dimensions, SUM(count) AS count
+            FROM ip_counters WHERE ip = ? AND day = ?
+            GROUP BY event, json_remove(dimensions, '$.round') ORDER BY event, dimensions`,
+            selectedIp,
+            selected,
+          ),
+        ].map(({ event, dimensions, count }) => ({
+          event,
+          ...JSON.parse(String(dimensions)),
+          count,
+        }))
+        ip = { id: selectedIp, ...totals, browsers, history, counters }
       }
       return json({
         day: selected,
@@ -146,6 +234,9 @@ export class GameAnalytics {
         counters: counts,
         browsers,
         browser,
+        ipCount,
+        ips,
+        ip,
       })
     }
     if (!request.headers.get('Content-Type')?.startsWith('application/json'))
@@ -218,6 +309,10 @@ export class GameAnalytics {
         .map((key) => [key, data[key]]),
     )
     // These synchronous writes share the Durable Object's implicit transaction.
+    const roundDimensions = JSON.stringify({
+      ...dimensions,
+      ...(data.round ? { round: data.round } : {}),
+    })
     this.sql.exec(
       'INSERT OR IGNORE INTO players (id, first_day) VALUES (?, ?)',
       data.player,
@@ -244,11 +339,21 @@ export class GameAnalytics {
       data.player,
       day,
       data.event,
-      JSON.stringify({
-        ...dimensions,
-        ...(data.round ? { round: data.round } : {}),
-      }),
+      roundDimensions,
     )
+    // Cloudflare supplies this header at the edge; never take an IP from the
+    // event body or X-Forwarded-For. The Durable Object has no public endpoint.
+    const ip = normalizeIp(request.headers.get('CF-Connecting-IP'))
+    if (ip)
+      this.sql.exec(
+        `INSERT INTO ip_counters (ip, day, player, event, dimensions, count) VALUES (?, ?, ?, ?, ?, 1)
+        ON CONFLICT (ip, day, player, event, dimensions) DO UPDATE SET count = count + 1`,
+        ip,
+        day,
+        data.player,
+        data.event,
+        roundDimensions,
+      )
     return new Response(null, { status: 204 })
   }
 }

@@ -28,6 +28,14 @@ interface BrowserStats {
   losses: number
   themes: string
 }
+interface IpStats extends BrowserStats {
+  browserCount: number
+}
+type RoundHistory = Record<string, string | number>[]
+type Counters = ({ event: string; count: number } & Record<
+  string,
+  string | number
+>)[]
 interface Stats {
   day: string
   players: number
@@ -35,14 +43,21 @@ interface Stats {
   visits: number
   practiceRounds: number
   practice: { rounds: number; players: number }[]
-  counters: ({ event: string; count: number } & Record<
-    string,
-    string | number
-  >)[]
+  counters: Counters
   browsers: BrowserStats[]
   browser?: BrowserStats & {
     firstDay: string
-    history: Record<string, string | number>[]
+    history: RoundHistory
+    addresses: { id: string; firstDay: string; lastDay: string }[]
+  }
+  ipCount: number
+  ips: IpStats[]
+  ip?: IpStats & {
+    firstDay: string
+    lastDay: string
+    browsers: BrowserStats[]
+    history: RoundHistory
+    counters: Counters
   }
 }
 const escape = (value: unknown) =>
@@ -57,14 +72,80 @@ const escape = (value: unknown) =>
 export async function statsPage(response: Response) {
   if (!response.ok) return response
   const stats: Stats = await response.json()
-  const table = (headings: string[], rows: unknown[][], browserLinks = false) =>
-    `<div class="table"><table><thead><tr>${headings.map((h) => `<th>${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${browserLinks && i === 0 ? `<a href="/admin?day=${escape(stats.day)}&amp;browser=${encodeURIComponent(String(v))}" title="${escape(v)}">${escape(String(v).slice(0, 8))}</a>` : escape(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+  const link = (kind: 'browser' | 'ip', value: unknown) =>
+    `<a href="/admin?day=${escape(stats.day)}&amp;${kind}=${encodeURIComponent(String(value))}" title="${escape(value)}">${escape(kind === 'browser' ? String(value).slice(0, 8) : value)}</a>`
+  const table = (
+    headings: string[],
+    rows: unknown[][],
+    linkBy?: 'browser' | 'ip',
+  ) =>
+    `<div class="table"><table><thead><tr>${headings.map((h) => `<th>${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v, i) => `<td>${linkBy && i === 0 ? link(linkBy, v) : escape(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+  const history = (rows: RoundHistory, byIp = false) =>
+    table(
+      [
+        ...(byIp ? ['Browser'] : []),
+        'Played on',
+        'Mode',
+        'Puzzle / round',
+        'Concept',
+        'Result',
+        'Attempts',
+        'Setting / theme',
+      ],
+      rows.map((row) => [
+        ...(byIp ? [row.player] : []),
+        row.day,
+        row.mode,
+        row.round ?? '—',
+        row.feature,
+        row.outcome,
+        row.attempt,
+        row.themePreference ? `${row.themePreference} / ${row.theme}` : '—',
+      ]),
+      byIp ? 'browser' : undefined,
+    )
+  const browsers = (rows: BrowserStats[]) =>
+    table(
+      [
+        'Browser',
+        'Setting / theme',
+        'Visits',
+        'Practice rounds',
+        'Wins',
+        'Losses',
+        'Write-ins',
+        'Guesses',
+      ],
+      rows.map((row) => [
+        row.id,
+        row.themes || '—',
+        row.visits,
+        row.practiceRounds,
+        row.wins,
+        row.losses,
+        row.writeins,
+        row.guesses,
+      ]),
+      'browser',
+    )
+  const counters = (rows: Counters) =>
+    table(
+      ['Event', 'Details', 'Count'],
+      rows.map(({ event, count, ...details }) => [
+        event,
+        Object.entries(details)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(' · '),
+        count,
+      ]),
+    )
   const total = (event: string, field?: string, value?: string) =>
     stats.counters
       .filter((row) => row.event === event && (!field || row[field] === value))
       .reduce((sum, row) => sum + row.count, 0)
   const summary = [
     ['Browsers', stats.players],
+    ['IP addresses', stats.ipCount],
     ['Returning browsers', stats.returning],
     ['Visits', stats.visits],
     ['Daily games started', total('game_start', 'mode', 'daily')],
@@ -78,41 +159,35 @@ export async function statsPage(response: Response) {
   return new Response(
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interpretle stats</title>
 <style>
-:root{color-scheme:light dark;font:16px/1.5 system-ui}body{max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:24px}h2{font-size:18px;margin-top:32px}a{color:inherit}form{display:flex;flex-wrap:wrap;gap:12px;align-items:center}input,button{font:inherit;padding:6px 10px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}dl div{padding:16px;background:light-dark(#f4f4f3,#222);border-radius:10px}dt{font-size:13px}dd{font-size:28px;margin:4px 0 0}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}td,th{padding:10px;border-bottom:1px solid light-dark(#ddd,#333)}p{color:light-dark(#666,#aaa)}
-</style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><button>View</button></form>
+:root{color-scheme:light dark;font:16px/1.5 system-ui}body{max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:24px}h2{font-size:18px;margin-top:32px;overflow-wrap:anywhere}a{color:inherit;overflow-wrap:anywhere}.table a{white-space:nowrap}form{display:flex;flex-wrap:wrap;gap:12px;align-items:center}input,button{font:inherit;padding:6px 10px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}dl div{padding:16px;background:light-dark(#f4f4f3,#222);border-radius:10px}dt{font-size:13px}dd{font-size:28px;margin:4px 0 0}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}td,th{padding:10px;border-bottom:1px solid light-dark(#ddd,#333)}p{color:light-dark(#666,#aaa)}
+</style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><label>IP address <input name="ip" value="${escape(stats.ip?.id ?? '')}" placeholder="IPv4 or IPv6" maxlength="45"></label><button>View</button></form>
 <dl>${summary.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>
-<p>Browsers use a random saved ID, not a count of people. Rounds begin with the first submitted guess. Custom text stays on the player's device.</p>
+<p>Browsers use a random saved ID. IP addresses can be shared or change; neither is a count of people. Rounds begin with the first submitted guess. Custom text stays on the player's device.</p>
 ${
   stats.browser
     ? `<h2>Browser ${escape(stats.browser.id.slice(0, 8))}</h2>
 <p>First seen ${escape(stats.browser.firstDay)} · ${escape(stats.browser.visits)} visits · ${escape(stats.browser.practiceRounds)} practice rounds · ${escape(stats.browser.wins)} wins · ${escape(stats.browser.losses)} losses · ${escape(stats.browser.writeins)} write-ins / ${escape(stats.browser.guesses)} guesses</p>
 <p>Settings / displayed themes: ${escape(stats.browser.themes || 'Not yet recorded')}</p>
-${table(
-  [
-    'Played on',
-    'Mode',
-    'Puzzle / round',
-    'Concept',
-    'Result',
-    'Attempts',
-    'Setting / theme',
-  ],
-  stats.browser.history.map((row) => [
-    row.day,
-    row.mode,
-    row.round ?? '—',
-    row.feature,
-    row.outcome,
-    row.attempt,
-    row.themePreference ? `${row.themePreference} / ${row.theme}` : '—',
-  ]),
-)}
+<p>IP addresses: ${stats.browser.addresses.map(({ id }) => link('ip', id)).join(', ') || 'None recorded yet'}.</p>
+${history(stats.browser.history)}
 <p>Latest 200 completed rounds. Detailed browser history starts with this release; older aggregate totals remain available.</p>`
     : ''
 }
-<h2>Browsers on this day</h2>${table(
+${
+  stats.ip
+    ? `<h2>IP ${escape(stats.ip.id)}</h2>
+<p>First seen ${escape(stats.ip.firstDay)} · last seen ${escape(stats.ip.lastDay)} · ${escape(stats.ip.browserCount)} browsers · ${escape(stats.ip.visits)} visits · ${escape(stats.ip.practiceRounds)} practice rounds · ${escape(stats.ip.wins)} wins · ${escape(stats.ip.losses)} losses · ${escape(stats.ip.writeins)} write-ins / ${escape(stats.ip.guesses)} guesses</p>
+<p>Settings / displayed themes: ${escape(stats.ip.themes || 'Not yet recorded')}</p>
+<h3>Browsers seen at this IP</h3>${browsers(stats.ip.browsers)}
+<h3>Completed rounds at this IP</h3>${history(stats.ip.history, true)}
+<p>Up to 200 browsers and the latest 200 completed rounds across days. Only events received from this address are included.</p>
+<details><summary>Game and model counters at this IP on ${escape(stats.day)}</summary>${counters(stats.ip.counters)}</details>`
+    : ''
+}
+<h2>IP addresses on this day</h2>${table(
       [
-        'Browser',
+        'IP address',
+        'Browsers',
         'Setting / theme',
         'Visits',
         'Practice rounds',
@@ -121,8 +196,9 @@ ${table(
         'Write-ins',
         'Guesses',
       ],
-      stats.browsers.map((row) => [
+      stats.ips.map((row) => [
         row.id,
+        row.browserCount,
         row.themes || '—',
         row.visits,
         row.practiceRounds,
@@ -131,8 +207,10 @@ ${table(
         row.writeins,
         row.guesses,
       ]),
-      true,
+      'ip',
     )}
+<p>Select an IP to view its activity across days. Up to 200 addresses are shown. IP tracking starts with this update; earlier events have no IP association.</p>
+<h2>Browsers on this day</h2>${browsers(stats.browsers)}
 <p>Select a browser to view its history across days. Up to 200 browsers are shown. Write-ins count submitted guesses, not just opening the card.</p>
 <h2>Color theme usage</h2>${table(
       ['Selected setting', 'Displayed theme', 'Visits'],
@@ -181,16 +259,7 @@ ${table(
           row.count,
         ]),
     )}
-<details><summary>All game and model counters</summary>${table(
-      ['Event', 'Details', 'Count'],
-      stats.counters.map(({ event, count, ...details }) => [
-        event,
-        Object.entries(details)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(' · '),
-        count,
-      ]),
-    )}</details></html>`,
+<details><summary>All game and model counters</summary>${counters(stats.counters)}</details></html>`,
     {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',

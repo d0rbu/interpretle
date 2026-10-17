@@ -163,11 +163,14 @@ shares, and model loading outcomes. Model errors use fixed categories, never
 raw error messages. Theme usage records the selected Light/Dark/System setting
 and the actual light/dark appearance, including system changes, once per
 combination per visit and Pacific day. Game events carry that theme context too.
-No custom text, tokens, activation values, IP addresses,
-or fingerprints are stored by this counter.
+The server also stores visitor IP addresses from Cloudflare's `CF-Connecting-IP`
+header alongside the browser's counters. It accepts IPv4 and IPv6, normalizing
+equivalent IPv6 spellings. IPs are never accepted from the event body or
+`X-Forwarded-For`. No custom text, tokens, activation values, or fingerprints are
+stored by this counter.
 
-The backend keeps aggregate dimensions, per-browser counters and completed round
-summaries, first-visit dates, and opaque event hashes for deduplication. Round IDs
+The backend keeps aggregate dimensions, per-browser and per-IP counters,
+completed round summaries, first-visit dates, and opaque event hashes for deduplication. Round IDs
 are puzzle dates or random practice IDs. It does not keep raw event timestamps.
 Browser-reported counters are approximate and may be blocked.
 The private [stats page](https://interpretle.com/admin) uses HTTP Basic
@@ -178,9 +181,15 @@ non-cacheable responses; there is no public gameplay stats API.
 
 Reports include unique/returning browsers, visits, a practice-round histogram per
 browser, and event counts broken down by the applicable public dimensions.
-Select an anonymous browser to see its themes, submitted write-in frequency,
+Select a browser to see its themes, submitted write-in frequency,
 practice activity and latest 200 completed rounds across days. These detailed
 histories begin with their deployment; earlier aggregate counts are preserved.
+IP reports show the same metrics, associated browsers, and completed rounds,
+counting only events received from that address. A browser's private history
+also links to the IPs it has used. IP tracking starts with its deployment; old
+events are not backfilled. These addresses and their histories are available
+only in the authenticated stats page. Shared networks and changing addresses
+mean an IP is not a unique person.
 The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data

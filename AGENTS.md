@@ -5,7 +5,8 @@ complexity and a low bar for removing it.
 
 - Serve the game as static files. Backend exceptions are the small daily
   results counter and first-party gameplay counters in `server/`, requested by the user.
-  Keep them limited to aggregates, random browser IDs, and deduplication; no server inference, game-session
+  Keep them limited to aggregates, random browser IDs, server-derived visitor IPs,
+  and deduplication; no server inference, game-session
   service, queue, or storage of custom text. Only the private stats page needs
   authentication, using a Worker secret.
 - Run the selected dataset through the model and SAE **offline**, preserving

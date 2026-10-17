@@ -59,6 +59,10 @@ function request(body?: unknown, path = '/api/events', init: RequestInit = {}) {
     },
   )
 }
+const fromIp = (body: unknown, ip: string) =>
+  request(body, '/api/events', {
+    headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+  })
 const stats = async (day?: string) =>
   (
     await analytics.fetch(
@@ -190,6 +194,7 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
   for (const fields of [
     { text: 'Never store this custom sentence.' },
     { tokens: [] },
+    { ip: '203.0.113.8' },
     { error: 'raw error' },
     { feature: 'unknown' },
     { mode: 'unknown' },
@@ -413,4 +418,274 @@ it('correlates themes, submitted write-ins and round history for one browser acr
     expect([401, 404, 405]).toContain(denied.status)
     expect(await denied.text()).not.toContain(player)
   }
+})
+
+it('groups shared IPs without attributing a browser’s other-IP activity to them', async () => {
+  const ip = '203.0.113.8'
+  const otherIp = '198.51.100.4'
+  const otherBrowser = crypto.randomUUID()
+  const round = crypto.randomUUID()
+  const base = {
+    mode: 'practice',
+    round,
+    feature,
+    themePreference: 'dark',
+    theme: 'dark',
+  }
+  const events = [
+    event(),
+    event('theme', { themePreference: 'dark', theme: 'dark' }),
+    event('game_start', base),
+    event('guess', { ...base, attempt: 1 }),
+    event('guess', { ...base, attempt: 2, passage: 'prose:82:166-178' }),
+    event('finish', { ...base, attempt: 6, outcome: 'lost' }),
+    event('visit', { player: otherBrowser }),
+    event('theme', {
+      player: otherBrowser,
+      themePreference: 'system',
+      theme: 'light',
+    }),
+    event('finish', {
+      player: otherBrowser,
+      mode: 'daily',
+      round: '2026-10-18',
+      feature,
+      attempt: 3,
+      outcome: 'won',
+      themePreference: 'system',
+      theme: 'light',
+    }),
+  ]
+  for (const data of [...events, ...events])
+    expect((await fromIp(data, ip)).status).toBe(204)
+  expect(await stats()).toMatchObject({
+    players: 2,
+    visits: 2,
+    practiceRounds: 1,
+    ipCount: 1,
+    ips: [
+      {
+        id: ip,
+        browserCount: 2,
+        visits: 2,
+        practiceRounds: 1,
+        guesses: 2,
+        writeins: 1,
+        wins: 1,
+        losses: 1,
+      },
+    ],
+  })
+
+  vi.setSystemTime(new Date('2026-10-19T12:00:00Z'))
+  await fromIp(event(), otherIp)
+  await fromIp(
+    event('finish', {
+      mode: 'daily',
+      round: '2026-10-19',
+      feature,
+      attempt: 4,
+      outcome: 'won',
+      themePreference: 'system',
+      theme: 'dark',
+    }),
+    otherIp,
+  )
+  // A retry received from a different address must not move or duplicate it.
+  await fromIp(events[5], otherIp)
+  restart()
+  const details = async (query: string) =>
+    (await analytics.fetch(new Request('https://internal/?' + query))).json()
+  const first = await details('ip=' + ip)
+  expect(first).toMatchObject({ ipCount: 1, ips: [{ id: otherIp }] })
+  expect(first.ip).toMatchObject({
+    id: ip,
+    firstDay: '2026-10-18',
+    lastDay: '2026-10-18',
+    browserCount: 2,
+    visits: 2,
+    practiceRounds: 1,
+    guesses: 2,
+    writeins: 1,
+    wins: 1,
+    losses: 1,
+  })
+  expect(first.ip.themes).toContain('dark / dark')
+  expect(first.ip.themes).toContain('system / light')
+  expect(first.ip.themes).not.toContain('system / dark')
+  expect(first.ip.browsers).toHaveLength(2)
+  expect(first.ip.browsers).toContainEqual(
+    expect.objectContaining({
+      id: player,
+      wins: 0,
+      losses: 1,
+      writeins: 1,
+    }),
+  )
+  expect(first.ip.history).toHaveLength(2)
+  expect(first.ip.history).toContainEqual(
+    expect.objectContaining({
+      player,
+      round,
+      outcome: 'lost',
+      attempt: 6,
+      count: 1,
+    }),
+  )
+  const second = (await details('ip=' + otherIp)).ip
+  expect(second).toMatchObject({
+    browserCount: 1,
+    visits: 1,
+    practiceRounds: 0,
+    guesses: 0,
+    writeins: 0,
+    wins: 1,
+    losses: 0,
+    themes: 'system / dark',
+  })
+  expect(second.history).toHaveLength(1)
+  expect(second.counters).toContainEqual(
+    expect.objectContaining({
+      event: 'finish',
+      outcome: 'won',
+      attempt: 4,
+      count: 1,
+    }),
+  )
+  expect(first.ip.counters).toEqual([])
+  const pastIp = (await details('ip=' + ip + '&day=2026-10-18')).ip
+  expect(pastIp.counters).toContainEqual(
+    expect.objectContaining({
+      event: 'guess',
+      passage: 'prose:82:166-178',
+      count: 1,
+    }),
+  )
+  expect(
+    pastIp.counters.every((row: Record<string, unknown>) => !row.round),
+  ).toBe(true)
+  const person = (await details('browser=' + player)).browser
+  expect(person).toMatchObject({ visits: 2, wins: 1, losses: 1, writeins: 1 })
+  expect(person.addresses).toEqual([
+    { id: otherIp, firstDay: '2026-10-19', lastDay: '2026-10-19' },
+    { id: ip, firstDay: '2026-10-18', lastDay: '2026-10-18' },
+  ])
+  expect(await stats('2026-10-18')).toMatchObject({ ipCount: 1, visits: 2 })
+})
+
+it('normalizes IPv6 and accepts only a single valid Cloudflare-provided address', async () => {
+  for (const ip of ['2001:0DB8:0000:0000:0000:0000:0000:0001', '2001:db8::1'])
+    expect((await fromIp(event(), ip)).status).toBe(204)
+  for (const ip of [
+    'example.com',
+    'deadbeef',
+    '127.1',
+    '2130706433',
+    '001.2.3.4',
+    '256.1.2.3',
+    '2001:db8::1::2',
+    'fe80::1%en0',
+    '[2001:db8::1]',
+    '203.0.113.8:443',
+    '203.0.113.8,198.51.100.4',
+  ])
+    expect((await fromIp(event(), ip)).status).toBe(204)
+  await request(event(), '/api/events', {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Forwarded-For': '192.0.2.20',
+      'X-Real-IP': '192.0.2.20',
+      'CF-Connecting-IPv6': '2001:db8::bad',
+    },
+  })
+  await request(event(), '/api/events', {
+    headers: {
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': '203.0.113.8',
+      'X-Forwarded-For': '192.0.2.20',
+      'X-Real-IP': '192.0.2.20',
+      'CF-Connecting-IPv6': '2001:db8::bad',
+    },
+  })
+  const result = await stats()
+  expect(result).toMatchObject({ ipCount: 2 })
+  expect(result.ips).toContainEqual(
+    expect.objectContaining({ id: '2001:db8::1', visits: 2 }),
+  )
+  expect(result.ips).toContainEqual(
+    expect.objectContaining({ id: '203.0.113.8', visits: 1 }),
+  )
+  expect(result.counters).toEqual([{ event: 'visit', count: 15 }])
+  const response = await analytics.fetch(
+    new Request(
+      'https://internal/?ip=' + encodeURIComponent('2001:0DB8:0:0:0:0:0:1'),
+    ),
+  )
+  expect((await response.json()).ip).toMatchObject({
+    id: '2001:db8::1',
+    visits: 2,
+  })
+})
+
+it('keeps IP addresses and histories behind admin authentication', async () => {
+  const ip = '203.0.113.8'
+  await fromIp(event(), ip)
+  for (const path of [
+    '/admin?ip=' + ip,
+    '/admin?browser=' + player,
+    '/api/events?ip=' + ip,
+    '/api/stats?ip=' + ip,
+  ]) {
+    const response = await request(undefined, path)
+    expect([401, 404, 405]).toContain(response.status)
+    expect(await response.text()).not.toContain(ip)
+  }
+  const headers = {
+    Authorization:
+      'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+  }
+  const response = await request(undefined, '/admin?ip=' + ip, { headers })
+  expect(response.status).toBe(200)
+  expect(response.headers.get('Cache-Control')).toContain('private, no-store')
+  expect(response.headers.get('Referrer-Policy')).toBe('no-referrer')
+  expect(response.headers.get('X-Robots-Tag')).toBe('noindex, nofollow')
+  const html = await response.text()
+  expect(html).toContain('<h2>IP ' + ip + '</h2>')
+  expect(html).toContain('browser=' + player)
+  expect(html).toContain('ip=' + ip)
+  expect(html).toContain('Browsers seen at this IP')
+  const browser = await request(undefined, '/admin?browser=' + player, {
+    headers,
+  })
+  expect(await browser.text()).toContain('ip=' + ip)
+  for (const [value, status] of [
+    ['192.0.2.99', 404],
+    ['<script>alert(1)</script>', 400],
+  ]) {
+    const invalid = await request(
+      undefined,
+      '/admin?ip=' + encodeURIComponent(value),
+      { headers },
+    )
+    expect(invalid.status).toBe(status)
+    expect(await invalid.text()).not.toContain(value)
+  }
+})
+
+it('adds IP storage without resetting or backfilling older browser counters', async () => {
+  const oldVisit = event()
+  await request(oldVisit)
+  // Simulate the schema that was deployed before IP tracking.
+  db.exec('DROP TABLE ip_counters')
+  restart()
+  await fromIp(oldVisit, '203.0.113.8')
+  expect(await stats()).toMatchObject({ visits: 1, ipCount: 0, ips: [] })
+  await fromIp(event(), '203.0.113.8')
+  expect(await stats()).toMatchObject({
+    players: 1,
+    visits: 2,
+    ipCount: 1,
+    browsers: [expect.objectContaining({ id: player, visits: 2 })],
+    ips: [expect.objectContaining({ id: '203.0.113.8', visits: 1 })],
+  })
 })
