@@ -56,36 +56,26 @@ function remember(key: string, value: string) {
 }
 
 function ThemeSwitch() {
-  const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
+  const [theme, setTheme] = useState<'light' | 'system' | 'dark'>(() => {
     const saved = stored(THEME_KEY)
-    return saved === 'light' || saved === 'dark' ? saved : null
+    return saved === 'light' || saved === 'dark' ? saved : 'system'
   })
-  const [systemDark, setSystemDark] = useState(
-    () => matchMedia('(prefers-color-scheme: dark)').matches,
-  )
   useEffect(() => {
-    const media = matchMedia('(prefers-color-scheme: dark)')
-    const update = () => setSystemDark(media.matches)
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-  useEffect(() => {
-    document.documentElement.style.colorScheme = theme ?? 'light dark'
+    document.documentElement.dataset.theme = theme
   }, [theme])
-  const dark = theme ? theme === 'dark' : systemDark
   return (
     <div
       className="slider theme-switch"
       role="group"
       aria-label="Color theme"
-      data-right={dark}
+      data-theme={theme}
     >
-      {(['light', 'dark'] as const).map((value) => (
+      {(['light', 'system', 'dark'] as const).map((value) => (
         <button
           key={value}
-          aria-label={`${value === 'light' ? 'Light' : 'Dark'} mode`}
-          aria-pressed={dark === (value === 'dark')}
-          title={`${value === 'light' ? 'Light' : 'Dark'} mode`}
+          aria-label={`${value[0].toUpperCase()}${value.slice(1)} mode`}
+          aria-pressed={theme === value}
+          title={`${value[0].toUpperCase()}${value.slice(1)} mode`}
           onClick={() => {
             setTheme(value)
             remember(THEME_KEY, value)
@@ -96,6 +86,11 @@ function ThemeSwitch() {
               <>
                 <circle cx="10" cy="10" r="3" />
                 <path d="M10 1v2m0 14v2M1 10h2m14 0h2M3.6 3.6 5 5m10 10 1.4 1.4M3.6 16.4 5 15M15 5l1.4-1.4" />
+              </>
+            ) : value === 'system' ? (
+              <>
+                <rect x="2" y="3" width="16" height="11" rx="1.5" />
+                <path d="M7 18h6m-3-4v4" />
               </>
             ) : (
               <path d="M17 11a7 7 0 0 1-8-8 7 7 0 1 0 8 8Z" />

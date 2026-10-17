@@ -11,6 +11,13 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
+/* Keep compiled light-dark() fallbacks in sync with the theme switch. */
+:root[data-theme='light'] {
+  color-scheme: only light;
+}
+:root[data-theme='dark'] {
+  color-scheme: only dark;
+}
 * {
   box-sizing: border-box;
 }
@@ -169,7 +176,17 @@ h1 {
   font-weight: 650;
 }
 .theme-switch {
-  width: 72px;
+  width: 108px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.theme-switch::before {
+  width: calc((100% - 12px) / 3);
+}
+.theme-switch[data-theme='system']::before {
+  transform: translateX(calc(100% + 3px));
+}
+.theme-switch[data-theme='dark']::before {
+  transform: translateX(calc(200% + 6px));
 }
 .theme-switch button {
   display: grid;
@@ -739,7 +756,7 @@ dialog .primary {
   }
   .theme-switch {
     order: 4;
-    width: 64px;
+    width: 96px;
   }
   .credit {
     order: 2;
@@ -780,5 +797,17 @@ dialog .primary {
   }
   dialog {
     padding: 24px;
+  }
+}
+@media (max-width: 360px) {
+  .identity {
+    gap: 4px;
+  }
+  .identity h1 {
+    font-size: 21px;
+  }
+  .credit {
+    order: 5;
+    flex-basis: 100%;
   }
 }

@@ -543,14 +543,17 @@ test('has no serious accessibility violations in instructions or play', async ({
   }
 })
 
-test('follows the system theme until a player chooses one and remembers that choice', async ({
+test('defaults to system, remembers manual themes, and can return to system mode', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   const light = page.getByRole('button', { name: 'Light mode', exact: true })
+  const system = page.getByRole('button', { name: 'System mode', exact: true })
   const dark = page.getByRole('button', { name: 'Dark mode', exact: true })
+  await expect(system).toHaveAttribute('aria-pressed', 'true')
   await page.emulateMedia({ colorScheme: 'dark' })
-  await expect(dark).toHaveAttribute('aria-pressed', 'true')
+  await expect(system).toHaveAttribute('aria-pressed', 'true')
+  await expect(dark).toHaveAttribute('aria-pressed', 'false')
   await expect(page.locator('html')).toHaveCSS(
     'background-color',
     'rgb(21, 26, 22)',
@@ -566,7 +569,11 @@ test('follows the system theme until a player chooses one and remembers that cho
     ),
   ).toEqual([])
   await page.emulateMedia({ colorScheme: 'light' })
-  await expect(light).toHaveAttribute('aria-pressed', 'true')
+  await expect(system).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(250, 251, 249)',
+  )
   await dark.click()
   await expect(page.locator('html')).toHaveCSS(
     'background-color',
@@ -578,12 +585,39 @@ test('follows the system theme until a player chooses one and remembers that cho
     'background-color',
     'rgb(21, 26, 22)',
   )
-  await light.click()
   await page.emulateMedia({ colorScheme: 'dark' })
+  await light.click()
   await expect(light).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('html')).toHaveCSS(
     'background-color',
     'rgb(250, 251, 249)',
+  )
+  await expect(page.locator('.result')).toHaveCSS(
+    'background-color',
+    'rgb(255, 255, 255)',
+  )
+  await page.reload()
+  await expect(light).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(250, 251, 249)',
+  )
+  await system.click()
+  await expect(system).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(21, 26, 22)',
+  )
+  await page.reload()
+  await expect(system).toHaveAttribute('aria-pressed', 'true')
+  await page.emulateMedia({ colorScheme: 'light' })
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(250, 251, 249)',
+  )
+  await expect(page.locator('.result')).toHaveCSS(
+    'background-color',
+    'rgb(255, 255, 255)',
   )
 })
 

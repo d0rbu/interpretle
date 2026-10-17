@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 2,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://127.0.0.1:4176', trace: 'retain-on-failure' },
   projects: [
     {
       name: 'desktop',
@@ -22,9 +22,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173',
+    command: 'npm run build && npm run preview -- --port 4176 --strictPort',
+    url: 'http://127.0.0.1:4176',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000,
+    timeout: 120000,
   },
 })
