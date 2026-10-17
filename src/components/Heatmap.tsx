@@ -85,7 +85,7 @@ export default function Heatmap({
           style={{
             backgroundColor:
               strength > 0
-                ? `light-dark(color-mix(in srgb, #ea963ed1 ${100 * strength}%, transparent), color-mix(in srgb, #445bc4 ${Math.min(100, 200 * strength)}%, transparent))`
+                ? `light-dark(color-mix(in srgb, #ea963ed1 ${100 * strength}%, transparent), color-mix(in srgb, #965514 ${Math.min(100, 200 * strength)}%, transparent))`
                 : 'transparent',
           }}
         >
