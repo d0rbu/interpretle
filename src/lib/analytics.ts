@@ -28,6 +28,7 @@ export type EventFields = {
   theme?: 'light' | 'dark'
   themePreference?: (typeof THEMES)[number]
   mode?: Game['mode']
+  round?: string
   feature?: string
   passage?: string
   slot?: number
@@ -37,6 +38,7 @@ export type EventFields = {
   problem?: (typeof PROBLEMS)[number]
 }
 let player: string | undefined, visit: string | undefined
+let currentTheme: Pick<EventFields, 'theme' | 'themePreference'> = {}
 const sent = new Set<string>()
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -70,6 +72,7 @@ export function track(
     if (sent.has(key)) return
     sent.add(key)
     const browser = player
+    const theme = currentTheme
     const digest = crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${browser}:${key}`),
@@ -86,6 +89,7 @@ export function track(
             ).join(''),
             player: browser,
             event,
+            ...theme,
             ...fields,
           }),
         }),
@@ -110,6 +114,7 @@ export function trackTheme(
   identify()
   const theme =
     preference === 'system' ? (systemDark ? 'dark' : 'light') : preference
+  currentTheme = { themePreference: preference, theme }
   track(
     'theme',
     { themePreference: preference, theme },
@@ -126,7 +131,7 @@ export function trackGame(
   const round = `${game.mode}:${game.seed}:${game.featureId}`
   track(
     event,
-    { mode: game.mode, feature: game.featureId, ...fields },
+    { mode: game.mode, round: game.seed, feature: game.featureId, ...fields },
     `${event === 'puzzle_view' ? `${puzzleDay()}:${visit}:` : ''}${round}:${event}:${fields.attempt ?? ''}`,
   )
 }

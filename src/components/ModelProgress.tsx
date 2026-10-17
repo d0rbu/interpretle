@@ -5,19 +5,20 @@ export default function ModelProgress({
   message: string
   value?: number
 }) {
-  const scoring = message.startsWith('Scoring locally')
+  const scoring = message.startsWith('Scoring:')
   const downloading = message.startsWith('Downloading model')
   const label = scoring
     ? 'Scoring your passage'
     : downloading
       ? 'Downloading model'
       : 'Loading model'
+  const detail = message
+    .replace('Downloading model: ', '')
+    .replace('Scoring: ', '')
   return (
     <>
-      <span className="model-progress-label" title={message}>
-        {message
-          .replace('Downloading model: ', '')
-          .replace('Scoring locally on ', '')}
+      <span className="model-progress-label" title={detail}>
+        {detail}
       </span>
       <progress aria-label={message} title={message} value={value} max={1} />
       <svg
@@ -31,7 +32,7 @@ export default function ModelProgress({
         role="img"
         aria-label={label}
       >
-        <title>{`${label}: ${message}`}</title>
+        <title>{`${label}: ${detail}`}</title>
         {scoring ? (
           <>
             <rect x="5" y="5" width="10" height="10" rx="1.5" />

@@ -165,7 +165,6 @@ function PassageContent({
     <span
       title={`${score.approximate ? 'Estimated with the local FP4 model. ' : ''}Maximum activation: ${score.rawMax.toPrecision(6)}`}
     >
-      {score.approximate && '≈ '}
       {scoreLabel(score.score, score.rawMax > 0)}
     </span>
   )
@@ -351,9 +350,6 @@ function Board({
   const phase = status(game)
   const cards = choices(game, feature)
   const best = bestScore(game)
-  const bestApproximate = game.guesses.find(
-    (guess) => guess.score === best,
-  )?.approximate
   useEffect(() => {
     setSaveWarning(!remember(storageKey(game), serializeGame(game)))
   }, [game])
@@ -418,7 +414,7 @@ function Board({
           )
         setSubmitting(true)
         if (!(await loadModel())) return
-        reportProgress('Scoring locally…')
+        reportProgress('Scoring: Tokenizing…', 0)
         controller.current = new AbortController()
         const tokens = await scoreInBrowser(
           input,
@@ -484,11 +480,7 @@ function Board({
             : `${game.guesses.length} of ${game.maxGuesses} attempts`}
         </span>
         <span>
-          Best:{' '}
-          <strong>
-            {bestApproximate && '≈ '}
-            {best === 0 ? '0%' : scoreLabel(best)}
-          </strong>
+          Best: <strong>{best === 0 ? '0%' : scoreLabel(best)}</strong>
         </span>
         {mode === 'practice' && (
           <button

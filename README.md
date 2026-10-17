@@ -106,7 +106,9 @@ CPU scoring can take longer, and stays in a worker so the game remains responsiv
 cancelled runs, unsupported devices, and failed inference do not consume an
 attempt. The passage game also works on devices that cannot load the model.
 
-The browser runs small ONNX graphs one layer at a time. It uses only layers 0–21,
+The browser runs small ONNX graphs with progress at each projection, attention,
+and normalization step. These are partitions of the original graphs: each node
+runs once, with the same weights and rounding. It uses only layers 0–21,
 with the unused layer-specific embedding columns removed. Matrix weights use
 block-scaled FP4 E2M1; normalization parameters retain their original precision.
 All **65,536 FP32 SAE encoder rows**, biases, and thresholds are cached together
@@ -127,11 +129,13 @@ time remaining that refreshes every second. Transfers
 retry after 30 seconds without data; a slow file that is still receiving bytes
 can continue without a fixed time limit. Only verified, complete files enter the
 persistent cache.
-The catalog selects the [versioned FP4 manifest](public/model/manifest-v3-fp4.json).
+The catalog selects the [versioned FP4 manifest](public/model/manifest-v4-fp4.json).
 Original manifest and graph URLs remain available for already-open older tabs.
+Regenerate the execution checkpoints with
+`uv run --with onnx python scripts/browser_steps.py` after exporting the CPU graphs.
 
 Stored passages and percentile reference arrays retain **the original model's
-full-quality scores**. Only local write-ins use FP4 and display `≈` to identify
+full-quality scores**. Local write-ins use FP4; the score tooltip identifies
 their estimated scores. The approximation can change activations and win decisions;
 see the [measured FP4/FP8 comparison](docs/validation.md#quantization).
 
@@ -158,12 +162,14 @@ attempt numbers, completed outcomes, practice rounds, write-in selections,
 shares, and model loading outcomes. Model errors use fixed categories, never
 raw error messages. Theme usage records the selected Light/Dark/System setting
 and the actual light/dark appearance, including system changes, once per
-combination per visit and Pacific day. No custom text, tokens, activation values, IP addresses,
+combination per visit and Pacific day. Game events carry that theme context too.
+No custom text, tokens, activation values, IP addresses,
 or fingerprints are stored by this counter.
 
-The backend keeps aggregate dimensions, daily per-browser visit/practice counts,
-first-visit dates, and opaque event hashes for deduplication. It does not keep
-a raw click history. Browser-reported counters are approximate and may be blocked.
+The backend keeps aggregate dimensions, per-browser counters and completed round
+summaries, first-visit dates, and opaque event hashes for deduplication. Round IDs
+are puzzle dates or random practice IDs. It does not keep raw event timestamps.
+Browser-reported counters are approximate and may be blocked.
 The private [stats page](https://interpretle.com/admin) uses HTTP Basic
 authentication over HTTPS, with username `henry` and a password stored only in the
 `STATS_PASSWORD` Worker secret. Set or rotate it with `npx wrangler secret put
@@ -172,6 +178,9 @@ non-cacheable responses; there is no public gameplay stats API.
 
 Reports include unique/returning browsers, visits, a practice-round histogram per
 browser, and event counts broken down by the applicable public dimensions.
+Select an anonymous browser to see its themes, submitted write-in frequency,
+practice activity and latest 200 completed rounds across days. These detailed
+histories begin with their deployment; earlier aggregate counts are preserved.
 The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data

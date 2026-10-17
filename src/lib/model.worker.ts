@@ -18,9 +18,14 @@ import {
 } from './model-math'
 import type { Feature, TokenActivation } from './types'
 import { modelError } from './model-error'
+import { runSteps } from './model-steps'
+import type { ModelStep } from './model-steps'
 
 type Asset = { url: string; sha256: string; bytes?: number }
-type Graph = Asset & { weights: Record<string, string> }
+type Graph = Asset & {
+  weights: Record<string, string>
+  steps?: (Asset & { label: string })[]
+}
 interface Manifest {
   version: string
   maxTokens: number
@@ -44,7 +49,7 @@ let prepared = false
 let stage = 'Model startup'
 let ort: typeof Ort, graphs: Record<string, Graph>
 let cpu = false
-const sessions: Record<string, Ort.InferenceSession> = {}
+const sessions: Record<string, ModelStep[]> = {}
 const positions: Record<string, Uint16Array> = {}
 
 async function prepare(url: string) {
@@ -63,8 +68,14 @@ async function prepare(url: string) {
   cache = await caches.open('interpretle:model-v1')
   stage = 'Cleaning outdated model files'
   await pruneModelCache(cache, Object.values(manifest.sources), [
-    ...Object.values(manifest.graphs),
-    ...Object.values(manifest.cpuGraphs),
+    ...Object.values(manifest.graphs).flatMap((graph) => [
+      graph,
+      ...(graph.steps ?? []),
+    ]),
+    ...Object.values(manifest.cpuGraphs).flatMap((graph) => [
+      graph,
+      ...(graph.steps ?? []),
+    ]),
     ...Object.values(manifest.cpuRuntime),
     ...Object.values(manifest.positions),
     ...Object.values(manifest.tokenizer),
@@ -128,7 +139,7 @@ async function prepare(url: string) {
   } catch (cause) {
     if (!device) throw cause
     for (const name of Object.keys(sessions)) {
-      await sessions[name].release()
+      for (const step of sessions[name]) await step.session.release()
       delete sessions[name]
     }
     device.destroy()
@@ -171,14 +182,27 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
   }
   graphs = cpu ? manifest.cpuGraphs : manifest.graphs
   for (const [name, graph] of Object.entries(graphs)) {
-    stage = `Loading the ${name} ${cpu ? 'CPU' : 'GPU'} model graph`
-    sessions[name] = await ort.InferenceSession.create(
-      await cachedFile(cache, graph.url, graph.sha256),
+    sessions[name] = []
+    for (const part of graph.steps ?? [
       {
-        executionProviders: device ? [{ name: 'webgpu', device }] : ['wasm'],
-        graphOptimizationLevel: 'disabled',
+        ...graph,
+        label: name === 'embedding' ? 'Embeddings' : 'Transformer layer',
       },
-    )
+    ]) {
+      stage = `Loading the ${name} ${part.label} ${cpu ? 'CPU' : 'GPU'} graph`
+      sessions[name].push({
+        label: part.label,
+        session: await ort.InferenceSession.create(
+          await cachedFile(cache, part.url, part.sha256),
+          {
+            executionProviders: device
+              ? [{ name: 'webgpu', device }]
+              : ['wasm'],
+            graphOptimizationLevel: 'disabled',
+          },
+        ),
+      })
+    }
   }
 }
 
@@ -242,8 +266,18 @@ async function score(
     throw new Error(
       'Please use ordinary text without model control tokens. No attempt was used.',
     )
+  const totalSteps =
+    sessions.embedding.length +
+    manifest.layers.reduce((sum, kind) => sum + sessions[kind].length, 0) +
+    1
+  let completed = 0
+  const report = (label: string, finished = false) => {
+    if (finished) completed++
+    stage = label
+    progress(`Scoring: ${label}…`, completed / totalSteps)
+  }
   const source = manifest.sources.model
-  stage = 'Reading model weights'
+  report('Reading embedding weights')
   const embeddingFeeds = await weights(graphs.embedding)
   for (const [input, name] of [
     ['token_rows', 'embed_tokens.weight'],
@@ -255,9 +289,12 @@ async function score(
       [1, length, info.shape[1]],
     )
   }
-  stage = 'Scoring embeddings'
-  progress('Scoring locally: embeddings…')
-  const embedding = await sessions.embedding.run(embeddingFeeds)
+  const embedding = await runSteps(
+    sessions.embedding,
+    embeddingFeeds,
+    ['hidden', 'per_layer'],
+    report,
+  )
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
   let hidden = embedding.hidden
   let mlp: Ort.Tensor | undefined
@@ -267,11 +304,8 @@ async function score(
     maskData.fill(0xfbff, row * length + row + 1, (row + 1) * length)
   const mask = tensor(maskData, [1, 1, length, length])
   for (const [index, kind] of manifest.layers.entries()) {
-    stage = `Scoring layer ${index + 1} of ${manifest.layers.length}`
-    progress(
-      `Scoring locally${cpu ? ' on CPU' : ''}: layer ${index + 1} of ${manifest.layers.length}…`,
-      index / manifest.layers.length,
-    )
+    const layer = `Layer ${index + 1}/${manifest.layers.length}`
+    report(`${layer} · Reading weights`)
     const feeds = await weights(graphs[kind], index)
     const perLayer = new Uint16Array(length * 256)
     for (let token = 0; token < length; token++) {
@@ -290,16 +324,18 @@ async function score(
     }
     const captureMlp =
       target.kind === 'mlp' && index === manifest.layers.length - 1
-    const output = await sessions[kind].run(
+    const output = await runSteps(
+      sessions[kind],
       { ...feeds, hidden, mask },
       captureMlp ? ['output', 'mlp'] : ['output'],
+      (label, finished) => report(`${layer} · ${label}`, finished),
     )
     hidden.dispose()
     Object.values(feeds).forEach((tensor) => tensor.dispose())
     hidden = output.output
     if (captureMlp) mlp = output.mlp
   }
-  stage = 'Reading activations'
+  report('Feature activation')
   const values = halfBits(mlp ?? hidden)
   if (values.some((value) => (value & 0x7c00) === 0x7c00))
     throw new Error(
@@ -337,6 +373,7 @@ async function score(
   mlp?.dispose()
   embedding.per_layer.dispose()
   mask.dispose()
+  report('Feature activation', true)
   return result
 }
 

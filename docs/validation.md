@@ -175,6 +175,22 @@ Tokenizer download, JSON parsing, initialization and runtime failures now have
 separate error stages. The reported macOS tokenizer failure was not reproduced
 on the Linux Firefox test machine.
 
+The within-layer progress update partitions each existing layer graph into 15
+execution steps without changing its nodes or weights. In the compiled worker,
+the Unicode SAE case on Firefox retained exactly the same token IDs, offsets and
+activations as the previous whole-layer implementation. The two Unicode SAE/MLP
+checks on Chromium WebGPU had 0.0310% / 0.3383% relative L2 error against native
+FP4, with identical activation masks and no weight requests during scoring.
+
+An additional Unicode MLP stress case (neuron 6907) exposed an existing CPU
+limitation: the previous whole-layer graph has **1.2314%** relative L2 error and
+0.042969 maximum absolute error against native FP4, with no activation-mask
+differences. This case exceeds the harness's 1% native-parity threshold. It does
+not affect the stored full-quality puzzle scores. A paired compiled-worker check
+confirmed that the new checkpointed CPU output is bit-for-bit identical to the
+previous whole-layer output on this case as well; all 15 progress stages were
+reported, with no scoring-time weight requests.
+
 ## Interface and results
 
 The unit/data and desktop/mobile browser checks cover six-attempt new games,
@@ -221,11 +237,12 @@ FP4 model matrix chunks and model tensor descriptors are unchanged.
 The tokenizer is losslessly minified from 32,170,070 to 13,593,553 bytes. Its
 parsed JSON is identical. Tokenizer configuration and the remaining 177 model
 parameter chunks are hosted on Cloudflare alongside the model and full encoder.
-All 506 asset references, including the CPU graphs and runtime, have verified
+All 566 asset references, including the CPU graphs and runtime, have verified
 hashes and fit the 25 MiB per-file limit.
-Duplicate content is downloaded once. Weights total 3,062,013,994 bytes; including
-the tokenizer, graphs and positions the GPU download is **3,077,297,211 bytes**
-before its runtime. The CPU download including its runtime is **3,091,624,923 bytes**.
+Duplicate weight chunks are downloaded once. Weights total 3,062,013,994 bytes;
+including the tokenizer, checkpoint graphs and positions the GPU download is
+**3,077,354,105 bytes** before its runtime. The CPU download including its runtime
+is **3,091,638,749 bytes**.
 The SAE decoder and layers after 21 are not included.
 
 The cache tests cover network retries, integrity failures, permanent HTTP errors,

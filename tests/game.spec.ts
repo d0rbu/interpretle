@@ -915,7 +915,7 @@ test('keeps stored choices playable during downloads and cancels after blur with
                   fraction: 0.25,
                 }
               : {
-                  progress: 'Scoring locally on CPU: layer 2 of 22…',
+                  progress: 'Scoring: Layer 2/22 · Q projection…',
                   fraction: 1 / 22,
                 },
         })
@@ -1000,7 +1000,10 @@ test('keeps stored choices playable during downloads and cancels after blur with
     card.getByRole('img', { name: 'Scoring your passage', exact: true }),
   ).toBeVisible()
   await expect(card.locator('.model-progress-icon title')).toHaveText(
-    'Scoring your passage: Scoring locally on CPU: layer 2 of 22…',
+    'Scoring your passage: Layer 2/22 · Q projection…',
+  )
+  await expect(card.locator('.model-progress-label')).toHaveText(
+    'Layer 2/22 · Q projection…',
   )
   await expect(page.locator('.passage-select').first()).toBeDisabled()
   await input.blur()
@@ -1176,6 +1179,8 @@ test('counts passage choices, outcomes and practice starts with a reusable rando
       .toMatchObject({
         player: browserId,
         mode: 'daily',
+        round: '2026-10-18',
+        themePreference: 'system',
         passage: selected.id,
         slot: slot + 1,
         band,

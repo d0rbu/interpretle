@@ -20,6 +20,7 @@ const fields = [
   'theme',
   'themePreference',
   'mode',
+  'round',
   'feature',
   'passage',
   'slot',
@@ -29,8 +30,8 @@ const fields = [
   'problem',
 ] as const
 
-// Only random browser IDs, daily activity, aggregate dimensions, and opaque
-// deduplication hashes. No IPs, custom text, scores, or raw event history.
+// Random browser IDs, aggregate counters and round summaries. No IPs,
+// custom text, scores, or raw event timestamps. Reads stay behind /admin auth.
 export class GameAnalytics {
   sql: Sql
   constructor(state: { storage: { sql: Sql } }) {
@@ -46,15 +47,24 @@ export class GameAnalytics {
         day TEXT, player TEXT, visits INTEGER NOT NULL, practice INTEGER NOT NULL,
         PRIMARY KEY (day, player)
       ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS browser_counters (
+        player TEXT, day TEXT, event TEXT, dimensions TEXT, count INTEGER NOT NULL,
+        PRIMARY KEY (player, day, event, dimensions)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS browser_counters_day ON browser_counters (day);
     `)
   }
 
   async fetch(request: Request) {
     const day = puzzleDay()
     if (request.method === 'GET') {
-      const selected = new URL(request.url).searchParams.get('day') ?? day
+      const params = new URL(request.url).searchParams
+      const selected = params.get('day') || day
+      const selectedBrowser = params.get('browser') || undefined
       if (!/^\d{4}-\d{2}-\d{2}$/.test(selected) || selected > day)
         return json({ error: 'Invalid day.' }, 400)
+      if (selectedBrowser && !uuid.test(selectedBrowser))
+        return json({ error: 'Invalid browser ID.' }, 400)
       const counts = [
         ...this.sql.exec(
           'SELECT event, dimensions, count FROM counters WHERE day = ? ORDER BY event, dimensions',
@@ -78,7 +88,65 @@ export class GameAnalytics {
           selected,
         ),
       ]
-      return json({ day: selected, ...players, practice, counters: counts })
+      const metrics = `
+        COALESCE(SUM(CASE WHEN event = 'guess' THEN count ELSE 0 END), 0) AS guesses,
+        COALESCE(SUM(CASE WHEN event = 'guess' AND json_extract(dimensions, '$.passage') IS NULL THEN count ELSE 0 END), 0) AS writeins,
+        COALESCE(SUM(CASE WHEN event = 'finish' AND json_extract(dimensions, '$.outcome') = 'won' THEN count ELSE 0 END), 0) AS wins,
+        COALESCE(SUM(CASE WHEN event = 'finish' AND json_extract(dimensions, '$.outcome') = 'lost' THEN count ELSE 0 END), 0) AS losses,
+        GROUP_CONCAT(DISTINCT CASE WHEN event = 'theme' THEN json_extract(dimensions, '$.themePreference') || ' / ' || json_extract(dimensions, '$.theme') END) AS themes`
+      const browsers = [
+        ...this.sql.exec(
+          `WITH usage AS (SELECT player, ${metrics} FROM browser_counters WHERE day = ? GROUP BY player)
+        SELECT a.player AS id, a.visits, a.practice AS practiceRounds,
+          COALESCE(u.guesses, 0) AS guesses, COALESCE(u.writeins, 0) AS writeins,
+          COALESCE(u.wins, 0) AS wins, COALESCE(u.losses, 0) AS losses, COALESCE(u.themes, '') AS themes
+        FROM activity a LEFT JOIN usage u ON u.player = a.player
+        WHERE a.day = ? ORDER BY a.visits DESC, guesses DESC, a.player LIMIT 200`,
+          selected,
+          selected,
+        ),
+      ]
+      let browser
+      if (selectedBrowser) {
+        const [person] = this.sql.exec(
+          'SELECT first_day AS firstDay FROM players WHERE id = ?',
+          selectedBrowser,
+        )
+        if (!person) return json({ error: 'Browser not found.' }, 404)
+        const [activity] = this.sql.exec(
+          'SELECT SUM(visits) AS visits, SUM(practice) AS practiceRounds FROM activity WHERE player = ?',
+          selectedBrowser,
+        )
+        const [totals] = this.sql.exec(
+          `SELECT ${metrics} FROM browser_counters WHERE player = ?`,
+          selectedBrowser,
+        )
+        const history = [
+          ...this.sql.exec(
+            "SELECT day, dimensions, count FROM browser_counters WHERE player = ? AND event = 'finish' ORDER BY day DESC, dimensions LIMIT 200",
+            selectedBrowser,
+          ),
+        ].map(({ day, dimensions, count }) => ({
+          day,
+          ...JSON.parse(String(dimensions)),
+          count,
+        }))
+        browser = {
+          id: selectedBrowser,
+          ...person,
+          ...activity,
+          ...totals,
+          history,
+        }
+      }
+      return json({
+        day: selected,
+        ...players,
+        practice,
+        counters: counts,
+        browsers,
+        browser,
+      })
     }
     if (!request.headers.get('Content-Type')?.startsWith('application/json'))
       return json({ error: 'Expected JSON.' }, 415)
@@ -101,6 +169,13 @@ export class GameAnalytics {
         (key) => !['id', 'player', 'event', ...fields].includes(key),
       ) ||
       (data.mode !== undefined && !['daily', 'practice'].includes(data.mode)) ||
+      (data.round !== undefined &&
+        (typeof data.round !== 'string' ||
+          (data.mode === 'daily'
+            ? !/^\d{4}-\d{2}-\d{2}$/.test(data.round)
+            : data.mode === 'practice'
+              ? !uuid.test(data.round)
+              : true))) ||
       (data.feature !== undefined && !targets.has(data.feature)) ||
       (data.passage !== undefined &&
         (typeof data.passage !== 'string' ||
@@ -139,7 +214,7 @@ export class GameAnalytics {
       return new Response(null, { status: 204 })
     const dimensions = Object.fromEntries(
       fields
-        .filter((key) => data[key] !== undefined)
+        .filter((key) => key !== 'round' && data[key] !== undefined)
         .map((key) => [key, data[key]]),
     )
     // These synchronous writes share the Durable Object's implicit transaction.
@@ -162,6 +237,17 @@ export class GameAnalytics {
       data.player,
       data.event === 'visit' ? 1 : 0,
       data.event === 'game_start' && data.mode === 'practice' ? 1 : 0,
+    )
+    this.sql.exec(
+      `INSERT INTO browser_counters (player, day, event, dimensions, count) VALUES (?, ?, ?, ?, 1)
+      ON CONFLICT (player, day, event, dimensions) DO UPDATE SET count = count + 1`,
+      data.player,
+      day,
+      data.event,
+      JSON.stringify({
+        ...dimensions,
+        ...(data.round ? { round: data.round } : {}),
+      }),
     )
     return new Response(null, { status: 204 })
   }

@@ -76,7 +76,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-it('deduplicates retries and aggregates options and practice rounds without exposing player IDs', async () => {
+it('deduplicates retries and keeps browser breakdowns behind the private stats page', async () => {
   const start = event('game_start', { mode: 'practice', feature })
   const guess = event('guess', {
     mode: 'practice',
@@ -115,7 +115,9 @@ it('deduplicates retries and aggregates options and practice rounds without expo
     attempt: 1,
     count: 1,
   })
-  expect(JSON.stringify(result)).not.toContain(player)
+  expect(result.browsers).toContainEqual(
+    expect.objectContaining({ id: player, guesses: 1, writeins: 0, wins: 1 }),
+  )
   expect([...db.prepare('SELECT * FROM seen').all()][0]).not.toHaveProperty(
     'player',
   )
@@ -191,6 +193,10 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
     { error: 'raw error' },
     { feature: 'unknown' },
     { mode: 'unknown' },
+    { round: '2026-10-18' },
+    { mode: 'daily', round: crypto.randomUUID() },
+    { mode: 'practice', round: '2026-10-18' },
+    { mode: 'daily', round: {} },
     { passage: 'a custom sentence' },
     { slot: 6 },
     { band: 88.8 },
@@ -279,7 +285,7 @@ it('serves stats only on the private authenticated page and disables the old pub
     expect(html).toContain('Returning browsers')
     expect(html).toContain('<dd>1</dd>')
     expect(html).not.toContain(password)
-    expect(html).not.toContain(player)
+    expect(html).toContain('browser=' + player)
   }
   expect((await request(undefined, '/api/stats')).status).toBe(404)
   expect(
@@ -289,6 +295,17 @@ it('serves stats only on the private authenticated page and disables the old pub
       })
     ).status,
   ).toBe(400)
+  for (const [browser, status] of [
+    ['not-an-id', 400],
+    [crypto.randomUUID(), 404],
+  ] as const)
+    expect(
+      (
+        await request(undefined, '/admin?browser=' + browser, {
+          headers: { Authorization: 'Basic ' + btoa('henry:' + password) },
+        })
+      ).status,
+    ).toBe(status)
   expect(
     (
       await worker.fetch(
@@ -307,4 +324,93 @@ it('serves stats only on the private authenticated page and disables the old pub
       )
     ).status,
   ).toBe(401)
+})
+
+it('correlates themes, submitted write-ins and round history for one browser across days', async () => {
+  const round = crypto.randomUUID()
+  const base = {
+    mode: 'practice',
+    feature,
+    round,
+    themePreference: 'dark',
+    theme: 'dark',
+  }
+  const events = [
+    event(),
+    event('theme', { themePreference: 'dark', theme: 'dark' }),
+    event('game_start', base),
+    event('writein_open', { ...base, attempt: 1 }),
+    event('guess', { ...base, attempt: 1 }),
+    event('guess', { ...base, attempt: 2, passage: 'prose:82:166-178' }),
+    event('finish', { ...base, attempt: 2, outcome: 'won' }),
+    event('finish', {
+      player: crypto.randomUUID(),
+      mode: 'daily',
+      feature,
+      round: '2026-10-18',
+      attempt: 6,
+      outcome: 'lost',
+    }),
+  ]
+  for (const data of [...events, ...events])
+    expect((await request(data)).status).toBe(204)
+  vi.setSystemTime(new Date('2026-10-19T12:00:00Z'))
+  await request(event())
+  await request(event('theme', { themePreference: 'system', theme: 'light' }))
+  await request(
+    event('finish', {
+      mode: 'daily',
+      feature,
+      round: '2026-10-19',
+      attempt: 3,
+      outcome: 'won',
+      themePreference: 'system',
+      theme: 'light',
+    }),
+  )
+  restart()
+  const response = await analytics.fetch(
+    new Request('https://internal/?browser=' + player),
+  )
+  const { browser } = await response.json()
+  expect(browser).toMatchObject({
+    id: player,
+    firstDay: '2026-10-18',
+    visits: 2,
+    practiceRounds: 1,
+    guesses: 2,
+    writeins: 1,
+    wins: 2,
+    losses: 0,
+  })
+  expect(browser.themes).toContain('dark / dark')
+  expect(browser.themes).toContain('system / light')
+  expect(browser.history).toHaveLength(2)
+  expect(browser.history[1]).toMatchObject({
+    round,
+    mode: 'practice',
+    attempt: 2,
+    outcome: 'won',
+    theme: 'dark',
+    count: 1,
+  })
+  const privatePage = await request(undefined, '/admin?browser=' + player, {
+    headers: {
+      Authorization:
+        'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+    },
+  })
+  const html = await privatePage.text()
+  expect(html).toContain('Latest 200 completed rounds')
+  expect(html).toContain('1 write-ins / 2 guesses')
+  expect(html).toContain(round)
+  for (const path of [
+    '/admin?browser=' + player,
+    '/api/events?browser=' + player,
+    '/api/stats?browser=' + player,
+  ]) {
+    const denied = await request(undefined, path)
+    expect([401, 404, 405]).toContain(denied.status)
+    expect(await denied.text()).not.toContain(player)
+  }
 })
