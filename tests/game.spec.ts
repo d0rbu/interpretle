@@ -360,9 +360,13 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await expect(page.locator('.history')).toContainText('90th percentile')
   await expect(page.locator('.history button.token')).toHaveCount(0)
   await expect(page.locator('.history .token[tabindex]')).toHaveCount(0)
-  await expect(page.locator('.history .token').first()).toHaveCSS(
+  const highlightedToken = page.locator('.history .token').first()
+  await expect(highlightedToken).not.toHaveCSS(
     'background-color',
-    /rgba?\(/,
+    'rgba(0, 0, 0, 0)',
+  )
+  const highlight = await highlightedToken.evaluate(
+    (token) => getComputedStyle(token).backgroundColor,
   )
   await page
     .locator('.history')
@@ -380,7 +384,7 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await expect(page.locator('.history .heatmap-text > .token')).toHaveCount(0)
   await expect(page.locator('.history strong .token').first()).toHaveCSS(
     'background-color',
-    /rgba?\(/,
+    highlight,
   )
   await page
     .getByRole('combobox', { name: 'Puzzle day' })
