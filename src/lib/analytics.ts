@@ -1,4 +1,5 @@
 import type { Game } from './types'
+import { puzzleDay } from './day'
 
 export const EVENTS = [
   'visit',
@@ -93,7 +94,7 @@ export function track(
 export function trackVisit() {
   // Session storage survives reloads; another tab gets a separate visit.
   identify()
-  track('visit', {}, `visit:${visit}`)
+  track('visit', {}, `${puzzleDay()}:visit:${visit}`)
 }
 
 export function trackGame(
@@ -106,7 +107,7 @@ export function trackGame(
   track(
     event,
     { mode: game.mode, feature: game.featureId, ...fields },
-    `${event === 'puzzle_view' ? `${visit}:` : ''}${round}:${event}:${fields.attempt ?? ''}`,
+    `${event === 'puzzle_view' ? `${puzzleDay()}:${visit}:` : ''}${round}:${event}:${fields.attempt ?? ''}`,
   )
 }
 

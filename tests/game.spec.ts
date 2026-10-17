@@ -1078,6 +1078,16 @@ test('counts passage choices, outcomes and practice starts with a reusable rando
   expect(events.filter((event) => event.event === 'finish')).toEqual([
     completed,
   ])
+  const previousVisit = events.find((event) => event.event === 'visit')!.id
+  await page.clock.setSystemTime(new Date('2026-10-19T12:00:00Z'))
+  await page.reload()
+  await expect(page.getByLabel('Puzzle day')).toHaveValue('2026-10-19')
+  await expect
+    .poll(() => events.filter((event) => event.event === 'visit').at(-1)?.id)
+    .not.toBe(previousVisit)
+  expect(
+    await page.evaluate(() => localStorage.getItem('interpretle:visitor')),
+  ).toBe(browserId)
   expect(
     events.every(
       (event) =>
