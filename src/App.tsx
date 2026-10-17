@@ -56,7 +56,7 @@ function remember(key: string, value: string) {
 }
 
 function ThemeSwitch() {
-  const [theme, setTheme] = useState<'light' | 'system' | 'dark'>(() => {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     const saved = stored(THEME_KEY)
     return saved === 'light' || saved === 'dark' ? saved : 'system'
   })
@@ -70,7 +70,7 @@ function ThemeSwitch() {
       aria-label="Color theme"
       data-theme={theme}
     >
-      {(['light', 'system', 'dark'] as const).map((value) => (
+      {(['light', 'dark', 'system'] as const).map((value) => (
         <button
           key={value}
           aria-label={`${value[0].toUpperCase()}${value.slice(1)} mode`}

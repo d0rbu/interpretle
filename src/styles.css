@@ -182,10 +182,10 @@ h1 {
 .theme-switch::before {
   width: calc((100% - 12px) / 3);
 }
-.theme-switch[data-theme='system']::before {
+.theme-switch[data-theme='dark']::before {
   transform: translateX(calc(100% + 3px));
 }
-.theme-switch[data-theme='dark']::before {
+.theme-switch[data-theme='system']::before {
   transform: translateX(calc(200% + 6px));
 }
 .theme-switch button {
@@ -232,7 +232,7 @@ main {
 .result,
 .history li {
   background: light-dark(white, #202820);
-  border: 1px solid light-dark(#dbe0d8, #3c493c);
+  border: 1px solid light-dark(#dbe0d8, transparent);
   border-radius: 7px;
   padding: 18px 20px;
 }
@@ -365,7 +365,7 @@ main {
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid light-dark(#dbe0d8, #3c493c);
+  border: 1px solid light-dark(#dbe0d8, transparent);
   border-radius: 6px;
   background: light-dark(white, #202820);
   overflow: hidden;
@@ -491,7 +491,7 @@ textarea {
   overflow-wrap: anywhere;
 }
 .reveal {
-  border: 1px solid light-dark(#dbe0d8, #3c493c);
+  border: 1px solid light-dark(#dbe0d8, transparent);
   border-radius: 10px;
   margin-top: 24px;
   padding: 28px 22px 20px;
@@ -500,10 +500,10 @@ textarea {
   scroll-margin: 24px;
 }
 .reveal.solved {
-  border-color: light-dark(#bdd6b8, #526f48);
+  border-color: light-dark(#bdd6b8, transparent);
   background: radial-gradient(
     ellipse at top,
-    light-dark(#eaf6df, #263b21),
+    light-dark(#eaf6df, #24372d),
     light-dark(#fff, #202820) 65%
   );
 }
@@ -554,9 +554,9 @@ textarea {
   text-align: left;
   margin: 14px 0 0;
   padding: 14px;
-  border: 1px solid light-dark(#dbe0d8, #3c493c);
+  border: 1px solid light-dark(#dbe0d8, transparent);
   border-radius: 5px;
-  background: light-dark(#ffffffb3, #202820b3);
+  background: light-dark(#ffffffb3, #18221bb3);
   line-height: 1.6;
 }
 .feature-details dt {
@@ -575,8 +575,8 @@ textarea {
 }
 .share-button.copied,
 .share-button.copied:hover {
-  background: light-dark(#deedd8, #344c2a);
-  border-color: light-dark(#bad1b2, #638655);
+  background: light-dark(#deedd8, #344c3c);
+  border-color: light-dark(#bad1b2, #344c3c);
   color: light-dark(#2b5139, #9dccaa);
 }
 .distribution {
