@@ -539,6 +539,50 @@ test('has no serious accessibility violations in instructions or play', async ({
   }
 })
 
+test('follows the system theme until a player chooses one and remembers that choice', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const light = page.getByRole('button', { name: 'Light mode', exact: true })
+  const dark = page.getByRole('button', { name: 'Dark mode', exact: true })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(dark).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(21, 26, 22)',
+  )
+  await expect(page.locator('.result')).toHaveCSS(
+    'background-color',
+    'rgb(32, 40, 32)',
+  )
+  const accessibility = await new AxeBuilder({ page }).analyze()
+  expect(
+    accessibility.violations.filter((v) =>
+      ['serious', 'critical'].includes(v.impact ?? ''),
+    ),
+  ).toEqual([])
+  await page.emulateMedia({ colorScheme: 'light' })
+  await expect(light).toHaveAttribute('aria-pressed', 'true')
+  await dark.click()
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(21, 26, 22)',
+  )
+  await page.reload()
+  await expect(dark).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(21, 26, 22)',
+  )
+  await light.click()
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(light).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('html')).toHaveCSS(
+    'background-color',
+    'rgb(250, 251, 249)',
+  )
+})
+
 test('celebrates a solve, shows daily counts and optional details, and confirms copying', async ({
   page,
 }) => {
@@ -824,15 +868,17 @@ test('shows the worker failure reason without growing the card or losing a draft
   await expect(alert).toContainText('Check your connection or content blocker')
   await expect(input).toHaveValue('Keep my draft.')
   await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
-  await expect(input).toHaveAttribute('aria-describedby', /custom-error/)
+  await expect(input).toHaveAttribute('aria-describedby', 'custom-error')
+  await expect(input).toBeFocused()
+  await expect(card.locator('.write-in-footer')).toHaveCount(0)
+  await expect(card.locator('.character-count')).toHaveCount(0)
+  await expect(card.locator('progress')).toHaveCount(0)
   await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
   await expect(page.getByRole('alert')).toHaveCount(1)
   expect((await card.boundingBox())!.height).toBe(before.height)
   expect((await input.boundingBox())!.height).toBeLessThan(inputHeight)
   const errorBox = (await alert.boundingBox())!
-  const counter = (await card.locator('.character-count').boundingBox())!
-  expect(errorBox.y + errorBox.height).toBeLessThanOrEqual(counter.y)
-  expect(counter.y + counter.height).toBeLessThan(before.y + before.height)
+  expect(errorBox.y + errorBox.height).toBeLessThan(before.y + before.height)
   expect(await alert.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
     true,
   )

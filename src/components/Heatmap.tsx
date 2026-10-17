@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { Feature, TokenActivation } from '../lib/types'
 
 // Some Unicode characters span several tokenizer tokens. Merge overlapping
@@ -78,14 +78,12 @@ export default function Heatmap({
           data-flow={
             space && !/[\r\n]/.test(value) ? `${index}-${piece}` : undefined
           }
-          style={
-            {
-              '--activation':
-                feature && activation > 0
-                  ? Math.min(1, activation / feature.displayScale)
-                  : 0,
-            } as CSSProperties
-          }
+          style={{
+            backgroundColor:
+              feature && activation > 0
+                ? `color-mix(in srgb, light-dark(#ea963e, #94581e) ${74 * Math.min(1, activation / feature.displayScale)}%, transparent)`
+                : 'transparent',
+          }}
         >
           {value}
         </span>

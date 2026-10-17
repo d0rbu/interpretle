@@ -38,6 +38,7 @@ import type { Catalog, Feature, Game, Mode, Passage } from './lib/types'
 
 const HELP_KEY = 'interpretle:instructions-seen'
 const PRACTICE_KEY = 'interpretle:practice-seed'
+const THEME_KEY = 'interpretle:theme'
 function stored(key: string) {
   try {
     return localStorage.getItem(key)
@@ -52,6 +53,58 @@ function remember(key: string, value: string) {
   } catch {
     return false
   }
+}
+
+function ThemeSwitch() {
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
+    const saved = stored(THEME_KEY)
+    return saved === 'light' || saved === 'dark' ? saved : null
+  })
+  const [systemDark, setSystemDark] = useState(
+    () => matchMedia('(prefers-color-scheme: dark)').matches,
+  )
+  useEffect(() => {
+    const media = matchMedia('(prefers-color-scheme: dark)')
+    const update = () => setSystemDark(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  useEffect(() => {
+    document.documentElement.style.colorScheme = theme ?? 'light dark'
+  }, [theme])
+  const dark = theme ? theme === 'dark' : systemDark
+  return (
+    <div
+      className="slider theme-switch"
+      role="group"
+      aria-label="Color theme"
+      data-right={dark}
+    >
+      {(['light', 'dark'] as const).map((value) => (
+        <button
+          key={value}
+          aria-label={`${value === 'light' ? 'Light' : 'Dark'} mode`}
+          aria-pressed={dark === (value === 'dark')}
+          title={`${value === 'light' ? 'Light' : 'Dark'} mode`}
+          onClick={() => {
+            setTheme(value)
+            remember(THEME_KEY, value)
+          }}
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            {value === 'light' ? (
+              <>
+                <circle cx="10" cy="10" r="3" />
+                <path d="M10 1v2m0 14v2M1 10h2m14 0h2M3.6 3.6 5 5m10 10 1.4 1.4M3.6 16.4 5 15M15 5l1.4-1.4" />
+              </>
+            ) : (
+              <path d="M17 11a7 7 0 0 1-8-8 7 7 0 1 0 8 8Z" />
+            )}
+          </svg>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function Instructions({ close }: { close: () => void }) {
@@ -515,7 +568,7 @@ function Board({
                 aria-description="Enter to submit. Shift+Enter for a new line."
                 aria-describedby={
                   [
-                    text || writing ? 'custom-count' : '',
+                    !error && (text || writing) ? 'custom-count' : '',
                     error ? 'custom-error' : '',
                   ]
                     .filter(Boolean)
@@ -551,7 +604,7 @@ function Board({
                   {error}
                 </p>
               )}
-              {(text || writing || busy) && (
+              {!error && (text || writing || busy) && (
                 <div className="write-in-footer">
                   {busy && (
                     <>
@@ -673,7 +726,6 @@ export default function App() {
   const [today, setToday] = useState(puzzleDay)
   const [day, setDay] = useState(puzzleDay)
   const [mode, setMode] = useState<Mode>('daily')
-  const [quadratic, setQuadratic] = useState(true)
   const [practiceSeed, setPracticeSeed] = useState(
     () => stored(PRACTICE_KEY) ?? crypto.randomUUID(),
   )
@@ -740,10 +792,7 @@ export default function App() {
       if (target) void loadFeature(target).catch(() => {})
   }, [catalog, today, day, practiceSeed, nextPracticeSeed])
   return (
-    <div
-      className="shell"
-      data-highlight-curve={quadratic ? 'quadratic' : 'linear'}
-    >
+    <div className="shell">
       <a className="skip-link" href="#puzzle">
         Skip to puzzle
       </a>
@@ -782,7 +831,11 @@ export default function App() {
           </a>{' '}
           and Codex
         </span>
-        <nav className="mode-switch" aria-label="Puzzle mode">
+        <nav
+          className="slider mode-switch"
+          aria-label="Puzzle mode"
+          data-right={mode === 'practice'}
+        >
           {(['daily', 'practice'] as const).map((value) => (
             <button
               key={value}
@@ -793,6 +846,7 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <ThemeSwitch />
         <button
           className="help-button"
           aria-label="Instructions"
@@ -802,23 +856,6 @@ export default function App() {
         </button>
       </header>
       <main id="puzzle">
-        <div
-          className="highlight-switch"
-          role="group"
-          aria-label="Highlight curve"
-        >
-          <span>Highlights</span>
-          {['Linear', 'Quadratic'].map((label) => (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={quadratic === (label === 'Quadratic')}
-              onClick={() => setQuadratic(label === 'Quadratic')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         {error ? (
           <p role="alert">{error}</p>
         ) : catalog && id ? (
