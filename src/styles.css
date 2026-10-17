@@ -732,7 +732,7 @@ dialog .primary {
   white-space: nowrap;
   border: 0;
 }
-@media (max-width: 800px) {
+@media (max-width: 880px) {
   header {
     flex-wrap: wrap;
     gap: 10px;
