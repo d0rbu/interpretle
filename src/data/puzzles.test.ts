@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   choices,
   createGame,
+  hasEncodingErrors,
   measure,
   playPassage,
   sentenceCount,
@@ -25,7 +26,7 @@ const limits = new Map([
 ])
 
 describe('published measurements', () => {
-  it('has daily and practice puzzles and an opt-in browser model', () => {
+  it('has daily and practice puzzles and a browser model', () => {
     expect(catalog.daily[catalog.firstDay]).toBeTruthy()
     expect(catalog.practice.length).toBeGreaterThan(1)
     expect(catalog.browserModel?.bytes).toBeGreaterThan(1e9)
@@ -108,6 +109,9 @@ describe('published measurements', () => {
         }
       }
       const starter = measure(feature, feature.starter.tokens)
+      expect(
+        hasEncodingErrors(feature.starter.before + feature.starter.text),
+      ).toBe(false)
       expect(starter.score).toBeGreaterThanOrEqual(49.9)
       expect(starter.score).toBeLessThanOrEqual(50)
       expect(
@@ -120,6 +124,9 @@ describe('published measurements', () => {
           const cards = choices(game, feature)
           expect(new Set(cards.map((p) => p.id)).size).toBe(5)
           expect(cards.every((p) => sentenceCount(p.text) <= 3)).toBe(true)
+          expect(cards.some((p) => hasEncodingErrors(p.before + p.text))).toBe(
+            false,
+          )
           expect(
             cards.some((p) => game.guesses.some((g) => g.passageId === p.id)),
           ).toBe(false)

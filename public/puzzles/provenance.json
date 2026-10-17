@@ -1004,7 +1004,7 @@
       "id": "gemma4-l21-sae-27719-v2",
       "positive_passages": 35806,
       "inactive_passages": 50388,
-      "starter_percentile": 49.9944143439647,
+      "starter_percentile": 49.9888286879294,
       "bands": {
         "0": 40,
         "50": 24,
@@ -1013,7 +1013,7 @@
         "99": 24,
         "99.9": 24
       },
-      "sha256": "71ef105aa4de9f83069e3f078937ef14d2d650a456e737c6850aff0c00f5a74d"
+      "sha256": "ccf89fb05fec213d1651bdd7077e2a7b14e504a141f420db4213e778676e40c9"
     },
     {
       "id": "gemma4-l21-sae-46049-v2",
@@ -1049,7 +1049,7 @@
       "id": "gemma4-l21-sae-35670-v2",
       "positive_passages": 14430,
       "inactive_passages": 71764,
-      "starter_percentile": 50.0,
+      "starter_percentile": 49.993069993069994,
       "bands": {
         "0": 40,
         "50": 24,
@@ -1058,7 +1058,7 @@
         "99": 24,
         "99.9": 7
       },
-      "sha256": "2040f4ab33f384c9d2b996f6e7a83d708af2e5221c9b58907b14bdc5f21f1138"
+      "sha256": "895a6b94211b5cc6c041820f3176441bf71629610c97b3447b42427629702821"
     },
     {
       "id": "gemma4-l21-sae-39056-v2",

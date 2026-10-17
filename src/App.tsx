@@ -5,8 +5,10 @@ import Heatmap from './components/Heatmap'
 import Chevron from './components/Chevron'
 import Outcome from './components/Outcome'
 import { cachedFeature, loadCatalog, loadFeature } from './data/puzzles'
+import { puzzleDay } from './lib/day'
 import {
   browserModelReady,
+  prefetchBrowserModel,
   prepareBrowserModel,
   scoreInBrowser,
 } from './lib/browser'
@@ -30,7 +32,6 @@ import {
   serializeGame,
   status,
   storageKey,
-  utcDay,
   validateCustom,
 } from './lib/game'
 import type { Catalog, Feature, Game, Mode, Passage } from './lib/types'
@@ -136,21 +137,27 @@ function PassageContent({
     animations.current.forEach((item) => item.cancel())
     flushSync(() => setExpanded((value) => !value))
     const end = container.getBoundingClientRect()
+    // Read every destination before animation changes any font weight or size.
+    const pieces = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-flow]'),
+    ).map((piece) => ({
+      piece,
+      from: previous.get(piece.dataset.flow),
+      rect: piece.getBoundingClientRect(),
+      fontWeight: getComputedStyle(piece).fontWeight,
+    }))
     const timing = { duration: 550, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' }
+    container.classList.add('context-motion')
     const motion = [
       container.animate(
         [{ height: `${start.height}px` }, { height: `${end.height}px` }],
         timing,
       ),
     ]
-    // Move real elements relative to their card, so scrolling needs no special
-    // handling. Fixed widths prevent changing font weights from reflowing them.
-    for (const piece of container.querySelectorAll<HTMLElement>(
-      '[data-flow]',
-    )) {
-      const from = previous.get(piece.dataset.flow)
+    // Keep the destination layout fixed while real elements move within the
+    // card. A shrinking token must not wrap inside its narrower final width.
+    for (const { piece, from, rect, fontWeight } of pieces) {
       if (!from) continue
-      const rect = piece.getBoundingClientRect()
       const width = `${rect.width}px`
       motion.push(
         piece.animate(
@@ -162,7 +169,7 @@ function PassageContent({
             },
             {
               transform: 'translate(0, 0)',
-              fontWeight: getComputedStyle(piece).fontWeight,
+              fontWeight,
               width,
             },
           ],
@@ -173,7 +180,6 @@ function PassageContent({
     const context = container.querySelector('.preceding-context')
     if (context)
       motion.push(context.animate([{ opacity: 0 }, { opacity: 1 }], timing))
-    container.classList.add('context-motion')
     animations.current = motion
     void Promise.allSettled(motion.map((item) => item.finished)).then(() => {
       if (animations.current === motion) {
@@ -648,8 +654,8 @@ function Puzzle({
 }
 
 export default function App() {
-  const [today, setToday] = useState(utcDay)
-  const [day, setDay] = useState(utcDay)
+  const [today, setToday] = useState(puzzleDay)
+  const [day, setDay] = useState(puzzleDay)
   const [mode, setMode] = useState<Mode>('daily')
   const [practiceSeed, setPracticeSeed] = useState(
     () => stored(PRACTICE_KEY) ?? crypto.randomUUID(),
@@ -662,7 +668,10 @@ export default function App() {
   const [error, setError] = useState('')
   useEffect(() => {
     loadCatalog()
-      .then(setCatalog)
+      .then((value) => {
+        setCatalog(value)
+        if (value.browserModel) prefetchBrowserModel(value.browserModel)
+      })
       .catch(() =>
         setError('Puzzles could not be loaded. Please reload to retry.'),
       )
@@ -672,7 +681,7 @@ export default function App() {
   }, [practiceSeed])
   useEffect(() => {
     const check = () => {
-      const next = utcDay()
+      const next = puzzleDay()
       if (next !== today) {
         setToday(next)
         setDay((current) => (current === today ? next : current))

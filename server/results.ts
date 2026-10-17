@@ -1,4 +1,5 @@
 import catalog from '../public/puzzles/index.json'
+import { puzzleDay } from '../src/lib/day'
 
 // Only the small slice of Cloudflare's bindings used by this counter.
 interface Sql {
@@ -96,11 +97,7 @@ export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url)
     const day = /^\/api\/results\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname)?.[1]
-    if (
-      !day ||
-      !Object.hasOwn(catalog.daily, day) ||
-      day > new Date().toISOString().slice(0, 10)
-    )
+    if (!day || !Object.hasOwn(catalog.daily, day) || day > puzzleDay())
       return json({ error: 'Unknown puzzle.' }, 404)
     if (!['GET', 'POST'].includes(request.method))
       return json({ error: 'Method not allowed.' }, 405)

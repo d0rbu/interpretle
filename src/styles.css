@@ -253,6 +253,9 @@ main {
 .context-motion {
   overflow: visible;
 }
+.context-motion .passage-piece {
+  white-space: pre;
+}
 .history {
   list-style: none;
   padding: 0;

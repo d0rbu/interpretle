@@ -211,6 +211,61 @@ test('keeps highlights compact and the moving tokens attached to their card whil
   ).toBe(0)
 })
 
+test('collapses bold context without splitting tokens or jumping at the first frame', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  for (const card of [
+    page.locator('.result'),
+    page.locator('.choices .choice').first(),
+  ]) {
+    await card.getByRole('button', { name: 'Show preceding context' }).click()
+    await expect(card).not.toHaveClass(/context-motion/)
+    const expanded = await card.locator('[data-flow]').evaluateAll((pieces) =>
+      pieces.map((piece) => {
+        const root = piece.closest('.choice, .result')!.getBoundingClientRect()
+        const rect = piece.getBoundingClientRect()
+        return { x: rect.x - root.x, y: rect.y - root.y }
+      }),
+    )
+    await card.getByRole('button', { name: 'Hide preceding context' }).click()
+    for (const time of [0, 200, 400]) {
+      await page.evaluate((time) => {
+        document.getAnimations().forEach((animation) => {
+          animation.pause()
+          animation.currentTime = time
+        })
+      }, time)
+      const frame = await card.locator('[data-flow]').evaluateAll((pieces) =>
+        pieces.map((piece) => {
+          const root = piece
+            .closest('.choice, .result')!
+            .getBoundingClientRect()
+          const rect = piece.getBoundingClientRect()
+          const range = document.createRange()
+          range.selectNodeContents(piece.firstElementChild!)
+          return {
+            x: rect.x - root.x,
+            y: rect.y - root.y,
+            lines: range.getClientRects().length,
+          }
+        }),
+      )
+      expect(frame.every((piece) => piece.lines === 1)).toBe(true)
+      if (time === 0)
+        frame.forEach((piece, i) => {
+          expect(piece.x).toBeCloseTo(expanded[i].x, 1)
+          expect(piece.y).toBeCloseTo(expanded[i].y, 1)
+        })
+    }
+    await page.evaluate(() =>
+      document.getAnimations().forEach((animation) => animation.finish()),
+    )
+    await expect(card).not.toHaveClass(/context-motion/)
+    await expect(card.locator('strong')).toHaveCount(0)
+  }
+})
+
 test('expands context inline with only the passage bold and highlighted, and saves each day independently', async ({
   page,
 }) => {
@@ -286,7 +341,7 @@ test('expands context inline with only the passage bold and highlighted, and sav
   await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
 })
 
-test('keeps practice separate and keeps an archive open across midnight', async ({
+test('keeps practice separate and keeps an archive open across Pacific midnight', async ({
   page,
 }) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
@@ -298,7 +353,7 @@ test('keeps practice separate and keeps an archive open across midnight', async 
   await page
     .getByRole('combobox', { name: 'Puzzle day' })
     .selectOption('2026-10-16')
-  await page.clock.setSystemTime(new Date('2026-10-19T00:01:00Z'))
+  await page.clock.setSystemTime(new Date('2026-10-19T07:01:00Z'))
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(page.getByRole('combobox', { name: 'Puzzle day' })).toHaveValue(
     '2026-10-16',
@@ -307,6 +362,25 @@ test('keeps practice separate and keeps an archive open across midnight', async 
   await expect(page.getByRole('combobox', { name: 'Puzzle day' })).toHaveValue(
     '2026-10-19',
   )
+})
+
+test('rolls the current daily puzzle at Pacific midnight rather than UTC midnight', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  await page.locator('.passage-select').first().click()
+  await page.clock.setSystemTime(new Date('2026-10-19T00:01:00Z'))
+  await page.reload()
+  const day = page.getByRole('combobox', { name: 'Puzzle day' })
+  await expect(day).toHaveValue('2026-10-18')
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  await expect(day.locator('option[value="2026-10-19"]')).toHaveCount(0)
+  await page.clock.setSystemTime(new Date('2026-10-19T06:59:59Z'))
+  await page.clock.runFor(16000)
+  await expect(day).toHaveValue('2026-10-19')
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
+  await day.selectOption('2026-10-18')
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
 })
 
 test('works without persistent storage and fits the viewport', async ({
@@ -487,7 +561,7 @@ test('celebrates a solve, shows daily counts and optional details, and confirms 
   ).toEqual([])
 })
 
-test('loads on write-in focus, queues Enter, and charges only successful custom guesses', async ({
+test('prefetches without blocking play, joins on focus, and charges only successful write-ins', async ({
   page,
 }) => {
   await page.route('**/puzzles/index.json', (route) =>
@@ -563,7 +637,13 @@ test('loads on write-in focus, queues Enter, and charges only successful custom 
     name: 'Your sentence',
     exact: true,
   })
-  expect(await messages()).toEqual([])
+  await expect.poll(messages).toEqual(['prepare'])
+  await expect(page.locator('.passage-select').first()).toBeEnabled()
+  await page.getByRole('button', { name: 'Practice', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'New puzzle' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Daily', exact: true }).click()
+  await expect(page.locator('.passage-select').first()).toBeEnabled()
+  expect(await messages()).toEqual(['prepare'])
   await expect(page.locator('.write-in button')).toHaveCount(0)
   await expect(page.locator('.character-count')).toHaveCount(0)
   await expect(page.getByText('Scored locally with WebGPU')).toHaveCount(0)
@@ -634,6 +714,63 @@ test('loads on write-in focus, queues Enter, and charges only successful custom 
   await expect(page.locator('.game-status')).toContainText('Attempt 3 of 6')
   await expect(input).toBeDisabled()
   await expect(input).toHaveAttribute('placeholder', 'Write your own (0 left)')
+})
+
+test('keeps failed background loading silent and reuses a successful retry', async ({
+  page,
+}) => {
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: { manifest: '/model/test.json', bytes: 12e9 },
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    const messages: string[] = []
+    Object.assign(window, { modelMessages: messages })
+    window.Worker = class {
+      onmessage: ((event: { data: object }) => void) | null = null
+      postMessage(message: { type: string }) {
+        messages.push(message.type)
+        this.onmessage?.({
+          data:
+            messages.length === 1
+              ? { error: 'A test download failure.' }
+              : { result: null },
+        })
+      }
+      terminate() {}
+    } as unknown as typeof Worker
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const messages = () =>
+    page.evaluate(
+      () => (window as unknown as { modelMessages: string[] }).modelMessages,
+    )
+  await expect.poll(messages).toEqual(['prepare'])
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  const inactive = choices(
+    createGame('daily', '2026-10-18', feature.id),
+    feature,
+  ).find((passage) => passage.band === 0)!
+  await page.getByRole('button', { name: inactive.text, exact: true }).click()
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  expect(await messages()).toEqual(['prepare'])
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  await input.focus()
+  await expect.poll(messages).toEqual(['prepare', 'prepare'])
+  await expect(page.locator('.write-in progress')).toHaveCount(0)
+  await input.blur()
+  await input.focus()
+  expect(await messages()).toEqual(['prepare', 'prepare'])
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(input).toHaveAttribute('placeholder', 'Write your own (2 left)')
 })
 
 test('records a failed daily game in the X bar without counting a reload twice', async ({

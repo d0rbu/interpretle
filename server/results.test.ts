@@ -181,4 +181,17 @@ describe('daily solve counter', () => {
       error: 'Results are temporarily unavailable.',
     })
   })
+
+  it('opens each results bucket at Pacific midnight, including daylight saving time', async () => {
+    for (const [previous, today, midnight] of [
+      ['2026-10-18', '2026-10-19', '2026-10-19T07:00:00Z'],
+      ['2026-12-18', '2026-12-19', '2026-12-19T08:00:00Z'],
+    ]) {
+      vi.setSystemTime(new Date(Date.parse(midnight) - 1))
+      expect((await request(previous)).status).toBe(200)
+      expect((await request(today)).status).toBe(404)
+      vi.setSystemTime(new Date(midnight))
+      expect((await request(today)).status).toBe(200)
+    }
+  })
 })

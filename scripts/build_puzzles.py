@@ -10,13 +10,24 @@ import json
 import re
 from collections import Counter
 from array import array
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from scipy import sparse
 from huggingface_hub import hf_hub_download
 from safetensors import safe_open
+
+ENCODING_ERRORS = re.compile(r'[\u0080-\u009f\ufffd]|â€|[ÃÂ][\u0080-\u00bf]|ðŸ')
+
+
+def context_start(doc, first):
+    context_first = max(1, first - 64)
+    # Keep the window within 64 tokens without starting inside a Unicode character.
+    while context_first < first and doc['offsets'][context_first][0] < doc['offsets'][context_first - 1][1]:
+        context_first += 1
+    return doc['offsets'][context_first][0]
 
 
 def spans(doc):
@@ -105,13 +116,8 @@ def passage(row, column, docs, cache, manifest, band):
     tokens = [dict(id=doc['ids'][index], start=utf16(doc['offsets'][index][0]),
                    end=utf16(doc['offsets'][index][1]), activation=float(activations[index - first]))
               for index in range(first, last) if eligible[index - first]]
-    context_first = max(1, first - 64)
-    # Keep the window within 64 tokens without starting inside a Unicode character.
-    while context_first < first and doc['offsets'][context_first][0] < doc['offsets'][context_first - 1][1]:
-        context_first += 1
-    context_start = doc['offsets'][context_first][0]
     return dict(id=f"{doc['id']}:{first}-{last}", text=doc['text'][start:end],
-                before=doc['text'][context_start:start],
+                before=doc['text'][context_start(doc, first):start],
                 source={key: doc['source'][key] for key in ['title', 'url', 'license']},
                 tokens=tokens, band=band)
 
@@ -148,6 +154,7 @@ def main():
     # Keep the full population for calibration; only the playable excerpts
     # need to fit the card. This matches the frontend's sentence heuristic.
     showable = np.array([last - first <= 80 and
+                        not ENCODING_ERRORS.search(docs[doc]['text'][context_start(docs[doc], first):end]) and
                         len(re.findall(r'''[.!?]["”’')\]]*\s+(?=\S)''', docs[doc]['text'][start:end].strip())) < 3
                         for doc, first, last, start, end in rows])
     row_ids = {f"{docs[doc]['id']}:{first}-{last}": i for i, (doc, first, last, _, _) in enumerate(rows)}
@@ -158,7 +165,7 @@ def main():
     catalog_path = args.output / 'index.json'
     previous = json.loads(catalog_path.read_text()) if catalog_path.exists() else {}
     published = {day: target for day, target in previous.get('daily', {}).items()
-                 if day <= datetime.now(timezone.utc).date().isoformat()}
+                 if day <= datetime.now(ZoneInfo('America/Los_Angeles')).date().isoformat()}
     ids, daily_ids, reports = [], [], []
     for target in targets:
         target = dict(target)

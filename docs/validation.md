@@ -66,7 +66,7 @@ but include **255 of the 345 native wins**. FP4 is an approximation and does not
 preserve the original activation scores near the winning boundary.
 
 The chosen product contract keeps native stored scores and reference arrays.
-Only opt-in browser write-ins use the smaller FP4 model and display `≈`.
+Only browser write-ins use the smaller FP4 model and display `≈`.
 The selected SAE encoder stays FP32: just one 2,560-value vector plus bias and
 threshold per feature, with a shared input-bias vector. Quantizing it saves
 little and adds error. The server performs no inference.
@@ -138,16 +138,24 @@ a fresh Git checkout must first run the exporter to create the ignored chunks.
 The unit/data and desktop/mobile browser checks cover six-attempt new games,
 preservation of started eight-attempt saves, the two-custom limit, native-score
 win decisions, nominal-band progression, and failure refunds. They also cover
-first-visit instructions, daily/archive persistence, five suggestions plus
+first-visit instructions, Pacific-midnight rollover (including daylight saving),
+daily/archive persistence, five suggestions plus
 write-in, preloaded puzzles, the loading skeleton, intrinsic day-number width,
 and stable scrollbar spacing.
+Malformed source text is excluded from new choices without rewriting measured
+input or changing the reference distribution. Two affected practice clues use
+clean replacements near the median from the existing native extraction cache;
+their pack provenance hashes are updated.
 
 Spaces and letters have identical highlight heights. Mid-animation screenshots
 remain identical relative to the card when the page scrolls. Token motion animates
 the actual elements relative to their card with the Web Animations API; it does
-not require view transitions. Devices requesting reduced motion update immediately.
-Checks also cover silent cancellation,
-focus-triggered loading, queued Enter submission, the `0/280` counter, Unicode
+not require view transitions. Collapsing context keeps tokens on one line while
+they return to normal weight, without a jump at the start of the animation.
+Devices requesting reduced motion update immediately.
+Checks also cover background model preparation without blocking stored passages,
+joining the same download on focus, silent cancellation and retries,
+queued Enter submission, the `0/280` counter, Unicode
 limits, clipboard feedback and accessibility. Worker responses are mocked in
 these UI tests; the numerical browser checks above run the actual model.
 

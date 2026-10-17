@@ -3,7 +3,8 @@
 [Play interpretle.com](https://interpretle.com). Find text that activates a hidden
 feature in a language model. Reach the 99.9th percentile within six attempts,
 with at most two custom sentences. A highlighted passage near the median is your
-free starting clue. Daily puzzles roll over at midnight UTC; the day dropdown
+free starting clue. Daily puzzles roll over at midnight Pacific time, including
+daylight saving time; the day dropdown
 opens the archive. Practice keeps separate progress.
 Games started before the six-attempt update keep their original limit.
 
@@ -93,14 +94,15 @@ measurements stay fixed as the library expands.
 
 ## Custom sentences
 
-Custom scoring is WebGPU inference on the player's device. Focusing the write-in
-card automatically downloads and loads the model prefix, about **2.39 GB** on first use,
-and caches it in browser storage. Type directly into the card; Enter submits and
-Shift+Enter adds a newline. Enter during loading waits for the model to be ready.
-Download and inference progress appear inside the card, beside a Cancel button.
+Custom scoring is WebGPU inference on the player's device. Opening the page starts
+preparing the model prefix in the background, about **2.39 GB** on the first visit,
+and caches it in browser storage. Stored passages remain playable during background loading.
+Focusing the write-in card joins that download and shows progress beside a Cancel
+button. Type directly into the card; Enter submits and Shift+Enter adds a newline.
+Enter during loading waits for the model to be ready. Each puzzle allows two write-ins.
 It needs a compatible GPU with FP16 support and enough storage. Loading,
 cancelled runs, unsupported devices, and failed inference do not consume an
-attempt. The passage game works without downloading any model.
+attempt. The passage game also works on devices that cannot load the model.
 
 The browser runs small ONNX graphs one layer at a time. It uses only layers 0–21,
 with the unused layer-specific embedding columns removed. Matrix weights use
@@ -121,7 +123,7 @@ inference service. All required weight chunks are downloaded **before** looking
 up input tokens, so input-dependent embedding requests cannot disclose text.
 Packed weights are restored to FP16 for inference, with FP32 matrix accumulation
 and reductions. Quantization reduces the download, not the GPU's computation precision.
-The ONNX Runtime binary is loaded from a version-pinned CDN only after opt-in.
+The ONNX Runtime binary is loaded from a version-pinned CDN during preparation.
 Custom text is scored as a complete document with a BOS token and no chat
 template. Unlike a source excerpt, it has no preceding source context.
 See [validation and reproduction steps](docs/validation.md) for the native and

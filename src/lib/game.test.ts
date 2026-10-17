@@ -9,6 +9,7 @@ import {
   createGame,
   customRemaining,
   dayNumber,
+  hasEncodingErrors,
   measure,
   playCustom,
   playPassage,
@@ -19,7 +20,6 @@ import {
   serializeGame,
   shareText,
   status,
-  utcDay,
 } from './game'
 
 const initial = () => createGame('daily', '2026-10-18', feature.id)
@@ -65,6 +65,30 @@ describe('measured game', () => {
     expect(playPassage(initial(), measured, card.id).guesses[0].score).toBe(
       50.37,
     )
+  })
+
+  it('skips broken source encoding in passages and context without rewriting measurements', () => {
+    const [first, second] = choices(initial(), feature)
+    const damaged = {
+      ...feature,
+      passages: feature.passages.map((passage) =>
+        passage.id === first.id
+          ? { ...passage, text: 'The dad said â€œItâ€™s a surprise.' }
+          : passage.id === second.id
+            ? { ...passage, before: 'Broken quotation marks: â€œ' }
+            : passage,
+      ),
+    }
+    expect(
+      choices(initial(), damaged).some((p) =>
+        [first.id, second.id].includes(p.id),
+      ),
+    ).toBe(false)
+    expect(damaged.passages.find((p) => p.id === first.id)?.tokens).toBe(
+      first.tokens,
+    )
+    expect(hasEncodingErrors('“Café, naïve, 日本語, and 😀.”')).toBe(false)
+    expect(hasEncodingErrors('A damaged \ufffd character.')).toBe(true)
   })
 
   it('advances by the best sampling band, including a 49.8th-percentile representative of 50', () => {
@@ -359,9 +383,8 @@ describe('scoring and display', () => {
     expect(parts.find((p) => p.text === '😁')?.tokens).toHaveLength(2)
   })
 
-  it('numbers puzzles from launch and observes UTC boundaries', () => {
+  it('numbers puzzles from launch', () => {
     expect(dayNumber('2026-10-16', '2026-10-16')).toBe(1)
     expect(dayNumber('2026-10-18', '2026-10-16')).toBe(3)
-    expect(utcDay(new Date('2026-10-17T19:30:00-05:00'))).toBe('2026-10-18')
   })
 })

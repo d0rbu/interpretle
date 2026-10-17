@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { dateLabel, MAX_GUESSES, shareText, status, utcDay } from '../lib/game'
+import { dateLabel, MAX_GUESSES, shareText, status } from '../lib/game'
+import { puzzleDay } from '../lib/day'
 import type { Feature, Game } from '../lib/types'
 import extraction from '../../data/model.json'
 import Chevron from './Chevron'
@@ -193,7 +194,9 @@ export default function Outcome({
         <div className="distribution">
           <div className="distribution-heading">
             <h3>
-              {game.seed === utcDay() ? 'Today’s solves' : dateLabel(game.seed)}
+              {game.seed === puzzleDay()
+                ? 'Today’s solves'
+                : dateLabel(game.seed)}
             </h3>
             {counts && (
               <span>

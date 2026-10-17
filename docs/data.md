@@ -3,6 +3,8 @@
 The game publishes excerpts and up to 64 preceding model tokens from these public datasets.
 Each stored passage record includes its source and license. Text is split into
 displayed spans and annotated with measured activations; it is not rewritten.
+Choices exclude obvious encoding damage in the passage or its displayed context.
+The original reference population and saved guesses keep their measured scores.
 Dataset revisions are pinned in `scripts/prepare_corpus.py` and recorded in the
 published provenance. Corpus selection keeps complete documents that fit the
 1,024-token context window. This is a selected corpus, not every row in the

@@ -1,9 +1,17 @@
 import type { Catalog, Feature, TokenActivation } from './types'
 
 type Progress = (message: string, fraction?: number) => void
+type BrowserModel = NonNullable<Catalog['browserModel']>
+type Preparation = {
+  controller: AbortController
+  promise: Promise<void>
+  latest: Parameters<Progress>
+  progress?: Progress
+}
 let worker: Worker | undefined
 let running = false
 let ready = false
+let preparation: Preparation | undefined
 
 export const browserModelReady = () => ready
 
@@ -65,22 +73,59 @@ function run<T>(
   })
 }
 
-export function prepareBrowserModel(
-  model: NonNullable<Catalog['browserModel']>,
+function startPreparation(model: BrowserModel) {
+  if (preparation) return preparation
+  const job: Preparation = {
+    controller: new AbortController(),
+    latest: ['Loading…'],
+    promise: Promise.resolve()
+      .then(() =>
+        run<void>(
+          { type: 'prepare', manifest: model.manifest },
+          (...update) => {
+            job.latest = update
+            job.progress?.(...update)
+          },
+          job.controller.signal,
+        ),
+      )
+      .finally(() => {
+        if (preparation === job) preparation = undefined
+      }),
+  }
+  preparation = job
+  return job
+}
+
+export function prefetchBrowserModel(model: BrowserModel) {
+  if (!ready) void startPreparation(model).promise.catch(() => {})
+}
+
+export async function prepareBrowserModel(
+  model: BrowserModel,
   progress: Progress,
   signal: AbortSignal,
 ) {
-  return run<void>(
-    { type: 'prepare', manifest: model.manifest },
-    progress,
-    signal,
-  )
+  if (signal.aborted) throw new DOMException('', 'AbortError')
+  if (ready) return
+  // Focusing the card joins the page's download and exposes its progress/cancel.
+  const job = startPreparation(model)
+  job.progress = progress
+  progress(...job.latest)
+  const cancel = () => job.controller.abort()
+  signal.addEventListener('abort', cancel, { once: true })
+  try {
+    await job.promise
+  } finally {
+    signal.removeEventListener('abort', cancel)
+    if (job.progress === progress) job.progress = undefined
+  }
 }
 
 export function scoreInBrowser(
   text: string,
   feature: Feature,
-  model: NonNullable<Catalog['browserModel']>,
+  model: BrowserModel,
   progress: Progress,
   signal: AbortSignal,
 ) {

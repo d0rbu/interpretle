@@ -32,7 +32,6 @@ function random(seed: string): () => number {
   }
 }
 
-export const utcDay = (date = new Date()) => date.toISOString().slice(0, 10)
 export const dayNumber = (day: string, firstDay: string) =>
   Math.round((Date.parse(day) - Date.parse(firstDay)) / 86400000) + 1
 export const dateLabel = (day: string) =>
@@ -94,10 +93,17 @@ export function bandsForScore(score: number): Band[] {
 export const sentenceCount = (text: string) =>
   1 + (text.trim().match(/[.!?]["”’')\]]*\s+(?=\S)/g)?.length ?? 0)
 
+// Skip source encoding damage; repairing it would change the model's input.
+export const hasEncodingErrors = (text: string) =>
+  /[\u0080-\u009f\ufffd]|â€|[ÃÂ][\u0080-\u00bf]|ðŸ/.test(text)
+
 export function choices(game: Game, feature: Feature): Passage[] {
   if (status(game) !== 'playing') return []
   const passages = feature.passages.filter(
-    (p) => p.tokens.length <= MAX_PASSAGE_TOKENS && sentenceCount(p.text) <= 3,
+    (p) =>
+      p.tokens.length <= MAX_PASSAGE_TOKENS &&
+      sentenceCount(p.text) <= 3 &&
+      !hasEncodingErrors(p.before + p.text),
   )
   const shown = new Set<string>()
   const played = new Set<string>()

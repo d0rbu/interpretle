@@ -68,7 +68,7 @@ async function prepare(url: string) {
   cache = await caches.open('interpretle:model-v1')
   ort.env.wasm.numThreads = 1
   // The upstream runtime binary exceeds Cloudflare's per-file asset limit.
-  // This pinned runtime is fetched only after the player opts into local scoring.
+  // Use a pinned runtime while preparing the model in the background.
   ort.env.wasm.wasmPaths =
     'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/'
   ort.env.webgpu.adapter = adapter
