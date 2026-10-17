@@ -4,6 +4,7 @@ import {
   cachedFile,
   downloadWeights,
   embeddingRows,
+  pruneModelCache,
   readRange,
   saeEncoder,
 } from './model-cache'
@@ -60,6 +61,14 @@ async function prepare(url: string) {
   manifest = await response.json()
   stage = 'Browser storage'
   cache = await caches.open('interpretle:model-v1')
+  stage = 'Cleaning outdated model files'
+  await pruneModelCache(cache, Object.values(manifest.sources), [
+    ...Object.values(manifest.graphs),
+    ...Object.values(manifest.cpuGraphs),
+    ...Object.values(manifest.cpuRuntime),
+    ...Object.values(manifest.positions),
+    ...Object.values(manifest.tokenizer),
+  ])
   stage = 'Model data download'
   for (const [name, asset] of Object.entries(manifest.positions)) {
     const bytes = await cachedFile(cache, asset.url, asset.sha256)

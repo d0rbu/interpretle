@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cachedFile, downloadWeights, saeEncoder } from './model-cache'
+import {
+  cachedFile,
+  downloadWeights,
+  pruneModelCache,
+  saeEncoder,
+} from './model-cache'
 import type { WeightSource } from './model-cache'
 
 let entries: Map<string, Response>
@@ -40,6 +45,42 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+it('removes obsolete model files while retaining shared weights, the full SAE and current assets', async () => {
+  const model = chunk(new Uint8Array([1, 2, 3]))
+  const sae = chunk(new Uint8Array([4, 5, 6]), 3)
+  const assets = [
+    { url: '/model/tokenizer.json', sha256: 'current-tokenizer' },
+    { url: '/model/cpu.onnx', sha256: 'current-cpu-graph' },
+    { url: '/model/gpu.onnx', sha256: 'current-gpu-graph' },
+  ]
+  const current = [
+    ...[model, sae].map(
+      (part) => `https://interpretle.com/__model_cache/${part.sha256}`,
+    ),
+    ...assets.map(
+      (asset) => `https://interpretle.com${asset.url}?sha256=${asset.sha256}`,
+    ),
+  ]
+  for (const url of [
+    ...current,
+    'https://interpretle.com/__model_cache/old-fp16-weights',
+    'https://interpretle.com/model/tokenizer.json?sha256=old-tokenizer',
+    'https://huggingface.co/old-tokenizer.json?sha256=old-tokenizer',
+  ])
+    entries.set(url, new Response('cached'))
+  const sources = [
+    { tensors: {}, chunks: [model, model] },
+    { tensors: {}, chunks: [sae] },
+  ]
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await pruneModelCache(cache, sources, assets)
+  expect([...entries.keys()].sort()).toEqual(current.sort())
+  await pruneModelCache(cache, sources, assets)
+  await downloadWeights(cache, sources, () => {})
+  expect(fetch).not.toHaveBeenCalled()
+})
+
 it('retries a transient failure, caches both sources, and resumes without downloading completed files', async () => {
   vi.useFakeTimers()
   const data = new Uint8Array([1, 2, 3, 4])
@@ -67,6 +108,9 @@ it('retries a transient failure, caches both sources, and resumes without downlo
   expect(
     fetch.mock.calls.every(([, options]) => options.headers === undefined),
   ).toBe(true)
+  expect(
+    fetch.mock.calls.every(([, options]) => options.cache === 'no-store'),
+  ).toBe(true)
 })
 
 it('does not cache damaged bytes, and does not retry a missing static file', async () => {
@@ -90,17 +134,51 @@ it('does not cache damaged bytes, and does not retry a missing static file', asy
   expect(entries.size).toBe(0)
 })
 
-it('reports a real storage failure without redownloading the file', async () => {
-  const data = new Uint8Array([1, 2, 3, 4])
-  const fetch = vi.fn().mockResolvedValue(new Response(data))
+it.each(['QuotaExceededError', 'NS_ERROR_FILE_NO_DEVICE_SPACE'])(
+  'preserves completed files on %s without retrying a failed write',
+  async (name) => {
+    const data = new Uint8Array([1, 2, 3, 4])
+    const saved = 'https://interpretle.com/__model_cache/completed-file'
+    entries.set(saved, new Response('completed model chunk'))
+    const fetch = vi.fn().mockResolvedValue(new Response(data))
+    vi.stubGlobal('fetch', fetch)
+    const error = new DOMException('', name)
+    cache.put = async () => {
+      throw error
+    }
+    await expect(
+      downloadWeights(
+        cache,
+        [{ tensors: {}, chunks: [chunk(data)] }],
+        () => {},
+      ),
+    ).rejects.toBe(error)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(await entries.get(saved)!.text()).toBe('completed model chunk')
+  },
+)
+
+it('does not retry a Firefox disk-space failure while downloading the tokenizer', async () => {
+  const error = new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE')
+  const fetch = vi.fn().mockRejectedValue(error)
   vi.stubGlobal('fetch', fetch)
-  cache.put = async () => {
-    throw new DOMException('Full', 'QuotaExceededError')
-  }
-  await expect(
-    downloadWeights(cache, [{ tensors: {}, chunks: [chunk(data)] }], () => {}),
-  ).rejects.toThrow('Browser storage is full')
+  await expect(cachedFile(cache, '/model/tokenizer.json')).rejects.toBe(error)
   expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+it('does not mistake a storage read failure for a corrupt cached tokenizer', async () => {
+  const error = new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE')
+  const saved = new Response('valid cached tokenizer')
+  saved.arrayBuffer = async () => {
+    throw error
+  }
+  cache.match = vi.fn().mockResolvedValue(saved)
+  cache.delete = vi.fn()
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await expect(cachedFile(cache, '/model/tokenizer.json')).rejects.toBe(error)
+  expect(cache.delete).not.toHaveBeenCalled()
+  expect(fetch).not.toHaveBeenCalled()
 })
 
 it('reads the last of all 65,536 encoder features entirely from cache', async () => {

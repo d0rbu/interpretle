@@ -1,3 +1,5 @@
+import { isStorageFull } from './model-error'
+
 export interface TensorInfo {
   shape: number[]
   dtype: string
@@ -18,6 +20,22 @@ export interface WeightSource {
 
 const key = (chunk: Chunk) =>
   new URL(`/__model_cache/${chunk.sha256}`, location.origin).href
+const fileKey = (url: string, hash?: string) =>
+  hash ? `${new URL(url, location.origin).href}?sha256=${hash}` : url
+
+/** Drop obsolete model versions, retaining every current weight and asset. */
+export async function pruneModelCache(
+  cache: Cache,
+  sources: WeightSource[],
+  assets: { url: string; sha256: string }[],
+) {
+  const keep = new Set([
+    ...sources.flatMap((source) => source.chunks.map(key)),
+    ...assets.map((asset) => fileKey(asset.url, asset.sha256)),
+  ])
+  for (const request of await cache.keys())
+    if (!keep.has(request.url)) await cache.delete(request.url)
+}
 
 class DownloadError extends Error {
   constructor(
@@ -38,6 +56,8 @@ async function download(
   for (let attempt = 0; ; attempt++) {
     try {
       const response = await fetch(url, {
+        // CacheStorage holds the verified copy; do not also fill the HTTP cache.
+        cache: 'no-store',
         headers: range ? { Range: range } : undefined,
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
@@ -55,6 +75,7 @@ async function download(
         throw new Error('The downloaded file was incomplete.')
       return data
     } catch (cause) {
+      if (isStorageFull(cause)) throw cause
       if (attempt === 3 || (cause instanceof DownloadError && !cause.retry))
         throw new Error(
           `Could not download from ${file.hostname}: ${cause instanceof Error ? cause.message : String(cause)} Completed files are saved; retry to resume.`,
@@ -82,14 +103,13 @@ export async function verifiedBytes(response: Response, hash?: string) {
 }
 
 export async function cachedFile(cache: Cache, url: string, hash?: string) {
-  const cacheKey = hash
-    ? `${new URL(url, location.origin).href}?sha256=${hash}`
-    : url
+  const cacheKey = fileKey(url, hash)
   const saved = await cache.match(cacheKey)
   if (saved) {
     try {
       return await verifiedBytes(saved, hash)
-    } catch {
+    } catch (cause) {
+      if (isStorageFull(cause)) throw cause
       // Repair an incomplete/corrupted cached tokenizer or graph automatically.
       await cache.delete(cacheKey)
     }
@@ -132,8 +152,7 @@ export async function downloadWeights(
       total ? done / total : 1,
     )
   report()
-  // Modern Chrome deliberately caps the reported quota estimate at usage +
-  // 10 GiB. It is not the actual limit; handle real storage failures below.
+  // Quota estimates are approximate; stop on actual storage errors below.
   let cursor = 0,
     failed = false
   const jobs = await Promise.allSettled(
@@ -155,13 +174,6 @@ export async function downloadWeights(
           report()
         } catch (error) {
           failed = true
-          if (
-            error instanceof DOMException &&
-            error.name === 'QuotaExceededError'
-          )
-            throw new Error(
-              'Browser storage is full. Free space and retry to resume the download. No attempt was used.',
-            )
           throw error
         }
       }

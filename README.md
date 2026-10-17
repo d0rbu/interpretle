@@ -118,6 +118,10 @@ players no longer need Hugging Face requests. The tokenizer JSON is losslessly
 minified to fit Cloudflare's per-file limit. Downloads retry temporary failures
 and reuse verified, completed chunks after a retry or browser restart. Browser
 storage can still be cleared or evicted by the browser.
+Startup removes obsolete model files while retaining the current weights,
+complete encoder and both execution paths. Downloads bypass the separate HTTP
+cache, keeping one verified copy in CacheStorage. Storage failures stop retries
+and keep completed files so a later retry can resume.
 The catalog selects the [versioned FP4 manifest](public/model/manifest-v3-fp4.json).
 Original manifest and graph URLs remain available for already-open older tabs.
 

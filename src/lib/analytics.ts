@@ -1,5 +1,6 @@
 import type { Game } from './types'
 import { puzzleDay } from './day'
+import { isStorageFull } from './model-error'
 
 export const EVENTS = [
   'visit',
@@ -114,7 +115,8 @@ export function trackGame(
 export function modelProblem(error: unknown): (typeof PROBLEMS)[number] {
   const message =
     error instanceof Error ? `${error.name} ${error.message}` : String(error)
-  if (/storage|quota|cache/i.test(message)) return 'storage'
+  if (isStorageFull(error) || /storage|quota|cache/i.test(message))
+    return 'storage'
   if (/download|fetch|network|HTTP|integrity/i.test(message)) return 'network'
   if (/out of memory|allocation|cannot allocate/i.test(message)) return 'memory'
   if (/WebGPU|shader-f16|GPU.*(?:support|lost)|16-bit float/i.test(message))
