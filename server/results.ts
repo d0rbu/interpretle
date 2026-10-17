@@ -1,5 +1,6 @@
 import catalog from '../public/puzzles/index.json'
 import { puzzleDay } from '../src/lib/day'
+import { authorized, statsPage } from './admin'
 export { GameAnalytics } from './analytics'
 
 // Only the small slice of Cloudflare's bindings used by this counter.
@@ -10,6 +11,7 @@ interface Sql {
   ): Iterable<Record<string, string | number>>
 }
 interface Env {
+  STATS_PASSWORD?: string
   ANALYTICS?: {
     getByName(name: string): { fetch(request: Request): Promise<Response> }
   }
@@ -100,8 +102,29 @@ export class DailyResults {
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url)
-    if (url.pathname === '/api/events' || url.pathname === '/api/stats') {
-      const method = url.pathname === '/api/events' ? 'POST' : 'GET'
+    if (url.pathname === '/admin' || url.pathname === '/admin/') {
+      if (!(await authorized(request, env.STATS_PASSWORD)))
+        return new Response('Authentication required.', {
+          status: 401,
+          headers: {
+            'WWW-Authenticate':
+              'Basic realm="Interpretle stats", charset="UTF-8"',
+            'Cache-Control': 'private, no-store, no-transform',
+          },
+        })
+      if (request.method !== 'GET')
+        return json({ error: 'Method not allowed.' }, 405)
+      try {
+        if (!env.ANALYTICS) throw new Error('Unavailable')
+        return await statsPage(
+          await env.ANALYTICS.getByName('gameplay').fetch(request),
+        )
+      } catch {
+        return json({ error: 'Counters are temporarily unavailable.' }, 503)
+      }
+    }
+    if (url.pathname === '/api/events') {
+      const method = 'POST'
       if (request.method !== method)
         return json({ error: 'Method not allowed.' }, 405)
       const origin = request.headers.get('Origin')

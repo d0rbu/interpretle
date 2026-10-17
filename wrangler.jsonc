@@ -9,7 +9,7 @@
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"],
   },
   "durable_objects": {
     "bindings": [

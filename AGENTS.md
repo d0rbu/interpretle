@@ -6,7 +6,8 @@ complexity and a low bar for removing it.
 - Serve the game as static files. Backend exceptions are the small daily
   results counter and first-party gameplay counters in `server/`, requested by the user.
   Keep them limited to aggregates, random browser IDs, and deduplication; no server inference, game-session
-  service, queue, authentication, or storage of custom text.
+  service, queue, or storage of custom text. Only the private stats page needs
+  authentication, using a Worker secret.
 - Run the selected dataset through the model and SAE **offline**, preserving
   per-token activations. Also support neuron/activation targets with explicit
   hook, coordinate, and sign conventions.
@@ -14,7 +15,8 @@ complexity and a low bar for removing it.
   for the displayed passage and take its maximum over that span. Expanded
   context is readable text without extra scores. Do not re-score isolated excerpts.
 - Suggested passages use stored activations. Custom passages must run locally
-  in the player's browser via WebGPU. Never add a server inference fallback.
+  in the player's browser via WebGPU, with a WebAssembly CPU fallback. Never add
+  a server inference fallback.
 - Do not replace the requested base model with an instruction-tuned model or a
   different quantization without validating the activation/scoring contract.
 - Publish only measured activations and actual tokenizer offsets. Numerical

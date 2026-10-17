@@ -55,11 +55,16 @@ function request(body?: unknown, path = '/api/events', init: RequestInit = {}) {
         },
       },
       ANALYTICS: { getByName: () => analytics },
+      STATS_PASSWORD: 'a-test-password-not-used-in-production',
     },
   )
 }
 const stats = async (day?: string) =>
-  (await request(undefined, '/api/stats' + (day ? '?day=' + day : ''))).json()
+  (
+    await analytics.fetch(
+      new Request('https://internal/' + (day ? '?day=' + day : '')),
+    )
+  ).json()
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-18T12:00:00Z'))
@@ -172,9 +177,66 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
     400,
   )
   expect((await request(undefined, '/api/events')).status).toBe(405)
-  expect((await request(event(), '/api/stats')).status).toBe(405)
+  expect((await request(event(), '/api/stats')).status).toBe(404)
   expect((await request(undefined, '/api/stats?day=2099-01-01')).status).toBe(
-    400,
+    404,
   )
   expect(await stats()).toMatchObject({ players: 0, counters: [] })
+})
+
+it('serves stats only on the private authenticated page and disables the old public API', async () => {
+  await request(event())
+  const password = 'a-test-password-not-used-in-production'
+  for (const path of ['/admin', '/admin/']) {
+    const denied = await request(undefined, path)
+    expect(denied.status).toBe(401)
+    expect(denied.headers.get('WWW-Authenticate')).toContain('Basic')
+    expect(await denied.text()).not.toContain('Browsers')
+    expect(
+      (
+        await request(undefined, path, {
+          headers: { Authorization: 'Basic ' + btoa('henry:wrong') },
+        })
+      ).status,
+    ).toBe(401)
+    const allowed = await request(undefined, path, {
+      headers: { Authorization: 'Basic ' + btoa('henry:' + password) },
+    })
+    expect(allowed.status).toBe(200)
+    expect(allowed.headers.get('Cache-Control')).toContain('private, no-store')
+    expect(allowed.headers.get('Content-Security-Policy')).toContain(
+      "frame-ancestors 'none'",
+    )
+    const html = await allowed.text()
+    expect(html).toContain('Returning browsers')
+    expect(html).toContain('<dd>1</dd>')
+    expect(html).not.toContain(password)
+    expect(html).not.toContain(player)
+  }
+  expect((await request(undefined, '/api/stats')).status).toBe(404)
+  expect(
+    (
+      await request(undefined, '/admin?day=2099-01-01', {
+        headers: { Authorization: 'Basic ' + btoa('henry:' + password) },
+      })
+    ).status,
+  ).toBe(400)
+  expect(
+    (
+      await worker.fetch(
+        new Request('https://interpretle.com/admin', {
+          headers: { Authorization: 'Basic ' + btoa('henry:' + password) },
+        }),
+        {
+          RESULTS: {
+            getByName() {
+              throw new Error(
+                'Must not read storage without a configured secret',
+              )
+            },
+          },
+        },
+      )
+    ).status,
+  ).toBe(401)
 })

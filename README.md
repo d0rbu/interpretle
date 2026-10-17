@@ -148,15 +148,14 @@ or fingerprints are stored by this counter.
 The backend keeps aggregate dimensions, daily per-browser visit/practice counts,
 first-visit dates, and opaque event hashes for deduplication. It does not keep
 a raw click history. Browser-reported counters are approximate and may be blocked.
-Public aggregate reports contain no browser or session IDs:
+The private [stats page](https://interpretle.com/admin) uses HTTP Basic
+authentication over HTTPS, with username `henry` and a password stored only in the
+`STATS_PASSWORD` Worker secret. Set or rotate it with `npx wrangler secret put
+STATS_PASSWORD`. An unset password denies all access. Reports use private,
+non-cacheable responses; there is no public gameplay stats API.
 
-```sh
-curl https://interpretle.com/api/stats
-curl 'https://interpretle.com/api/stats?day=2026-10-18'
-```
-
-Reports include unique/returning players, visits, a practice-round histogram per
-player, and event counts broken down by the applicable public dimensions.
+Reports include unique/returning browsers, visits, a practice-round histogram per
+browser, and event counts broken down by the applicable public dimensions.
 The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data
