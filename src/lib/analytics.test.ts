@@ -81,6 +81,55 @@ it('does not collect device capabilities for ordinary gameplay events', async ()
     expect(body).not.toHaveProperty(key)
 })
 
+it('records uncaught errors and promise rejections with context but never reads form values', async () => {
+  const target = new EventTarget()
+  vi.stubGlobal('window', target)
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { hidden: false }))
+  const { startErrorTracking, track } = await import('./analytics')
+  startErrorTracking()
+  track('writein_open', { mode: 'practice' })
+  const error = new TypeError('Cannot read property')
+  target.dispatchEvent(
+    Object.assign(new Event('error'), {
+      message: error.message,
+      error,
+      filename: 'https://interpretle.com/assets/app.js?private=query',
+      lineno: 1,
+      colno: 120,
+    }),
+  )
+  target.dispatchEvent(
+    Object.assign(new Event('unhandledrejection'), {
+      reason: new Error('Async failure'),
+    }),
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(3))
+  const records = sent.mock.calls.map(([, init]) =>
+    JSON.parse(String(init?.body)),
+  )
+  expect(records[1]).toMatchObject({
+    event: 'client_error',
+    cores: 8,
+    report: {
+      source: 'window',
+      name: 'TypeError',
+      message: error.message,
+      stack: error.stack,
+      filename: 'https://interpretle.com/assets/app.js',
+      line: 1,
+      column: 120,
+      visible: true,
+      online: true,
+      trail: [expect.objectContaining({ stage: 'writein_open · practice' })],
+    },
+  })
+  expect(records[2]).toMatchObject({
+    event: 'client_error',
+    report: { source: 'promise', message: 'Async failure' },
+  })
+  expect(JSON.stringify(records)).not.toContain('private=query')
+})
+
 it('persists later events while an earlier request is pending and keeps browser timestamps in submission order', async () => {
   let resolve!: (response: Response) => void
   sent.mockImplementationOnce(

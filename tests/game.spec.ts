@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { catalog, feature } from './fixture'
 import { choices, createGame } from '../src/lib/game'
+import { writeFile } from 'node:fs/promises'
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/events', (route) => route.fulfill({ status: 204 }))
@@ -1274,12 +1275,16 @@ test('keeps failed background loading silent and reuses a successful retry', asy
       ),
     )
     .toBe(true)
-  expect(JSON.stringify(events)).not.toContain('A test download failure')
   expect(events.find((event) => event.event === 'model_error')).toMatchObject({
     code: 'http',
     phase: 'tokenizer',
     backend: 'unknown',
     httpStatus: 503,
+    report: {
+      message: 'A test download failure.',
+      source: 'model',
+      release: expect.any(String),
+    },
   })
   expect(
     events.find((event) => event.event === 'model_error')?.cores,
@@ -1287,6 +1292,54 @@ test('keeps failed background loading silent and reuses a successful retry', asy
   expect(events.find((event) => event.event === 'visit')).not.toHaveProperty(
     'cores',
   )
+})
+
+test('records an original failure from the real model worker without downloading weights', async ({
+  page,
+}, info) => {
+  const events: Record<string, any>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: { manifest: '/model/test.json', bytes: 1 },
+      },
+    }),
+  )
+  await page.route('**/model/test.json', (route) =>
+    route.fulfill({ status: 503, body: 'Service unavailable' }),
+  )
+  await page.reload()
+  await expect
+    .poll(() => events.filter((event) => event.event === 'model_error').length)
+    .toBe(1)
+  const failure = events.find((event) => event.event === 'model_error')!
+  expect(failure).toMatchObject({
+    code: 'http',
+    httpStatus: 503,
+    phase: 'manifest',
+    report: {
+      source: 'model',
+      name: 'Error',
+      message: 'The model manifest returned HTTP 503.',
+      stage: 'Model manifest download',
+      stack: expect.stringContaining('model.worker-'),
+      release: expect.any(String),
+    },
+  })
+  expect(events.filter((event) => event.event === 'client_error')).toHaveLength(
+    0,
+  )
+  expect(failure.report.trail.length).toBeGreaterThan(0)
+  await writeFile(
+    info.outputPath('worker-report.json'),
+    JSON.stringify(failure, null, 2),
+  )
+  await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
 test('counts passage choices, outcomes and practice starts with a reusable random browser ID', async ({
@@ -1474,6 +1527,56 @@ test('records replayable boards and submitted write-ins, retrying interrupted ev
   expect(submitted.at).toMatch(/^2026-10-18T12:/)
   expect(submitted.sequence).toBeLessThan(scored.sequence)
   expect(JSON.stringify(events)).not.toContain('DRAFT_NOT_SUBMITTED')
+})
+
+test('reports uncaught page errors and promises with the active game and exact stack', async ({
+  page,
+}) => {
+  const events: Record<string, unknown>[] = []
+  await page.route('**/api/events', (route) => {
+    events.push(route.request().postDataJSON())
+    return route.fulfill({ status: 204 })
+  })
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        error: new TypeError('Captured test page error'),
+        message: 'Captured test page error',
+        filename: 'https://interpretle.com/assets/test.js',
+        lineno: 5,
+        colno: 20,
+      }),
+    )
+    window.dispatchEvent(
+      new PromiseRejectionEvent('unhandledrejection', {
+        promise: Promise.resolve(),
+        reason: new Error('Captured test promise error'),
+      }),
+    )
+  })
+  await expect
+    .poll(() => events.filter((event) => event.event === 'client_error').length)
+    .toBe(2)
+  const failures = events.filter((event) => event.event === 'client_error')
+  expect(failures[0]).toMatchObject({
+    mode: 'daily',
+    round: '2026-10-18',
+    feature: feature.id,
+    report: {
+      name: 'TypeError',
+      message: 'Captured test page error',
+      source: 'window',
+      stack: expect.stringContaining('Captured test page error'),
+      line: 5,
+      column: 20,
+      release: expect.any(String),
+    },
+  })
+  expect(failures[1]).toMatchObject({
+    report: { source: 'promise', message: 'Captured test promise error' },
+  })
+  await expect(page.locator('.passage-select')).toHaveCount(5)
 })
 
 test('tracks selected and resolved themes, including system changes, once per visit combination', async ({

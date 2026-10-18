@@ -19,6 +19,8 @@ import type { ModelDiagnostics } from './model-error'
 import { runSteps } from './model-steps'
 import type { ModelStep } from './model-steps'
 import type { PreparedWeight } from './model-weights.worker'
+import { breadcrumb, runtimeReport } from './diagnostics'
+import type { Breadcrumb, RuntimeReport } from './diagnostics'
 
 type Asset = ModelAsset & { gpuOutputs?: string[] }
 type Graph = Asset & {
@@ -41,8 +43,12 @@ interface Manifest {
 }
 
 let backend: ModelDiagnostics['backend'] = 'unknown'
-const progress = (message: string, fraction?: number) =>
+const trail: Breadcrumb[] = []
+const reportContext: Partial<RuntimeReport> = {}
+const progress = (message: string, fraction?: number) => {
+  breadcrumb(trail, message)
   self.postMessage({ progress: message, fraction, backend })
+}
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
 let prepared = false
 let stage = 'Model startup'
@@ -54,6 +60,7 @@ const positions: Record<string, Uint16Array> = {}
 
 async function prepare(url: string) {
   if (prepared) return
+  reportContext.manifest = url
   if (!('caches' in self))
     throw new Error(
       'Browser model storage is unavailable. Suggested passages still work.',
@@ -122,6 +129,13 @@ async function prepare(url: string) {
   let device: GPUDevice | undefined
   if (adapter?.features.has('shader-f16')) {
     try {
+      reportContext.gpu = [adapter.info?.vendor, adapter.info?.architecture]
+        .filter(Boolean)
+        .join(' / ')
+    } catch {
+      /* Optional diagnostics must not stop model preparation. */
+    }
+    try {
       device = await adapter.requestDevice({
         requiredFeatures: ['shader-f16'],
         requiredLimits: {
@@ -138,6 +152,7 @@ async function prepare(url: string) {
     await loadSessions(device, adapter)
   } catch (cause) {
     if (!device) throw cause
+    breadcrumb(trail, 'GPU setup failed; falling back to CPU')
     for (const name of Object.keys(sessions)) {
       for (const step of sessions[name]) await step.session.release()
       delete sessions[name]
@@ -164,6 +179,7 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
     cpu && self.crossOriginIsolated
       ? Math.min(4, navigator.hardwareConcurrency || 1)
       : 1
+  reportContext.threads = ort.env.wasm.numThreads
   if (cpu) {
     ort.env.wasm.wasmPaths = {
       mjs: new URL(manifest.cpuRuntime.mjs.url, location.origin).href,
@@ -240,17 +256,33 @@ function readWeights(graph: Graph, layer?: number, ids?: number[]) {
     current.onmessage = ({ data }) => {
       current.onmessage = null
       current.onerror = null
-      if (data.error) reject(new Error(data.error))
+      if (data.error)
+        reject(Object.assign(new Error(data.error), { report: data.report }))
       else resolve(data.weights)
     }
     current.onerror = (event) => {
       current.terminate()
       weightWorker = undefined
-      reject(new Error(modelError(event, 'Weight preparation worker')))
+      reject(
+        Object.assign(
+          new Error(modelError(event, 'Weight preparation worker')),
+          {
+            report: runtimeReport(
+              event,
+              'Weight preparation worker',
+              'weights',
+            ),
+          },
+        ),
+      )
     }
     current.postMessage({
       ...(first ? { source, cpu } : {}),
       weights: graphWeights(graph, layer),
+      stage:
+        layer === undefined
+          ? 'Reading embedding weights'
+          : `Reading layer ${layer + 1} weights`,
       ids,
     })
   })
@@ -285,6 +317,7 @@ async function score(
   const offsets = tokenOffsets(text, encoded.tokens)
   const ids = [manifest.bos, ...encoded.ids],
     length = ids.length
+  reportContext.tokens = length
   if (length > manifest.maxTokens)
     throw new Error(
       `This sentence exceeds ${manifest.maxTokens - 1} model tokens. Shorten it and retry; no attempt was used.`,
@@ -440,6 +473,9 @@ async function score(
 }
 
 self.onmessage = async ({ data }) => {
+  const started = performance.now()
+  trail.length = 0
+  delete reportContext.tokens
   try {
     await prepare(data.manifest)
     self.postMessage({
@@ -447,9 +483,19 @@ self.onmessage = async ({ data }) => {
         data.type === 'score' ? await score(data.text, data.target) : null,
     })
   } catch (cause) {
+    const errorStage =
+      (cause as { report?: RuntimeReport } | null)?.report?.stage ?? stage
     self.postMessage({
-      error: modelError(cause, stage),
-      diagnostics: modelDiagnostics(cause, stage, backend),
+      error: modelError(cause, errorStage),
+      diagnostics: modelDiagnostics(cause, errorStage, backend),
+      report: runtimeReport(cause, errorStage, 'model', {
+        ...reportContext,
+        elapsedMs: Math.round(performance.now() - started),
+        trail: [
+          ...((cause as { report?: RuntimeReport })?.report?.trail ?? []),
+          ...trail,
+        ],
+      }),
     })
   }
 }

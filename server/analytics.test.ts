@@ -10,6 +10,9 @@ import {
 } from '../tests/fixture'
 import { createGame, playCustom } from '../src/lib/game'
 import { gameSnapshot } from '../src/lib/replay'
+import { runtimeReport } from '../src/lib/diagnostics'
+import { flowSteps } from './dashboard'
+import type { Insights } from './insights'
 
 let db: DatabaseSync, analytics: GameAnalytics
 function restart() {
@@ -101,11 +104,204 @@ const replayFields = () => ({
 })
 const gameExport = () =>
   `/admin?format=json&browser=${player}&mode=daily&round=2026-10-18&feature=${feature}`
+const overview = async (query = ''): Promise<Insights> => {
+  const result = await analytics.fetch(
+    new Request(`https://internal/?view=dashboard&${query}`),
+  )
+  expect(result.status).toBe(200)
+  return result.json()
+}
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-18T12:00:00Z'))
   db = new DatabaseSync(':memory:')
   restart()
+})
+
+it('stores bounded original exceptions privately, groups retries correctly, and preserves raw exports', async () => {
+  const report = runtimeReport(
+    new TypeError('<script>unsafe()</script> cache failed'),
+    'Reading layer 4 weights',
+    'weights',
+    { release: 'test-build' },
+  )
+  report.stack =
+    'TypeError: cache failed\n at read (https://interpretle.com/assets/worker-abcdefgh.js:2:5)'
+  const payload = event('model_error', {
+    problem: 'runtime',
+    code: 'runtime',
+    phase: 'weights',
+    backend: 'gpu',
+    report,
+  })
+  expect((await request(payload)).status).toBe(204)
+  expect((await request(payload)).status).toBe(204)
+  vi.setSystemTime(new Date('2026-10-18T12:00:05Z'))
+  expect(
+    (
+      await request(
+        event('model_error', {
+          ...payload,
+          id: event().id,
+          report: { ...report, release: 'next-build' },
+        }),
+      )
+    ).status,
+  ).toBe(204)
+  const data = await overview()
+  expect(data.issues).toHaveLength(1)
+  expect(data.issues[0]).toMatchObject({
+    count: 2,
+    players: 1,
+    firstAt: '2026-10-18T12:00:00.000Z',
+    lastAt: '2026-10-18T12:00:05.000Z',
+  })
+  expect(data.issues[0].samples).toHaveLength(2)
+  expect(data.coverage).toMatchObject({ errorRecords: 2, exceptions: 2 })
+  const counters = (await stats()).counters
+  expect(JSON.stringify(counters)).not.toMatch(
+    /unsafe|read \(|test-build|fingerprint/,
+  )
+  const exported = await (
+    await request(undefined, '/admin/raw?format=json', { headers: auth })
+  ).json()
+  expect(exported.events[0].report).toEqual(report)
+  expect(exported.events[0].fingerprint).toMatch(/^[a-f0-9]{64}$/)
+  const page = await request(undefined, '/admin', { headers: auth })
+  expect(page.status).toBe(200)
+  const html = await page.text()
+  expect(html).toContain('Original exception')
+  expect(html).toContain('&lt;script&gt;unsafe()&lt;/script&gt;')
+  expect(html).not.toContain('<script>unsafe()')
+  expect(html).toContain('/admin/raw?browser=')
+  for (const path of ['/admin', '/admin/raw?format=json', '/admin/anything'])
+    expect((await request(undefined, path)).status).toBe(401)
+})
+
+it('accepts page crashes and rejects malformed or misplaced original reports', async () => {
+  const report = runtimeReport(
+    'Unexpected rejection',
+    'Unhandled promise',
+    'promise',
+  )
+  expect(
+    (await request(event('client_error', { report, problem: 'runtime' })))
+      .status,
+  ).toBe(204)
+  expect((await overview()).issues[0].samples[0].details.report?.source).toBe(
+    'promise',
+  )
+  for (const body of [
+    event('visit', { report }),
+    event('model_error', { report: { ...report, extra: 'x' } }),
+    event('model_error', { report: { ...report, stack: 'x'.repeat(12001) } }),
+    event('client_error', { report: { ...report, source: 'arbitrary' } }),
+  ])
+    expect((await request(body)).status).toBe(400)
+  expect(
+    (
+      await request(
+        event('client_error', {
+          report: { ...report, stack: 'x'.repeat(33000) },
+        }),
+      )
+    ).status,
+  ).toBe(413)
+})
+
+it('builds a conserving game-flow cohort without inventing paths for restored histories', async () => {
+  const seed = (
+    n: number,
+    outcome: 'open' | 'won' | 'lost',
+    fromStart = true,
+    limit = 6,
+    mode = 'daily',
+  ) => {
+    const browser = crypto.randomUUID(),
+      round = mode === 'daily' ? '2026-10-18' : crypto.randomUUID()
+    const insert = (guesses: number, status: string, eventName: string) => {
+      db.prepare(
+        `INSERT INTO event_log (id,day,at,player,event,mode,round,feature,details) VALUES (?,?,?,?,?,?,?,?,?)`,
+      ).run(
+        crypto.randomUUID(),
+        '2026-10-18',
+        '2026-10-18T12:00:00.000Z',
+        browser,
+        eventName,
+        mode,
+        round,
+        feature,
+        JSON.stringify({
+          snapshot: {
+            status,
+            game: { maxGuesses: limit, guesses: Array(guesses).fill({}) },
+          },
+        }),
+      )
+    }
+    if (fromStart) insert(0, 'playing', 'puzzle_view')
+    insert(n, outcome === 'open' ? 'playing' : outcome, 'guess')
+  }
+  seed(0, 'open')
+  seed(2, 'won')
+  seed(3, 'open')
+  seed(6, 'lost')
+  seed(4, 'open', false)
+  seed(8, 'won', true, 8, 'practice')
+  const data = await overview('days=7')
+  const flow = flowSteps(data.flow)
+  expect(flow).toMatchObject({ total: 5, skipped: 1 })
+  expect(flow.steps[0]).toMatchObject({ reached: 5, next: 4, open: 1 })
+  expect(flow.steps[2].won).toBe(1)
+  expect(flow.steps[3].open).toBe(1)
+  expect(flow.steps[6].lost).toBe(1)
+  expect(flow.steps[8].won).toBe(1)
+  for (const step of flow.steps)
+    expect(step.reached).toBe(step.next + step.won + step.lost + step.open)
+  expect(flowSteps((await overview('game=practice')).flow)).toMatchObject({
+    total: 1,
+    skipped: 0,
+  })
+})
+
+it('plots Pacific receipt days, unique browsers, returns and zero days using all aggregate history', async () => {
+  vi.setSystemTime(new Date('2026-10-17T23:00:00Z'))
+  await request(event('visit'))
+  await request(event('game_start', { mode: 'practice' }))
+  // 06:59 UTC remains October 17 in Pacific local time.
+  vi.setSystemTime(new Date('2026-10-18T06:59:00Z'))
+  await request(event('model_error', { problem: 'runtime' }))
+  vi.setSystemTime(new Date('2026-10-18T07:01:00Z'))
+  await request(event('visit'))
+  await request(event('visit', { player: crypto.randomUUID() }))
+  await request(event('game_start', { mode: 'daily' }))
+  const data = await overview('days=7&game=daily')
+  expect(data.series).toHaveLength(7)
+  expect(data.series[0]).toMatchObject({
+    day: '2026-10-12',
+    browsers: 0,
+    games: 0,
+    errors: 0,
+  })
+  expect(data.series[5]).toMatchObject({
+    day: '2026-10-17',
+    browsers: 1,
+    visits: 1,
+    games: 0,
+    errors: 1,
+  })
+  expect(data.series[6]).toMatchObject({
+    day: '2026-10-18',
+    browsers: 2,
+    returning: 1,
+    games: 1,
+    visits: 2,
+  })
+  expect(data.people).toEqual({ browsers: 2, returning: 1 })
+  for (const query of ['days=900', 'game=other', 'day=2026-02-31'])
+    expect(
+      (await request(undefined, '/admin?' + query, { headers: auth })).status,
+    ).toBe(400)
 })
 
 it('stores server receipt times and reported device details once per model error', async () => {
@@ -250,7 +446,7 @@ it('accepts errors from older clients with unknown diagnostics and escapes repor
     device: 'unknown',
     userAgent,
   })
-  const response = await request(undefined, '/admin', {
+  const response = await request(undefined, '/admin/raw', {
     headers: {
       Authorization:
         'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
@@ -549,7 +745,7 @@ it('preserves existing data and privately aggregates selected and displayed them
       theme,
       count: 1,
     })
-  const response = await request(undefined, '/admin', {
+  const response = await request(undefined, '/admin/raw', {
     headers: {
       Authorization:
         'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
@@ -614,7 +810,7 @@ it('rejects text, raw errors, unknown targets, malformed fields, and cross-site 
 })
 
 it('redirects HTTP stats visits to HTTPS before requesting credentials or reading storage', async () => {
-  for (const path of ['/admin', '/admin/?day=2026-10-18']) {
+  for (const path of ['/admin', '/admin/?day=2026-10-18', '/admin/raw']) {
     const response = await worker.fetch(
       new Request('http://interpretle.com' + path),
       {
@@ -642,7 +838,7 @@ it('redirects HTTP stats visits to HTTPS before requesting credentials or readin
 it('serves stats only on the private authenticated page and disables the old public API', async () => {
   await request(event())
   const password = 'a-test-password-not-used-in-production'
-  for (const path of ['/admin', '/admin/']) {
+  for (const path of ['/admin', '/admin/', '/admin/raw', '/admin/raw/']) {
     const denied = await request(undefined, path)
     expect(denied.status).toBe(401)
     expect(denied.headers.get('WWW-Authenticate')).toContain('Basic')
@@ -663,10 +859,13 @@ it('serves stats only on the private authenticated page and disables the old pub
       "frame-ancestors 'none'",
     )
     const html = await allowed.text()
-    expect(html).toContain('Returning browsers')
-    expect(html).toContain('<dd>1</dd>')
+    expect(html).toContain('Browsers')
+    expect(html).toContain(
+      path.includes('/raw') ? '<dd>1</dd>' : 'Game overview',
+    )
     expect(html).not.toContain(password)
-    expect(html).toContain('browser=' + player)
+    if (path.includes('/raw')) expect(html).toContain('browser=' + player)
+    else expect(html).toContain('From opening the puzzle to the final guess')
   }
   expect((await request(undefined, '/api/stats')).status).toBe(404)
   expect(

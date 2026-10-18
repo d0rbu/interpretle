@@ -3,7 +3,10 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { loadCatalog, loadFeature } from './data/puzzles'
 import { puzzleDay } from './lib/day'
+import { startErrorTracking } from './lib/analytics'
 import './styles.css'
+
+startErrorTracking()
 
 void loadCatalog()
   .then((catalog) => {

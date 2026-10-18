@@ -2,6 +2,7 @@ import { embeddingRows, readRanges } from './model-cache'
 import type { TensorInfo, WeightSource } from './model-cache'
 import { halfToFloat32, weightToHalf } from './model-math'
 import { modelError } from './model-error'
+import { runtimeReport } from './diagnostics'
 
 export interface PreparedWeight {
   name: string
@@ -63,6 +64,9 @@ self.onmessage = async ({ data: request }) => {
       },
     )
   } catch (cause) {
-    self.postMessage({ error: modelError(cause, 'Preparing model weights') })
+    self.postMessage({
+      error: modelError(cause, 'Preparing model weights'),
+      report: runtimeReport(cause, request.stage, 'weights'),
+    })
   }
 }

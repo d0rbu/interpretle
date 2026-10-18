@@ -3,6 +3,8 @@ import { MODEL_BACKENDS, modelDiagnostics, modelError } from './model-error'
 import type { ModelDiagnostics } from './model-error'
 import { modelProblem, track } from './analytics'
 import type { EventFields } from './analytics'
+import { breadcrumb, runtimeReport } from './diagnostics'
+import type { Breadcrumb, RuntimeReport } from './diagnostics'
 
 type Progress = (message: string, fraction?: number) => void
 type BrowserModel = NonNullable<Catalog['browserModel']>
@@ -37,6 +39,8 @@ function run<T>(
   }
   const current = worker
   let lastStage = 'Model worker'
+  const started = performance.now()
+  const trail: Breadcrumb[] = []
   running = true
   return new Promise((resolve, reject) => {
     function finish() {
@@ -56,6 +60,7 @@ function run<T>(
       if (MODEL_BACKENDS.includes(data.backend)) backend = data.backend
       if (data.progress) {
         lastStage = data.progress
+        breadcrumb(trail, lastStage)
         progress(data.progress, data.fraction)
       } else if (data.tokens) onTokens?.(data.tokens)
       else {
@@ -66,6 +71,12 @@ function run<T>(
           ready = false
           reject(
             Object.assign(new Error(data.error), {
+              report:
+                data.report ??
+                runtimeReport(data.error, lastStage, 'model', {
+                  trail,
+                  elapsedMs: Math.round(performance.now() - started),
+                }),
               diagnostics:
                 data.diagnostics ??
                 modelDiagnostics(data.error, lastStage, backend),
@@ -87,6 +98,10 @@ function run<T>(
       reject(
         Object.assign(new Error(modelError(event, 'Model worker')), {
           diagnostics,
+          report: runtimeReport(event, lastStage, 'worker', {
+            trail,
+            elapsedMs: Math.round(performance.now() - started),
+          }),
         }),
       )
     }
@@ -107,6 +122,9 @@ function reportFailure(
     ...context,
     problem: modelProblem(cause),
     ...diagnostics,
+    report:
+      (cause as { report?: RuntimeReport } | null)?.report ??
+      runtimeReport(cause, stage, 'model'),
   })
 }
 

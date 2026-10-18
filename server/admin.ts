@@ -1,3 +1,5 @@
+import type { RuntimeReport } from '../src/lib/diagnostics'
+
 // HTTP Basic authentication over HTTPS; the password lives in a Worker secret.
 export async function authorized(request: Request, password?: string) {
   if (!password) return false
@@ -52,6 +54,7 @@ interface ModelError {
   layer?: number
   cores?: number
   memoryGb?: number
+  report?: RuntimeReport
 }
 interface RecordedGame {
   player: string
@@ -72,6 +75,7 @@ interface RecordedEvent {
   text?: string
   passage?: string
   code?: string
+  report?: RuntimeReport
   expanded?: boolean
   snapshot?: {
     game: { guesses: { text: string; score: number }[] }
@@ -110,7 +114,7 @@ interface Stats {
     counters: Counters
   }
 }
-const escape = (value: unknown) =>
+export const escape = (value: unknown) =>
   String(value).replace(
     /[&<>"']/g,
     (character) =>
@@ -118,6 +122,16 @@ const escape = (value: unknown) =>
         character
       ]!,
   )
+
+export const ADMIN_HEADERS = {
+  'Content-Type': 'text/html; charset=utf-8',
+  'Cache-Control': 'private, no-store, no-transform',
+  'Content-Security-Policy':
+    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Robots-Tag': 'noindex, nofollow',
+}
 
 export async function statsPage(response: Response, download = false) {
   if (!response.ok) return response
@@ -146,14 +160,14 @@ export async function statsPage(response: Response, download = false) {
       if (stats.ip) params.set('ip', stats.ip.id)
     }
     for (const [key, value] of Object.entries(extra)) params.set(key, value)
-    return escape('/admin?' + params)
+    return escape('/admin/raw?' + params)
   }
   const selectedGame =
     stats.selectedGame && stats.browser
       ? { player: stats.browser.id, ...stats.selectedGame }
       : undefined
   const link = (kind: 'browser' | 'ip', value: unknown) =>
-    `<a href="/admin?day=${escape(stats.day)}&amp;${kind}=${encodeURIComponent(String(value))}" title="${escape(value)}">${escape(kind === 'browser' ? String(value).slice(0, 8) : value)}</a>`
+    `<a href="/admin/raw?day=${escape(stats.day)}&amp;${kind}=${encodeURIComponent(String(value))}" title="${escape(value)}">${escape(kind === 'browser' ? String(value).slice(0, 8) : value)}</a>`
   const table = (
     headings: string[],
     rows: unknown[][],
@@ -240,7 +254,7 @@ export async function statsPage(response: Response, download = false) {
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interpretle stats</title>
 <style>
 :root{color-scheme:light dark;font:16px/1.5 system-ui}body{max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:24px}h2{font-size:18px;margin-top:32px;overflow-wrap:anywhere}a{color:inherit;overflow-wrap:anywhere}.table a{white-space:nowrap}form{display:flex;flex-wrap:wrap;gap:12px;align-items:center}input,button{font:inherit;padding:6px 10px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}dl div{padding:16px;background:light-dark(#f4f4f3,#222);border-radius:10px}dt{font-size:13px}dd{font-size:28px;margin:4px 0 0}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}td,th{padding:10px;border-bottom:1px solid light-dark(#ddd,#333)}p{color:light-dark(#666,#aaa)}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto;font-size:12px}details{margin:12px 0}
-</style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><label>IP address <input name="ip" value="${escape(stats.ip?.id ?? '')}" placeholder="IPv4 or IPv6" maxlength="45"></label><button>View</button></form>
+</style><nav><a href="/admin">← Overview</a> · Private analytics</nav><h1>interpretle · raw data</h1><form action="/admin/raw"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><label>IP address <input name="ip" value="${escape(stats.ip?.id ?? '')}" placeholder="IPv4 or IPv6" maxlength="45"></label><button>View</button></form>
 <dl>${summary.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>
 <p>Browsers use a random saved ID. IP addresses can be shared or change; neither is a count of people. Rounds begin with the first submitted guess. Submitted write-ins and game states are saved privately; unsubmitted drafts are not recorded.</p>
 <h2 id="games">Recorded games</h2>
@@ -270,6 +284,7 @@ ${
             event.attempt ?? '—',
             event.text ?? guess?.text ?? event.passage ?? '—',
             guess?.score ??
+              event.report?.message ??
               event.code ??
               (event.expanded === undefined
                 ? '—'
@@ -282,7 +297,7 @@ ${
     : ''
 }
 ${stats.nextCursor !== null ? `<p>More events are available. <a href="${gameUrl(selectedGame, { after: String(stats.nextCursor) })}">Next page</a> · <a href="${gameUrl(selectedGame, { format: 'json', after: String(stats.nextCursor) })}">Download next JSON page</a></p>` : ''}
-<h2 id="model-errors">Model errors</h2>
+<h2 id="model-errors">Model errors and page exceptions</h2>
 <p>${stats.browser ? 'This browser across all days.' : stats.ip ? 'This IP across all days.' : `Received on ${escape(stats.day)} (Pacific time).`} Timestamps below are server receipt times in UTC. Device details are browser-reported; missing information is shown as a dash. Detailed records start with this update; older error totals remain in the counters.</p>
 ${
   stats.modelErrorGroups.length
@@ -336,7 +351,15 @@ ${
           row.userAgent || '—',
         ]),
         'browser',
-      )}</details><p>Up to 200 groups and the latest 200 errors are shown. Group counts cover all matching errors, not just the latest 200.</p>`
+      )}</details><details><summary>Original exception reports</summary>${
+        stats.modelErrors
+          .filter((row) => row.report)
+          .map(
+            (row) =>
+              `<details><summary>${escape(row.at)} · ${escape(row.report!.message)}</summary><pre>${escape(JSON.stringify(row, null, 2))}</pre></details>`,
+          )
+          .join('') || '<p>No original exceptions in these older records.</p>'
+      }</details><p>Up to 200 groups and the latest 200 errors are shown. Group counts cover all matching errors, not just the latest 200.</p>`
     : ''
 }
 ${
@@ -437,14 +460,7 @@ ${
     )}
 <details><summary>All game and model counters</summary>${counters(stats.counters)}</details></html>`,
     {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'private, no-store, no-transform',
-        'Content-Security-Policy':
-          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
-        'Referrer-Policy': 'no-referrer',
-        'X-Robots-Tag': 'noindex, nofollow',
-      },
+      headers: ADMIN_HEADERS,
     },
   )
 }

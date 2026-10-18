@@ -181,8 +181,8 @@ The game counters use a random first-party browser ID in local storage to
 recognize returning players, plus a session ID in session storage. They count
 visits, puzzle views, starts, selected public passage IDs/positions/bands,
 attempt numbers, completed outcomes, practice rounds, write-in selections,
-shares, and model loading outcomes. Model errors use fixed categories, never
-raw error messages. Theme usage records the selected Light/Dark/System setting
+shares, and model loading outcomes. Error categories are aggregated; bounded
+exception reports are stored separately and privately. Theme usage records the selected Light/Dark/System setting
 and the actual light/dark appearance, including system changes, once per
 combination per visit and Pacific day. Game events carry that theme context too.
 The server also stores visitor IP addresses from Cloudflare's `CF-Connecting-IP`
@@ -206,9 +206,14 @@ server receipt timestamp (UTC), fixed error code, failed stage, CPU/GPU backend,
 HTTP status or layer when known, and the browser's reported device information.
 The user-agent header supplies the browser/version, OS family, and device type;
 logical core count and approximate RAM are included when the browser exposes them.
-The raw user agent is bounded to 512 characters. These details are collected
-only for model errors; the reported user agent is saved with every event.
-Raw error messages are never uploaded. Unknown device details stay unknown.
+The raw user agent is bounded to 512 characters. Device capabilities are collected
+for model and uncaught page errors; the reported user agent is saved with every event.
+Errors also include a bounded original message, stack and cause, the failed operation,
+build ID, model manifest, backend/thread/token details when available, and the last
+24 gameplay/model breadcrumbs. Breadcrumbs contain actions and stages, not drafts.
+URL credentials and query strings are stripped from diagnostic text. Unknown device
+details stay unknown. When a rejection has no original stack, the capture location
+is labeled separately. Original exceptions cannot be recovered for older reports.
 Pending events are stored locally and retried after network errors and reloads
 using the same IDs, so retries do not inflate counters. Blocked analytics,
 cleared browser storage, or closing the browser before an event is saved can
@@ -220,8 +225,16 @@ authentication over HTTPS, with username `henry` and a password stored only in t
 STATS_PASSWORD`. An unset password denies all access. Reports use private,
 non-cacheable responses; there is no public gameplay stats API.
 
-Reports include unique/returning browsers, visits, a practice-round histogram per
-browser, and event counts broken down by the applicable public dimensions.
+The overview plots daily traffic, games, write-ins and errors; a Sankey diagram
+shows games reaching each guess and then solving, exhausting attempts or remaining
+unfinished. It only includes histories with a recorded opening state. Restored or
+partial games are counted separately, and older aggregate activity remains in the
+time-series plots. Audience/errors cover all modes; the game filter applies to
+gameplay charts. The overview also shows attempt/option distributions, practice
+frequency, themes and devices. No external chart service is used.
+
+The detailed tables and exports live at [/admin/raw](https://interpretle.com/admin/raw).
+Existing `/admin?browser=...` and JSON links still work.
 Select a browser to see its themes, submitted write-in frequency,
 practice activity and latest 200 completed rounds across days. These detailed
 histories begin with their deployment; earlier aggregate counts are preserved.
@@ -231,8 +244,11 @@ also links to the IPs it has used. IP tracking starts with its deployment; old
 events are not backfilled. These addresses and their histories are available
 only in the authenticated stats page. Shared networks and changing addresses
 mean an IP is not a unique person.
-The Model errors section groups failures by cause and device and lists the
-latest 200 errors with timestamps. Selecting a browser or IP shows its errors
+The overview groups repeated exceptions by operation, normalized message and stack,
+error code and backend, with affected-browser counts and the latest three occurrences.
+Expand an issue for its original exception, execution context, timestamps and a
+link to the browser/game history. The raw page lists the latest 200 errors.
+Selecting a browser or IP shows its errors
 across days; otherwise the report covers the selected Pacific day. These records
 start with this deployment; old aggregate events cannot be backfilled.
 Recorded games includes unfinished games and links to a timestamped timeline,
@@ -242,6 +258,18 @@ to retrieve the remaining records. No game text or event export is public.
 Detailed game recording starts with this release. A restored old game can save
 its current state, but original event times cannot be recovered.
 The existing daily solve histogram remains separate and excludes practice.
+
+Production builds archive hidden source maps under the ignored
+`artifacts/releases/<build-id>/` directory, and remove them from `dist` before
+deployment. Preserve that directory alongside deployed builds. The deploy check
+rejects public source maps. To resolve a downloaded private event export to original
+source lines and code excerpts, run:
+
+```sh
+npm run errors:trace -- /path/to/interpretle-events.json
+```
+
+This uses local source maps; it does not send error reports to another service.
 
 ## Rebuild the data
 

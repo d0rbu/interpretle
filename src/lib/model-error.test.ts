@@ -70,6 +70,19 @@ it('does not invent a cause when the browser provides none', () => {
   )
 })
 
+it('classifies the original cross-worker failure rather than its recovery wrapper', () => {
+  const wrapped = Object.assign(new Error('Preparing model weights failed'), {
+    report: {
+      name: 'NS_ERROR_FILE_NO_DEVICE_SPACE',
+      message: 'Cache write failed',
+    },
+  })
+  expect(
+    modelDiagnostics(wrapped, 'Reading layer 4 weights', 'gpu'),
+  ).toMatchObject({ code: 'storage_full', phase: 'weights', layer: 4 })
+  expect(modelProblem(wrapped)).toBe('storage')
+})
+
 it.each([
   [
     new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE'),

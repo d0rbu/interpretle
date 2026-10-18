@@ -8,8 +8,10 @@ import {
 } from '../src/lib/model-error'
 import { deviceInfo } from './device'
 import { validSnapshot } from './replay'
+import { validReport, errorFingerprint } from './diagnostics'
+import { dashboardData } from './insights'
 
-interface Sql {
+export interface Sql {
   exec(
     query: string,
     ...values: (string | number | null)[]
@@ -45,6 +47,7 @@ const diagnosticFields = [
   'cores',
   'memoryGb',
   'touchPoints',
+  'report',
 ] as const
 const recordFields = [
   'at',
@@ -127,6 +130,8 @@ export class GameAnalytics {
       const after = Number(params.get('after') ?? 0)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(selected) || selected > day)
         return json({ error: 'Invalid day.' }, 400)
+      if (params.get('view') === 'dashboard')
+        return dashboardData(this.sql, params, selected)
       if (selectedBrowser && !uuid.test(selectedBrowser))
         return json({ error: 'Invalid browser ID.' }, 400)
       if (params.get('ip') && !selectedIp)
@@ -391,7 +396,7 @@ export class GameAnalytics {
     } catch {
       return json({ error: 'Invalid JSON.' }, text.length > 1024 ? 413 : 400)
     }
-    if (text.length > 1024 && !data?.snapshot)
+    if (text.length > (data?.report ? 32768 : 1024) && !data?.snapshot)
       return json({ error: 'Event too large.' }, 413)
     if (
       !data ||
@@ -444,8 +449,9 @@ export class GameAnalytics {
           !data.submission ||
           !data.attempt ||
           (data.text === undefined && data.passage === undefined))) ||
-      (data.event !== 'model_error' &&
+      (!['model_error', 'client_error'].includes(data.event) &&
         diagnosticFields.some((key) => data[key] !== undefined)) ||
+      (data.report !== undefined && !validReport(data.report)) ||
       (data.code !== undefined && !MODEL_ERROR_CODES.includes(data.code)) ||
       (data.phase !== undefined && !MODEL_PHASES.includes(data.phase)) ||
       (data.backend !== undefined && !MODEL_BACKENDS.includes(data.backend)) ||
@@ -505,6 +511,14 @@ export class GameAnalytics {
         data.theme !== data.themePreference)
     )
       return json({ error: 'Invalid event.' }, 400)
+    const fingerprint = data.report
+      ? await errorFingerprint(
+          data.report,
+          data.code,
+          data.backend,
+          data.httpStatus,
+        )
+      : undefined
     if (
       ![
         ...this.sql.exec(
@@ -556,6 +570,7 @@ export class GameAnalytics {
     // event body or X-Forwarded-For. The Durable Object has no public endpoint.
     const ip = normalizeIp(request.headers.get('CF-Connecting-IP'))
     const details = {
+      ...(fingerprint ? { fingerprint } : {}),
       ...Object.fromEntries(
         [...fields, ...diagnosticFields, ...recordFields]
           .filter((key) => data[key] !== undefined)
@@ -577,7 +592,7 @@ export class GameAnalytics {
       data.feature ?? null,
       JSON.stringify(details),
     )
-    if (data.event === 'model_error')
+    if (['model_error', 'client_error'].includes(data.event))
       this.sql.exec(
         'INSERT INTO model_errors (id, day, at, player, ip, details) VALUES (?, ?, ?, ?, ?, ?)',
         data.id,
@@ -590,6 +605,9 @@ export class GameAnalytics {
           code: 'unknown',
           phase: 'unknown',
           backend: 'unknown',
+          event: data.event,
+          ...(fingerprint ? { fingerprint } : {}),
+          ...(data.at ? { clientAt: data.at } : {}),
           ...dimensions,
           ...(data.round ? { round: data.round } : {}),
           ...(data.submission ? { submission: data.submission } : {}),

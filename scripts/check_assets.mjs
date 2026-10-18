@@ -2,11 +2,17 @@
 // Stop deployment if a checkout is missing any of the required static chunks.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 
 const root = resolve('dist')
+assert(
+  !(await readdir(root, { recursive: true })).some((file) =>
+    file.endsWith('.map'),
+  ),
+  'Private source maps must not be deployed',
+)
 const catalog = JSON.parse(
   await readFile(resolve(root, 'puzzles/index.json'), 'utf8'),
 )

@@ -4,6 +4,8 @@ function errorDetail(cause: unknown, depth = 0): string {
   if (typeof cause === 'number') return `Runtime error code ${cause}.`
   if (!cause || typeof cause !== 'object') return ''
   const value = cause as Record<string, unknown>
+  if (value.report && typeof value.report === 'object' && depth < 2)
+    return errorDetail(value.report, depth + 1)
   const nested = value.error ?? value.cause ?? value.reason
   const message = typeof value.message === 'string' ? value.message.trim() : ''
   if (message) return message
@@ -18,8 +20,8 @@ function errorDetail(cause: unknown, depth = 0): string {
 }
 
 export function isStorageFull(cause: unknown) {
-  const name =
-    cause && typeof cause === 'object' && 'name' in cause ? cause.name : ''
+  const value = cause as { name?: unknown; report?: { name?: unknown } } | null
+  const name = value?.report?.name ?? value?.name ?? ''
   return /QuotaExceededError|quota.*(?:exceed|reach)|NS_ERROR_FILE_NO_DEVICE_SPACE|ENOSPC|no space left on device/i.test(
     `${name} ${errorDetail(cause)}`,
   )
@@ -62,8 +64,7 @@ export type ModelDiagnostics = {
   layer?: number
 }
 
-// Only fixed categories and numbers leave the browser; error messages can
-// contain paths or input text and stay on the player's device.
+// Stable categories are kept separate from the bounded private exception report.
 export function modelDiagnostics(
   cause: unknown,
   stage: string,

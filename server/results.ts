@@ -1,6 +1,7 @@
 import catalog from '../public/puzzles/index.json'
 import { puzzleDay } from '../src/lib/day'
 import { authorized, statsPage } from './admin'
+import { dashboardPage } from './dashboard'
 export { GameAnalytics } from './analytics'
 
 // Only the small slice of Cloudflare's bindings used by this counter.
@@ -110,7 +111,7 @@ export default {
     }
     if (url.pathname === '/' || url.pathname === '/index.html')
       return env.ASSETS.fetch(request)
-    if (url.pathname === '/admin' || url.pathname === '/admin/') {
+    if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       if (url.protocol !== 'https:') {
         url.protocol = 'https:'
         return Response.redirect(url.href, 308)
@@ -126,12 +127,27 @@ export default {
         })
       if (request.method !== 'GET')
         return json({ error: 'Method not allowed.' }, 405)
+      if (
+        !['/admin', '/admin/', '/admin/raw', '/admin/raw/'].includes(
+          url.pathname,
+        )
+      )
+        return json({ error: 'Not found.' }, 404)
       try {
         if (!env.ANALYTICS) throw new Error('Unavailable')
-        return await statsPage(
-          await env.ANALYTICS.getByName('gameplay').fetch(request),
-          url.searchParams.get('format') === 'json',
+        // Keep existing bookmarked browser/game links and JSON exports working.
+        const raw =
+          url.pathname.startsWith('/admin/raw') ||
+          ['browser', 'ip', 'round', 'format'].some((key) =>
+            url.searchParams.has(key),
+          )
+        if (!raw) url.searchParams.set('view', 'dashboard')
+        const data = await env.ANALYTICS.getByName('gameplay').fetch(
+          new Request(url, request),
         )
+        return raw
+          ? await statsPage(data, url.searchParams.get('format') === 'json')
+          : await dashboardPage(data)
       } catch {
         return json({ error: 'Counters are temporarily unavailable.' }, 503)
       }

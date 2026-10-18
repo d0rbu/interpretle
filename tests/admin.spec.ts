@@ -1,0 +1,222 @@
+import { expect, test } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { dashboardPage } from '../server/dashboard'
+import type { Insights } from '../server/insights'
+
+// Synthetic display data only; these requests never reach production analytics.
+const sample: Insights = {
+  start: '2026-10-05',
+  end: '2026-10-18',
+  days: 14,
+  mode: 'all',
+  people: { browsers: 486, returning: 124 },
+  series: Array.from({ length: 14 }, (_, i) => ({
+    day: `2026-10-${String(i + 5).padStart(2, '0')}`,
+    browsers: 16 + i * 5 + (i % 3) * 10,
+    returning: i * 2,
+    visits: 20 + i * 6,
+    games: 11 + i * 4 + (i % 2) * 12,
+    wins: 8 + i * 2,
+    losses: 2,
+    errors: i > 6 ? (i % 4) + 1 : 0,
+    guesses: 30 + i * 8,
+    writeins: (i % 5) + 1,
+    shares: i + 1,
+  })),
+  flow: [
+    [0, 'open', 12],
+    [1, 'won', 2],
+    [1, 'open', 8],
+    [2, 'won', 12],
+    [2, 'open', 7],
+    [3, 'won', 18],
+    [3, 'open', 6],
+    [4, 'won', 12],
+    [4, 'open', 3],
+    [5, 'won', 9],
+    [5, 'open', 1],
+    [6, 'won', 5],
+    [6, 'lost', 5],
+  ].map(([guesses, outcome, count]) => ({
+    guesses: Number(guesses),
+    outcome: outcome as 'open' | 'won' | 'lost',
+    count: Number(count),
+    limit: 6,
+    fromStart: 1,
+  })),
+  attempts: [1, 2, 3, 4, 5, 6].map((n) => ({
+    label: String(n),
+    count: [2, 12, 18, 12, 9, 5][n - 1],
+  })),
+  outcomes: [
+    { label: 'won', count: 58 },
+    { label: 'lost', count: 5 },
+  ],
+  slots: [
+    { label: 'Option 1', count: 48 },
+    { label: 'Option 2', count: 79 },
+    { label: 'Option 3', count: 44 },
+    { label: 'Option 4', count: 56 },
+    { label: 'Option 5', count: 67 },
+    { label: 'Write-in', count: 31 },
+  ],
+  themes: [
+    { label: 'system / dark', count: 252 },
+    { label: 'dark / dark', count: 140 },
+    { label: 'system / light', count: 110 },
+    { label: 'light / light', count: 50 },
+  ],
+  devices: [
+    { label: 'desktop', count: 320 },
+    { label: 'phone', count: 150 },
+    { label: 'tablet', count: 10 },
+    { label: 'unknown', count: 6 },
+  ],
+  practice: [
+    { label: '0', count: 258 },
+    { label: '1', count: 92 },
+    { label: '2', count: 61 },
+    { label: '3–5', count: 47 },
+    { label: '6–10', count: 22 },
+    { label: '11+', count: 6 },
+  ],
+  coverage: {
+    historySince: '2026-10-18T12:00:00.000Z',
+    errorRecords: 14,
+    exceptions: 8,
+  },
+  issues: [
+    {
+      issue: 'a'.repeat(64),
+      count: 6,
+      players: 4,
+      firstAt: '2026-10-18T12:00:00.000Z',
+      lastAt: '2026-10-18T18:32:41.120Z',
+      samples: [
+        {
+          id: 'b'.repeat(64),
+          at: '2026-10-18T18:32:41.120Z',
+          player: '11111111-1111-4111-8111-111111111111',
+          details: {
+            browser: 'Firefox 157.0.1',
+            os: 'macOS',
+            device: 'desktop',
+            backend: 'gpu',
+            phase: 'inference',
+            code: 'out_of_memory',
+            cores: 8,
+            mode: 'daily',
+            round: '2026-10-18',
+            feature: 'gemma4-l21-sae-58-v2',
+            report: {
+              source: 'model',
+              name: 'RuntimeError',
+              message: 'Cannot allocate GPU buffer',
+              stage: 'Layer 7/22 · Attention',
+              release: 'sample-build',
+              tokens: 54,
+              threads: 1,
+              stack:
+                'RuntimeError: Cannot allocate GPU buffer\n    at attention (https://interpretle.com/assets/model.worker-example.js:7:42)',
+              trail: [
+                {
+                  at: '2026-10-18T18:32:39.000Z',
+                  stage: 'guess_submit · daily · guess 2',
+                },
+                {
+                  at: '2026-10-18T18:32:40.000Z',
+                  stage: 'Layer 7/22 · QKV projections',
+                },
+                {
+                  at: '2026-10-18T18:32:41.000Z',
+                  stage: 'Layer 7/22 · Attention',
+                },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  ],
+}
+
+test('private dashboard charts and errors remain readable in light and dark modes', async ({
+  page,
+}, info) => {
+  const response = await dashboardPage(Response.json(sample))
+  await page.setContent(await response.text())
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme })
+    await expect(
+      page.getByRole('heading', { name: 'Game overview' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('img', {
+        name: 'Game progression: 100 opened, 58 solved, 37 unfinished, 5 out of attempts',
+      }),
+    ).toBeVisible()
+    await expect(page.getByLabel('Ending on')).toHaveValue('2026-10-18')
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await page.screenshot({
+      path: info.outputPath(`dashboard-${colorScheme}.png`),
+      fullPage: true,
+    })
+  }
+  await page
+    .getByText('RuntimeError: Cannot allocate GPU buffer', { exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Original exception' }),
+  ).toBeVisible()
+  await expect(page.locator('pre')).toContainText(
+    'model.worker-example.js:7:42',
+  )
+  await expect(
+    page.getByRole('heading', { name: 'Events leading up to the failure' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Open game / browser history ↗' }),
+  ).toHaveAttribute('href', /\/admin\/raw\?browser=.*mode=daily/)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: info.outputPath('dashboard-error.png'),
+    fullPage: true,
+  })
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+})
+
+test('private dashboard makes missing historical paths and empty reports explicit', async ({
+  page,
+}) => {
+  const empty: Insights = {
+    ...sample,
+    flow: [],
+    issues: [],
+    devices: [],
+    coverage: { historySince: null, errorRecords: 0, exceptions: 0 },
+    series: sample.series.map((row) => ({ ...row, errors: 0 })),
+  }
+  await page.setContent(
+    await (await dashboardPage(Response.json(empty))).text(),
+  )
+  await expect(
+    page.getByText('Older aggregate counters cannot reconstruct these paths.', {
+      exact: false,
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('No errors recorded in this window.'),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Raw data ↗' })).toHaveAttribute(
+    'href',
+    '/admin/raw?day=2026-10-18',
+  )
+})

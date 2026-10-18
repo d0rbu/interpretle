@@ -151,7 +151,7 @@ it('reports token boundaries without finishing scoring or claiming activations',
   expect(browserModelReady()).toBe(true)
 })
 
-it('passes safe worker diagnostics through to telemetry without the error message', async () => {
+it('preserves the original worker exception separately from the displayed recovery message', async () => {
   const { prepareBrowserModel } = await import('./browser')
   const preparation = prepareBrowserModel(
     model,
@@ -169,6 +169,15 @@ it('passes safe worker diagnostics through to telemetry without the error messag
         backend: 'unknown',
         httpStatus: 503,
       },
+      report: {
+        source: 'weights',
+        name: 'TypeError',
+        message: 'Original cache failure',
+        stack:
+          'TypeError: Original cache failure\n    at readWeights (model.js:1:50)',
+        stage: 'Reading layer 4 weights',
+        release: 'test-build',
+      },
     },
   })
   await rejected
@@ -178,6 +187,13 @@ it('passes safe worker diagnostics through to telemetry without the error messag
     phase: 'tokenizer',
     backend: 'unknown',
     httpStatus: 503,
+    report: expect.objectContaining({
+      source: 'weights',
+      message: 'Original cache failure',
+      stack: expect.stringContaining('readWeights'),
+      stage: 'Reading layer 4 weights',
+      release: 'test-build',
+    }),
   })
   expect(JSON.stringify(telemetry.track.mock.calls)).not.toContain(
     'PRIVATE PATH',
@@ -205,6 +221,16 @@ it('identifies a crashed worker using its last execution backend and layer', asy
     phase: 'inference',
     backend: 'gpu',
     layer: 7,
+    report: expect.objectContaining({
+      source: 'worker',
+      message: 'GPU device was lost',
+      stage: 'Scoring: GPU · Layer 7/22 attention',
+      trail: [
+        expect.objectContaining({
+          stage: 'Scoring: GPU · Layer 7/22 attention',
+        }),
+      ],
+    }),
   })
   expect(JSON.stringify(telemetry.track.mock.calls)).not.toContain(
     'PRIVATE INPUT',

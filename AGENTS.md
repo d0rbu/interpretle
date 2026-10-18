@@ -8,7 +8,8 @@ complexity and a low bar for removing it.
   Keep them limited to aggregates and a private, timestamped event history with
   random browser IDs, server-derived visitor IPs, device/model diagnostics,
   submitted write-ins, and the boards/token scores needed to replay games.
-  Unsubmitted drafts and raw error messages are not collected. No server inference
+  Bounded exception messages, stacks and runtime breadcrumbs are private too.
+  Unsubmitted drafts are not collected. No server inference
   or game-session service. Only the private stats page needs
   authentication, using a Worker secret.
 - Run the selected dataset through the model and SAE **offline**, preserving

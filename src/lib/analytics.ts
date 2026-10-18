@@ -3,6 +3,8 @@ import { puzzleDay } from './day'
 import { isStorageFull } from './model-error'
 import type { ModelDiagnostics } from './model-error'
 import type { GameSnapshot } from './replay'
+import { breadcrumb, runtimeReport } from './diagnostics'
+import type { Breadcrumb, RuntimeReport } from './diagnostics'
 
 export const EVENTS = [
   'visit',
@@ -18,6 +20,7 @@ export const EVENTS = [
   'model_start',
   'model_ready',
   'model_error',
+  'client_error',
   'model_cancel',
 ] as const
 export const THEMES = ['light', 'dark', 'system'] as const
@@ -47,6 +50,7 @@ export type EventFields = Partial<ModelDiagnostics> & {
   text?: string
   expanded?: boolean
   snapshot?: GameSnapshot
+  report?: RuntimeReport
 }
 let player: string | undefined,
   visit: string | undefined,
@@ -61,6 +65,7 @@ let initialized = false,
 let queued = Promise.resolve()
 let retry: ReturnType<typeof setTimeout> | undefined
 let sequence = 0
+const trail: Breadcrumb[] = []
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -150,7 +155,7 @@ export function setAnalyticsGame(game?: Game) {
     : {}
 }
 
-/** First-party event history. Only submitted write-ins are recorded, never drafts or raw errors. */
+/** First-party event history. Inputs are recorded only on submission. */
 export function track(
   event: (typeof EVENTS)[number],
   fields: EventFields = {},
@@ -170,24 +175,40 @@ export function track(
       /* In-memory order still works. */
     }
     const context = { ...currentTheme, ...currentGame, ...fields }
-    const memory =
-      event === 'model_error'
-        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
-        : undefined
-    const device =
-      event === 'model_error'
-        ? {
-            cores:
-              navigator.hardwareConcurrency > 0
-                ? navigator.hardwareConcurrency
-                : undefined,
-            memoryGb:
-              memory && Number.isFinite(memory) && memory > 0
-                ? memory
-                : undefined,
-            touchPoints: navigator.maxTouchPoints,
-          }
-        : {}
+    const failure = event === 'model_error' || event === 'client_error'
+    if (context.report)
+      context.report = runtimeReport(null, '', context.report.source, {
+        ...context.report,
+        isolated: globalThis.crossOriginIsolated === true,
+        online: navigator.onLine !== false,
+        visible: typeof document === 'undefined' || !document.hidden,
+        trail: [...trail, ...(context.report.trail ?? [])]
+          .sort((a, b) => a.at.localeCompare(b.at))
+          .slice(-24),
+      })
+    if (!failure)
+      breadcrumb(
+        trail,
+        [event, context.mode, context.attempt && `guess ${context.attempt}`]
+          .filter(Boolean)
+          .join(' · '),
+      )
+    const memory = failure
+      ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+      : undefined
+    const device = failure
+      ? {
+          cores:
+            navigator.hardwareConcurrency > 0
+              ? navigator.hardwareConcurrency
+              : undefined,
+          memoryGb:
+            memory && Number.isFinite(memory) && memory > 0
+              ? memory
+              : undefined,
+          touchPoints: navigator.maxTouchPoints,
+        }
+      : {}
     const digest = crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${browser}:${key}`),
@@ -216,6 +237,25 @@ export function track(
   } catch {
     /* Counters must never interrupt the game. */
   }
+}
+
+export function startErrorTracking() {
+  window.addEventListener('error', (event) => {
+    track('client_error', {
+      problem: 'runtime',
+      report: runtimeReport(event, 'Page execution', 'window', {
+        elapsedMs: Math.round(performance.now()),
+      }),
+    })
+  })
+  window.addEventListener('unhandledrejection', (event) => {
+    track('client_error', {
+      problem: 'runtime',
+      report: runtimeReport(event.reason, 'Unhandled promise', 'promise', {
+        elapsedMs: Math.round(performance.now()),
+      }),
+    })
+  })
 }
 
 export function trackVisit() {
@@ -255,8 +295,12 @@ export function trackGame(
 }
 
 export function modelProblem(error: unknown): (typeof PROBLEMS)[number] {
-  const message =
-    error instanceof Error ? `${error.name} ${error.message}` : String(error)
+  const report = (error as { report?: RuntimeReport } | null)?.report
+  const message = report
+    ? `${report.name} ${report.message}`
+    : error instanceof Error
+      ? `${error.name} ${error.message}`
+      : String(error)
   if (isStorageFull(error) || /storage|quota|cache/i.test(message))
     return 'storage'
   if (/download|fetch|network|HTTP|integrity/i.test(message)) return 'network'
