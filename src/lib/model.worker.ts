@@ -8,7 +8,7 @@ import {
   readRange,
   saeEncoder,
 } from './model-cache'
-import type { TensorInfo, WeightSource } from './model-cache'
+import type { ModelAsset, TensorInfo, WeightSource } from './model-cache'
 import {
   bf16ToHalf,
   floatToHalf,
@@ -21,7 +21,7 @@ import { modelError } from './model-error'
 import { runSteps } from './model-steps'
 import type { ModelStep } from './model-steps'
 
-type Asset = { url: string; sha256: string; bytes?: number }
+type Asset = ModelAsset
 type Graph = Asset & {
   weights: Record<string, string>
   steps?: (Asset & { label: string })[]
@@ -82,7 +82,7 @@ async function prepare(url: string) {
   ])
   stage = 'Model data download'
   for (const [name, asset] of Object.entries(manifest.positions)) {
-    const bytes = await cachedFile(cache, asset.url, asset.sha256)
+    const bytes = await cachedFile(cache, asset)
     positions[name] = new Uint16Array(
       bytes.buffer,
       bytes.byteOffset,
@@ -93,7 +93,7 @@ async function prepare(url: string) {
   const files: Record<string, object> = {}
   for (const [name, asset] of Object.entries(manifest.tokenizer)) {
     stage = `Tokenizer ${name === 'tokenizer' ? 'vocabulary' : 'configuration'} download`
-    const bytes = await cachedFile(cache, asset.url, asset.sha256)
+    const bytes = await cachedFile(cache, asset)
     stage = `Parsing the tokenizer ${name === 'tokenizer' ? 'vocabulary' : 'configuration'}`
     const parsed: unknown = JSON.parse(decoder.decode(bytes))
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
@@ -169,11 +169,7 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
     ort.env.wasm.wasmPaths = {
       mjs: new URL(manifest.cpuRuntime.mjs.url, location.origin).href,
     }
-    ort.env.wasm.wasmBinary = await cachedFile(
-      cache,
-      manifest.cpuRuntime.wasm.url,
-      manifest.cpuRuntime.wasm.sha256,
-    )
+    ort.env.wasm.wasmBinary = await cachedFile(cache, manifest.cpuRuntime.wasm)
   } else {
     // The GPU runtime exceeds Cloudflare's per-file asset limit.
     ort.env.wasm.wasmPaths =
@@ -193,7 +189,7 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
       sessions[name].push({
         label: part.label,
         session: await ort.InferenceSession.create(
-          await cachedFile(cache, part.url, part.sha256),
+          await cachedFile(cache, part),
           {
             executionProviders: device
               ? [{ name: 'webgpu', device }]

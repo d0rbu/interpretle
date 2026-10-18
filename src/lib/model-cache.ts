@@ -6,11 +6,25 @@ export interface TensorInfo {
   offset: number
   bytes: number
 }
+export interface DownloadPart {
+  url: string
+  sha256: string
+  bytes: number
+  compression?: 'gzip'
+  decodedBytes?: number
+}
+export interface ModelAsset {
+  url: string
+  sha256?: string
+  bytes?: number
+  parts?: DownloadPart[]
+}
 interface Chunk {
   offset: number
   bytes: number
   sha256: string
   url?: string
+  parts?: DownloadPart[]
 }
 export interface WeightSource {
   url?: string
@@ -22,18 +36,37 @@ const key = (chunk: Chunk) =>
   new URL(`/__model_cache/${chunk.sha256}`, location.origin).href
 const fileKey = (url: string, hash?: string) =>
   hash ? `${new URL(url, location.origin).href}?sha256=${hash}` : url
+const partKey = (part: DownloadPart) =>
+  new URL(`/__model_parts/${part.sha256}`, location.origin).href
+const decodedSize = (part: DownloadPart) => part.decodedBytes ?? part.bytes
 
 /** Drop obsolete model versions, retaining every current weight and asset. */
 export async function pruneModelCache(
   cache: Cache,
   sources: WeightSource[],
-  assets: { url: string; sha256: string }[],
+  assets: ModelAsset[],
 ) {
-  const keep = new Set([
-    ...sources.flatMap((source) => source.chunks.map(key)),
-    ...assets.map((asset) => fileKey(asset.url, asset.sha256)),
-  ])
-  for (const request of await cache.keys())
+  const requests = await cache.keys()
+  const saved = new Set(requests.map((request) => request.url))
+  const files = [
+    ...sources.flatMap((source) =>
+      source.chunks.map((chunk) => ({
+        cacheKey: key(chunk),
+        parts: chunk.parts,
+      })),
+    ),
+    ...assets.map((asset) => ({
+      cacheKey: fileKey(asset.url, asset.sha256),
+      parts: asset.parts,
+    })),
+  ]
+  const keep = new Set(
+    files.flatMap(({ cacheKey, parts }) => [
+      cacheKey,
+      ...(saved.has(cacheKey) ? [] : (parts?.map(partKey) ?? [])),
+    ]),
+  )
+  for (const request of requests)
     if (!keep.has(request.url)) await cache.delete(request.url)
 }
 
@@ -51,7 +84,7 @@ async function download(
   hash?: string,
   bytes?: number,
   range?: string,
-  received?: (bytes: number) => void,
+  received?: (bytes: number, transferred: number) => void,
 ) {
   const file = new URL(url, location.origin)
   if (!['http:', 'https:'].includes(file.protocol))
@@ -74,7 +107,7 @@ async function download(
       )
     }
     try {
-      received?.(0)
+      received?.(0, 0)
       keepAlive()
       const response = await fetch(url, {
         // CacheStorage holds the verified copy; do not also fill the HTTP cache.
@@ -92,9 +125,11 @@ async function download(
             response.status >= 500,
         )
       keepAlive()
+      let previous = 0
       const data = await verifiedBytes(response, hash, (loaded) => {
         keepAlive()
-        received?.(loaded)
+        received?.(loaded, loaded - previous)
+        previous = loaded
       })
       if (bytes !== undefined && data.byteLength !== bytes)
         throw new Error('The downloaded file was incomplete.')
@@ -104,7 +139,7 @@ async function download(
       if (isStorageFull(cause)) throw cause
       if (attempt === 3 || (cause instanceof DownloadError && !cause.retry))
         throw new Error(
-          `Could not download from ${file.hostname}: ${cause instanceof Error ? cause.message : String(cause)} Completed files are saved; retry to resume.`,
+          `Could not download from ${file.hostname}: ${cause instanceof Error ? cause.message : String(cause)} Downloaded pieces are saved; retry to resume.`,
         )
       await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
     } finally {
@@ -149,20 +184,104 @@ export async function verifiedBytes(
   return data
 }
 
-export async function cachedFile(cache: Cache, url: string, hash?: string) {
-  const cacheKey = fileKey(url, hash)
+/** Persist each small, verified piece before starting the next. No unload
+ * handler or HTTP Range support is needed to resume after Safari is suspended. */
+async function downloadAsset(
+  cache: Cache,
+  asset: ModelAsset,
+  range?: string,
+  received?: (bytes: number, transferred: number) => void,
+) {
+  const parts = asset.parts
+  if (
+    !parts?.length ||
+    (parts.some((part) => part.compression) &&
+      typeof DecompressionStream === 'undefined')
+  )
+    return download(asset.url, asset.sha256, asset.bytes, range, received)
+
+  const data = new Uint8Array(
+    parts.reduce((sum, part) => sum + decodedSize(part), 0),
+  )
+  if (asset.bytes !== undefined && data.length !== asset.bytes)
+    throw new Error('The download manifest has an incorrect file size.')
+  const missing: { part: DownloadPart; offset: number }[] = []
+  let offset = 0,
+    completed = 0
+  const copy = async (
+    part: DownloadPart,
+    bytes: Uint8Array<ArrayBuffer>,
+    at: number,
+  ) => {
+    const decoded = part.compression
+      ? new Uint8Array(
+          await new Response(
+            new Response(bytes).body!.pipeThrough(
+              new DecompressionStream('gzip'),
+            ),
+          ).arrayBuffer(),
+        )
+      : bytes
+    if (decoded.length !== decodedSize(part))
+      throw new Error('A model download piece was incomplete.')
+    data.set(decoded, at)
+    completed += decoded.length
+  }
+  for (const part of parts) {
+    const saved = await cache.match(partKey(part))
+    let valid = false
+    if (saved) {
+      try {
+        await copy(part, await verifiedBytes(saved, part.sha256), offset)
+        valid = true
+      } catch (cause) {
+        if (isStorageFull(cause)) throw cause
+        await cache.delete(partKey(part))
+      }
+    }
+    if (!valid) missing.push({ part, offset })
+    offset += decodedSize(part)
+  }
+  received?.(completed, 0)
+  for (const { part, offset: at } of missing) {
+    const bytes = await download(
+      part.url,
+      part.sha256,
+      part.bytes,
+      undefined,
+      (loaded, transferred) =>
+        received?.(
+          completed + (loaded / part.bytes) * decodedSize(part),
+          transferred,
+        ),
+    )
+    await cache.put(partKey(part), new Response(bytes))
+    await copy(part, bytes, at)
+    received?.(completed, 0)
+  }
+  // The original file hash remains the authority, including for compressed pieces.
+  return verifiedBytes(new Response(data), asset.sha256)
+}
+
+async function removeParts(cache: Cache, asset: { parts?: DownloadPart[] }) {
+  for (const part of asset.parts ?? []) await cache.delete(partKey(part))
+}
+
+export async function cachedFile(cache: Cache, asset: ModelAsset) {
+  const cacheKey = fileKey(asset.url, asset.sha256)
   const saved = await cache.match(cacheKey)
   if (saved) {
     try {
-      return await verifiedBytes(saved, hash)
+      return await verifiedBytes(saved, asset.sha256)
     } catch (cause) {
       if (isStorageFull(cause)) throw cause
       // Repair an incomplete/corrupted cached tokenizer or graph automatically.
       await cache.delete(cacheKey)
     }
   }
-  const data = await download(url, hash)
+  const data = await downloadAsset(cache, asset)
   await cache.put(cacheKey, new Response(data))
+  await removeParts(cache, asset)
   return data
 }
 
@@ -193,7 +312,15 @@ export async function downloadWeights(
   const missing = chunks.filter((chunk) => !saved.has(key(chunk)))
   const total = chunks.reduce((sum, chunk) => sum + chunk.bytes, 0)
   let done = total - missing.reduce((sum, chunk) => sum + chunk.bytes, 0)
-  const inFlight = new Map<string, number>()
+  const inFlight = new Map(
+    missing.map((chunk) => [
+      chunk.sha256,
+      (chunk.parts ?? []).reduce(
+        (sum, part) => sum + (saved.has(partKey(part)) ? decodedSize(part) : 0),
+        0,
+      ),
+    ]),
+  )
   const started = Date.now()
   let transferred = 0,
     lastReport = 0
@@ -233,24 +360,21 @@ export async function downloadWeights(
       while (cursor < missing.length && !failed) {
         const chunk = missing[cursor++]
         try {
-          const data = await download(
-            chunk.downloadUrl,
-            chunk.sha256,
-            chunk.bytes,
+          const data = await downloadAsset(
+            cache,
+            { ...chunk, url: chunk.downloadUrl },
             chunk.url
               ? undefined
               : `bytes=${chunk.offset}-${chunk.offset + chunk.bytes - 1}`,
-            (loaded) => {
-              transferred += Math.max(
-                0,
-                loaded - (inFlight.get(chunk.sha256) ?? 0),
-              )
+            (loaded, received) => {
+              transferred += received
               inFlight.set(chunk.sha256, loaded)
               report()
             },
           )
           // CacheStorage does not accept HTTP 206; save verified bytes as a local 200 response.
           await cache.put(key(chunk), new Response(data))
+          await removeParts(cache, chunk)
           inFlight.delete(chunk.sha256)
           done += data.byteLength
           report(true)

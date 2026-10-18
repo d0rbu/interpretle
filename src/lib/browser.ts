@@ -71,6 +71,58 @@ function run<T>(
   })
 }
 
+// iOS suspends hidden tabs. Keep preparation pending across sleep/offline,
+// restarting the worker from the pieces already committed to CacheStorage.
+async function prepareWhenActive(model: BrowserModel, job: Preparation) {
+  const signal = job.controller.signal
+  const active = () => !document.hidden && navigator.onLine !== false
+  const watch = (callback: () => void) => {
+    document.addEventListener('visibilitychange', callback)
+    window.addEventListener('online', callback)
+    window.addEventListener('offline', callback)
+    signal.addEventListener('abort', callback)
+    return () => {
+      document.removeEventListener('visibilitychange', callback)
+      window.removeEventListener('online', callback)
+      window.removeEventListener('offline', callback)
+      signal.removeEventListener('abort', callback)
+    }
+  }
+  for (;;) {
+    await new Promise<void>((resolve, reject) => {
+      const check = () => {
+        if (signal.aborted || active()) {
+          unwatch()
+          if (signal.aborted) reject(new DOMException('', 'AbortError'))
+          else resolve()
+        }
+      }
+      const unwatch = watch(check)
+      check()
+    })
+    const attempt = new AbortController()
+    const unwatch = watch(() => {
+      if (signal.aborted || !active()) attempt.abort()
+    })
+    if (signal.aborted || !active()) attempt.abort()
+    try {
+      await run<void>(
+        { type: 'prepare', manifest: model.manifest },
+        (...update) => {
+          job.latest = update
+          job.progress?.(...update)
+        },
+        attempt.signal,
+      )
+      return
+    } catch (cause) {
+      if (!attempt.signal.aborted || signal.aborted) throw cause
+    } finally {
+      unwatch()
+    }
+  }
+}
+
 function startPreparation(model: BrowserModel) {
   if (preparation) return preparation
   track('model_start')
@@ -78,16 +130,7 @@ function startPreparation(model: BrowserModel) {
     controller: new AbortController(),
     latest: ['Loading…'],
     promise: Promise.resolve()
-      .then(() =>
-        run<void>(
-          { type: 'prepare', manifest: model.manifest },
-          (...update) => {
-            job.latest = update
-            job.progress?.(...update)
-          },
-          job.controller.signal,
-        ),
-      )
+      .then(() => prepareWhenActive(model, job))
       .then(() => {
         track('model_ready')
       })

@@ -7,3 +7,7 @@
 /model/weights/*
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable, no-transform
+
+/model/parts/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable, no-transform

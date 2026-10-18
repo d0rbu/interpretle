@@ -29,13 +29,14 @@ npm run dev
 
 ```sh
 npm run check
-npx playwright install chromium
+npx playwright install chromium webkit
 npm run test:e2e
 npm run deploy:check
 ```
 
 Generate the ignored browser weight chunks with `python scripts/export_browser.py --fp4`
-before deploying a fresh checkout. After authenticating your Cloudflare account,
+before deploying a fresh checkout, then run `python3 scripts/prepare_downloads.py`
+on the active manifest to create resumable download pieces. After authenticating your Cloudflare account,
 `npm run deploy` verifies those assets and publishes the site and its counter to
 `interpretle.com`. Credentials
 stay outside this repository. GitHub Actions runs checks; deployment is manual.
@@ -117,9 +118,18 @@ reuse the same download. The SAE decoder matrix and later model layers are omitt
 Only the selected encoder row is read into memory for scoring.
 The tokenizer and all model parameters are hosted as Cloudflare static assets;
 players no longer need Hugging Face requests. The tokenizer JSON is losslessly
-minified to fit Cloudflare's per-file limit. Downloads retry temporary failures
-and reuse verified, completed chunks after a retry or browser restart. Browser
+minified to fit Cloudflare's per-file limit. Large files arrive in independently
+verified pieces of at most 1 MiB, saved immediately in CacheStorage. Reloads and
+interruptions reuse those pieces; only a piece still in flight needs restarting.
+Preparation pauses when the tab is hidden or offline and resumes when it is
+visible and online. Safari can suspend the page while the phone sleeps; the
+download does not need to keep running during sleep. Browser
 storage can still be cleared or evicted by the browser.
+Tokenizer, WebAssembly and graph pieces use gzip when it saves at least 10%.
+FP4 weights stay packed: sampled gzip savings were about 2% for FP4 and 7% for
+the FP32 SAE, too little to justify an extra compression layer. Decompressed
+files must match their original SHA-256 hashes. Previously completed model files
+remain reusable without downloading them again.
 Startup removes obsolete model files while retaining the current weights,
 complete encoder and both execution paths. Downloads bypass the separate HTTP
 cache, keeping one verified copy in CacheStorage. Storage failures stop retries
@@ -127,8 +137,8 @@ and keep completed files so a later retry can resume.
 The write-in card reports incoming bytes, average transfer speed, and an estimated
 time remaining that refreshes every second. Transfers
 retry after 30 seconds without data; a slow file that is still receiving bytes
-can continue without a fixed time limit. Only verified, complete files enter the
-persistent cache.
+can continue without a fixed time limit. Only verified pieces enter the
+persistent cache; inference reads fully assembled, verified files.
 The catalog selects the [versioned FP4 manifest](public/model/manifest-v4-fp4.json).
 Original manifest and graph URLs remain available for already-open older tabs.
 Regenerate the execution checkpoints with

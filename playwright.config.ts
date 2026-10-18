@@ -20,6 +20,11 @@ export default defineConfig({
       name: 'mobile',
       use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' },
     },
+    {
+      name: 'safari-downloads',
+      testMatch: 'download.spec.ts',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
   webServer: {
     command: 'npm run build && npm run preview -- --port 4176 --strictPort',

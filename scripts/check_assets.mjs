@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
+import { gunzipSync } from 'node:zlib'
 
 const root = resolve('dist')
 const catalog = JSON.parse(
@@ -27,7 +28,7 @@ const local = [
   ...Object.values(manifest.tokenizer),
   ...Object.values(manifest.sources).flatMap((source) => source.chunks),
 ]
-for (const asset of local) {
+async function readAsset(asset) {
   assert(asset.url.startsWith('/'), 'Expected a local model asset')
   const path = resolve(root, '.' + asset.url)
   assert(path.startsWith(root + sep), 'Invalid asset path')
@@ -42,5 +43,27 @@ for (const asset of local) {
     asset.url,
   )
   if (asset.bytes) assert.equal(data.length, asset.bytes, asset.url)
+  return data
 }
-console.log(`Verified ${local.length} model assets for deployment.`)
+let pieces = 0
+for (const asset of local) {
+  const data = await readAsset(asset)
+  if (!asset.parts) continue
+  const decoded = []
+  for (const part of asset.parts) {
+    const bytes = await readAsset(part)
+    assert(!part.compression || part.compression === 'gzip')
+    const raw = part.compression ? gunzipSync(bytes) : bytes
+    assert(raw.length <= 1024 * 1024, `Download piece too large: ${part.url}`)
+    assert.equal(raw.length, part.decodedBytes ?? part.bytes, part.url)
+    decoded.push(raw)
+    pieces++
+  }
+  assert(
+    data.equals(Buffer.concat(decoded)),
+    `Download pieces differ: ${asset.url}`,
+  )
+}
+console.log(
+  `Verified ${local.length} model assets and ${pieces} download pieces for deployment.`,
+)

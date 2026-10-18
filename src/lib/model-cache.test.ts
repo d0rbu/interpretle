@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import {
   cachedFile,
@@ -36,8 +37,8 @@ it('repairs a damaged cached tokenizer and validates it before reuse', async () 
   entries.set(key, new Response('damaged cached tokenizer'))
   const fetch = vi.fn().mockResolvedValue(new Response(data))
   vi.stubGlobal('fetch', fetch)
-  expect(await cachedFile(cache, asset.url, asset.sha256)).toEqual(data)
-  expect(await cachedFile(cache, asset.url, asset.sha256)).toEqual(data)
+  expect(await cachedFile(cache, asset)).toEqual(data)
+  expect(await cachedFile(cache, asset)).toEqual(data)
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 afterEach(() => {
@@ -282,7 +283,9 @@ it('retries a stalled response instead of leaving the bar frozen for five minute
 it('rejects local-file URLs without asking the browser to access them', async () => {
   const fetch = vi.fn()
   vi.stubGlobal('fetch', fetch)
-  await expect(cachedFile(cache, 'file:///')).rejects.toThrow('HTTP or HTTPS')
+  await expect(cachedFile(cache, { url: 'file:///' })).rejects.toThrow(
+    'HTTP or HTTPS',
+  )
   expect(fetch).not.toHaveBeenCalled()
 })
 
@@ -314,7 +317,9 @@ it('does not retry a Firefox disk-space failure while downloading the tokenizer'
   const error = new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE')
   const fetch = vi.fn().mockRejectedValue(error)
   vi.stubGlobal('fetch', fetch)
-  await expect(cachedFile(cache, '/model/tokenizer.json')).rejects.toBe(error)
+  await expect(
+    cachedFile(cache, { url: '/model/tokenizer.json' }),
+  ).rejects.toBe(error)
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 
@@ -328,7 +333,9 @@ it('does not mistake a storage read failure for a corrupt cached tokenizer', asy
   cache.delete = vi.fn()
   const fetch = vi.fn()
   vi.stubGlobal('fetch', fetch)
-  await expect(cachedFile(cache, '/model/tokenizer.json')).rejects.toBe(error)
+  await expect(
+    cachedFile(cache, { url: '/model/tokenizer.json' }),
+  ).rejects.toBe(error)
   expect(cache.delete).not.toHaveBeenCalled()
   expect(fetch).not.toHaveBeenCalled()
 })
@@ -370,4 +377,123 @@ it('reads the last of all 65,536 encoder features entirely from cache', async ()
   expect(last.threshold).toBe(4.75)
   expect(fetch).not.toHaveBeenCalled()
   await expect(saeEncoder(cache, source, 65536)).rejects.toThrow('outside')
+})
+
+it('resumes a partially saved weight file across preparations without requesting saved pieces', async () => {
+  const data = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
+  const parts = [chunk(data.subarray(0, 4), 100), chunk(data.subarray(4), 200)]
+  const asset = { ...chunk(data), parts }
+  const sources = [{ tensors: {}, chunks: [asset] }]
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(data.subarray(0, 4)))
+    .mockResolvedValueOnce(new Response(null, { status: 404 }))
+  vi.stubGlobal('fetch', fetch)
+  await expect(downloadWeights(cache, sources, () => {})).rejects.toThrow(
+    'HTTP 404',
+  )
+  expect([...entries.keys()]).toEqual([
+    `https://interpretle.com/__model_parts/${parts[0].sha256}`,
+  ])
+  fetch.mockReset().mockResolvedValueOnce(new Response(data.subarray(4)))
+  const progress = vi.fn()
+  await downloadWeights(cache, sources, progress)
+  expect(progress.mock.calls[0][1]).toBe(0.5)
+  expect(progress.mock.calls[0][0]).toContain('0.00 MB/s')
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch.mock.calls[0][0]).toBe(parts[1].url)
+  expect([...entries.keys()]).toEqual([
+    `https://interpretle.com/__model_cache/${asset.sha256}`,
+  ])
+  expect(new Uint8Array(await [...entries.values()][0].arrayBuffer())).toEqual(
+    data,
+  )
+  expect(progress.mock.calls.at(-1)?.[1]).toBe(1)
+})
+
+it('keeps all pieces if the final cache write fails and completes without more network requests', async () => {
+  const data = new Uint8Array([1, 2, 3, 4])
+  const asset = {
+    ...chunk(data),
+    parts: [chunk(data.subarray(0, 2), 100), chunk(data.subarray(2), 200)],
+  }
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(data.subarray(0, 2)))
+    .mockResolvedValueOnce(new Response(data.subarray(2)))
+  vi.stubGlobal('fetch', fetch)
+  const put = cache.put
+  cache.put = async (...args) => {
+    if (String(args[0]).includes('/__model_cache/'))
+      throw new DOMException('', 'QuotaExceededError')
+    return put(...args)
+  }
+  const sources = [{ tensors: {}, chunks: [asset] }]
+  await expect(downloadWeights(cache, sources, () => {})).rejects.toMatchObject(
+    {
+      name: 'QuotaExceededError',
+    },
+  )
+  expect(entries.size).toBe(2)
+  cache.put = put
+  await downloadWeights(cache, sources, () => {})
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(entries.size).toBe(1)
+})
+
+it('repairs only a damaged cached piece, keeping valid pieces', async () => {
+  const data = new Uint8Array([1, 2, 3, 4])
+  const parts = [chunk(data.subarray(0, 2), 100), chunk(data.subarray(2), 200)]
+  const asset = { ...chunk(data), parts }
+  entries.set(
+    `https://interpretle.com/__model_parts/${parts[0].sha256}`,
+    new Response('broken'),
+  )
+  entries.set(
+    `https://interpretle.com/__model_parts/${parts[1].sha256}`,
+    new Response(data.subarray(2)),
+  )
+  const fetch = vi.fn().mockResolvedValue(new Response(data.subarray(0, 2)))
+  vi.stubGlobal('fetch', fetch)
+  expect(await cachedFile(cache, asset)).toEqual(data)
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch.mock.calls[0][0]).toBe(parts[0].url)
+})
+
+it('decompresses independently verified gzip pieces to the exact original tokenizer bytes', async () => {
+  const data = new TextEncoder().encode('{"model":{"vocab":["a","b","c"]}}')
+  const compressed = new Uint8Array(gzipSync(data))
+  const asset = {
+    ...chunk(data),
+    parts: [
+      {
+        ...chunk(compressed, 100),
+        compression: 'gzip' as const,
+        decodedBytes: data.length,
+      },
+    ],
+  }
+  const fetch = vi.fn().mockResolvedValue(new Response(compressed))
+  vi.stubGlobal('fetch', fetch)
+  expect(await cachedFile(cache, asset)).toEqual(data)
+  expect(await cachedFile(cache, asset)).toEqual(data)
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(entries.size).toBe(1)
+})
+
+it('retains current partial downloads when pruning older model files', async () => {
+  const data = new Uint8Array([1, 2, 3, 4])
+  const asset = { ...chunk(data), parts: [chunk(data.subarray(0, 2), 100)] }
+  const current = `https://interpretle.com/__model_parts/${asset.parts[0].sha256}`
+  entries.set(current, new Response(data.subarray(0, 2)))
+  entries.set(
+    'https://interpretle.com/__model_parts/obsolete',
+    new Response('old'),
+  )
+  await pruneModelCache(cache, [{ tensors: {}, chunks: [asset] }], [])
+  expect([...entries.keys()]).toEqual([current])
+  const complete = `https://interpretle.com/__model_cache/${asset.sha256}`
+  entries.set(complete, new Response(data))
+  await pruneModelCache(cache, [{ tensors: {}, chunks: [asset] }], [])
+  expect([...entries.keys()]).toEqual([complete])
 })
