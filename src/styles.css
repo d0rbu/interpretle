@@ -297,14 +297,14 @@ main {
   padding: 2px 0;
 }
 .heatmap-loading .token {
-  background-color: light-dark(#ea963e38, #96551480);
+  background-color: transparent;
   animation: token-wave 1.8s ease-in-out infinite both;
 }
 @keyframes token-wave {
   0%,
   65%,
   100% {
-    background-color: light-dark(#ea963e20, #96551450);
+    background-color: transparent;
   }
   30% {
     background-color: light-dark(#ea963ea8, #b47226e0);

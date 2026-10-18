@@ -275,8 +275,9 @@ Devices requesting reduced motion update immediately.
 Write-ins reuse the same token rendering with a loading wave over actual tokenizer
 offsets. Intermediate token messages carry no activations and cannot complete or
 charge an attempt. The overlay preserves the draft, focus, scroll position and
-card height; completion, cancellation and errors remove it. Reduced motion uses a
-static tint. Preview tokens and text are never included in analytics.
+card height; completion, cancellation and errors remove it. The wave fades to a
+fully transparent background between pulses; reduced motion disables it.
+Preview tokens and text are never included in analytics.
 Checks also cover background model preparation without blocking stored passages,
 joining the same download on focus, silent cancellation and retries,
 queued Enter submission, the `0/280` counter, Unicode
