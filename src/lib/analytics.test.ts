@@ -7,7 +7,8 @@ const sent = vi.fn(
 )
 beforeEach(() => {
   vi.resetModules()
-  sent.mockClear()
+  sent.mockReset()
+  sent.mockResolvedValue(new Response(null, { status: 204 }))
   vi.stubGlobal('fetch', sent)
   vi.stubGlobal('navigator', {
     hardwareConcurrency: 8,
@@ -17,8 +18,13 @@ beforeEach(() => {
   for (const name of ['localStorage', 'sessionStorage']) {
     const values = new Map<string, string>()
     vi.stubGlobal(name, {
+      get length() {
+        return values.size
+      },
+      key: (index: number) => [...values.keys()][index] ?? null,
       getItem: (key: string) => values.get(key),
       setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
     })
   }
 })
@@ -73,4 +79,60 @@ it('does not collect device capabilities for ordinary gameplay events', async ()
   expect(body).toMatchObject({ event: 'visit' })
   for (const key of ['cores', 'memoryGb', 'touchPoints'])
     expect(body).not.toHaveProperty(key)
+})
+
+it('persists later events while an earlier request is pending and keeps browser timestamps in submission order', async () => {
+  let resolve!: (response: Response) => void
+  sent.mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+  )
+  const { track } = await import('./analytics')
+  track('guess_submit', { text: 'Submitted café.' })
+  track('guess', { attempt: 1 })
+  await vi.waitFor(() => {
+    const keys = Array.from({ length: localStorage.length }, (_, i) =>
+      localStorage.key(i),
+    )
+    expect(
+      keys.filter((key) => key?.startsWith('interpretle:event:')),
+    ).toHaveLength(2)
+  })
+  expect(sent).toHaveBeenCalledOnce()
+  resolve(new Response(null, { status: 204 }))
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  const bodies = sent.mock.calls.map(([, init]) =>
+    JSON.parse(String(init?.body)),
+  )
+  expect(bodies.map((body) => body.sequence)).toEqual([1, 2])
+  expect(bodies[0]).toMatchObject({
+    event: 'guess_submit',
+    text: 'Submitted café.',
+  })
+  expect(bodies[0].at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  expect(bodies[0].visit).toBe(bodies[1].visit)
+  await vi.waitFor(() => expect(localStorage.length).toBe(1))
+})
+
+it('retries saved events after a reload without changing their IDs, timestamps, or contents', async () => {
+  sent.mockRejectedValueOnce(new TypeError('Offline'))
+  const { track } = await import('./analytics')
+  track('guess_submit', { text: 'Keep this submitted text.' })
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledOnce())
+  const first = JSON.parse(String(sent.mock.calls[0][1]?.body))
+  await vi.waitFor(() =>
+    expect(localStorage.getItem('interpretle:event:' + first.id)).toBeTruthy(),
+  )
+  vi.resetModules()
+  const next = await import('./analytics')
+  next.track('visit')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(3))
+  expect(JSON.parse(String(sent.mock.calls[1][1]?.body))).toEqual(first)
+  await vi.waitFor(() =>
+    expect(
+      localStorage.getItem('interpretle:event:' + first.id),
+    ).toBeUndefined(),
+  )
 })

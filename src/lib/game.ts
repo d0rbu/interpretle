@@ -248,8 +248,8 @@ export function serializeGame(game: Game): string {
   })
 }
 
-// Stored passages replay from the published data. Custom activations stay local;
-// we validate their shape and recompute scores without reloading model weights.
+// Restore local saves without reloading model weights. Validate stored custom
+// activations and recompute their scores against the current calibration.
 export function restoreGame(
   saved: string | null,
   initial: Game,

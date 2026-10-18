@@ -2,6 +2,7 @@ import type { Game } from './types'
 import { puzzleDay } from './day'
 import { isStorageFull } from './model-error'
 import type { ModelDiagnostics } from './model-error'
+import type { GameSnapshot } from './replay'
 
 export const EVENTS = [
   'visit',
@@ -9,8 +10,10 @@ export const EVENTS = [
   'puzzle_view',
   'game_start',
   'guess',
+  'guess_submit',
   'finish',
   'writein_open',
+  'context',
   'share',
   'model_start',
   'model_ready',
@@ -40,10 +43,24 @@ export type EventFields = Partial<ModelDiagnostics> & {
   cores?: number
   memoryGb?: number
   touchPoints?: number
+  submission?: string
+  text?: string
+  expanded?: boolean
+  snapshot?: GameSnapshot
 }
-let player: string | undefined, visit: string | undefined
+let player: string | undefined,
+  visit: string | undefined,
+  page: string | undefined
 let currentTheme: Pick<EventFields, 'theme' | 'themePreference'> = {}
+let currentGame: Pick<EventFields, 'mode' | 'round' | 'feature'> = {}
 const sent = new Set<string>()
+const OUTBOX = 'interpretle:event:'
+const pending = new Map<string, string>()
+let initialized = false,
+  sending = false
+let queued = Promise.resolve()
+let retry: ReturnType<typeof setTimeout> | undefined
+let sequence = 0
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -63,9 +80,77 @@ function identity(kind: 'localStorage' | 'sessionStorage', key: string) {
 function identify() {
   player ??= identity('localStorage', 'interpretle:visitor')
   visit ??= identity('sessionStorage', 'interpretle:visit')
+  page ??= crypto.randomUUID()
 }
 
-/** First-party counters only. Never accept text, tokens, or raw error messages. */
+function persist(id: string, body?: string) {
+  try {
+    // One key per event avoids overwriting another tab's pending submissions.
+    if (body === undefined) localStorage.removeItem(OUTBOX + id)
+    else localStorage.setItem(OUTBOX + id, body)
+  } catch {
+    // Keep the in-memory queue when browser storage is unavailable/full.
+  }
+}
+
+async function flush() {
+  if (sending) return
+  clearTimeout(retry)
+  sending = true
+  try {
+    for (const [id, body] of pending) {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Browsers cap all outstanding keepalive bodies at 64 KiB.
+        keepalive: new TextEncoder().encode(body).length < 60_000,
+        body,
+      })
+      if (!response.ok && ![400, 413, 415].includes(response.status)) break
+      pending.delete(id)
+      persist(id)
+    }
+  } catch {
+    // Retry the same IDs; the server deduplicates uncertain deliveries.
+  } finally {
+    sending = false
+    if (pending.size && typeof window !== 'undefined')
+      retry = setTimeout(() => void flush(), 5000)
+  }
+}
+
+function initialize() {
+  if (initialized) return
+  initialized = true
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith(OUTBOX)) continue
+      const id = key.slice(OUTBOX.length),
+        body = localStorage.getItem(key)
+      if (/^[a-f0-9]{64}$/.test(id) && body && body.length <= 262144)
+        pending.set(id, body)
+    }
+    sequence = Number(sessionStorage.getItem('interpretle:event-sequence')) || 0
+  } catch {
+    /* Start with an empty queue if storage is blocked or damaged. */
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => void flush())
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) void flush()
+    })
+  }
+  void flush()
+}
+
+export function setAnalyticsGame(game?: Game) {
+  currentGame = game
+    ? { mode: game.mode, round: game.seed, feature: game.featureId }
+    : {}
+}
+
+/** First-party event history. Only submitted write-ins are recorded, never drafts or raw errors. */
 export function track(
   event: (typeof EVENTS)[number],
   fields: EventFields = {},
@@ -73,10 +158,18 @@ export function track(
 ) {
   try {
     identify()
+    initialize()
     if (sent.has(key)) return
     sent.add(key)
     const browser = player
-    const theme = currentTheme
+    const at = new Date().toISOString()
+    const order = ++sequence
+    try {
+      sessionStorage.setItem('interpretle:event-sequence', String(order))
+    } catch {
+      /* In-memory order still works. */
+    }
+    const context = { ...currentTheme, ...currentGame, ...fields }
     const memory =
       event === 'model_error'
         ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
@@ -99,24 +192,26 @@ export function track(
       'SHA-256',
       new TextEncoder().encode(`${browser}:${key}`),
     )
-    void digest
-      .then((bytes) =>
-        fetch('/api/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          keepalive: true,
-          body: JSON.stringify({
-            id: Array.from(new Uint8Array(bytes), (b) =>
-              b.toString(16).padStart(2, '0'),
-            ).join(''),
-            player: browser,
-            event,
-            ...theme,
-            ...fields,
-            ...device,
-          }),
-        }),
-      )
+    queued = queued
+      .then(() => digest)
+      .then((bytes) => {
+        const id = Array.from(new Uint8Array(bytes), (b) =>
+          b.toString(16).padStart(2, '0'),
+        ).join('')
+        const body = JSON.stringify({
+          id,
+          player: browser,
+          visit,
+          sequence: order,
+          at,
+          event,
+          ...context,
+          ...device,
+        })
+        pending.set(id, body)
+        persist(id, body)
+        void flush()
+      })
       .catch(() => {})
   } catch {
     /* Counters must never interrupt the game. */
@@ -155,7 +250,7 @@ export function trackGame(
   track(
     event,
     { mode: game.mode, round: game.seed, feature: game.featureId, ...fields },
-    `${event === 'puzzle_view' ? `${puzzleDay()}:${visit}:` : ''}${round}:${event}:${fields.attempt ?? ''}`,
+    `${event === 'puzzle_view' ? `${puzzleDay()}:${visit}:${page}:` : ''}${round}:${event}:${fields.attempt ?? ''}:${fields.submission ?? ''}`,
   )
 }
 

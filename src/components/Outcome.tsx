@@ -87,6 +87,7 @@ export default function Outcome({
   async function share() {
     track('share', {
       mode: game.mode,
+      round: game.seed,
       feature: game.featureId,
       outcome: won ? 'won' : 'lost',
       attempt: game.guesses.length,

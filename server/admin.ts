@@ -53,6 +53,30 @@ interface ModelError {
   cores?: number
   memoryGb?: number
 }
+interface RecordedGame {
+  player: string
+  mode: string
+  round: string
+  feature: string
+  firstAt: string
+  lastAt: string
+  guesses: number
+  outcome: string | null
+}
+interface RecordedEvent {
+  seq: number
+  event: string
+  at?: string
+  receivedAt: string
+  attempt?: number
+  text?: string
+  passage?: string
+  code?: string
+  expanded?: boolean
+  snapshot?: {
+    game: { guesses: { text: string; score: number }[] }
+  }
+}
 interface Stats {
   day: string
   players: number
@@ -66,6 +90,10 @@ interface Stats {
     ModelError,
     'problem' | 'code' | 'phase' | 'backend' | 'device' | 'browser' | 'os'
   > & { count: number })[]
+  games: RecordedGame[]
+  events: RecordedEvent[]
+  nextCursor: number | null
+  selectedGame: { mode: string; round: string; feature: string } | null
   browsers: BrowserStats[]
   browser?: BrowserStats & {
     firstDay: string
@@ -91,9 +119,39 @@ const escape = (value: unknown) =>
       ]!,
   )
 
-export async function statsPage(response: Response) {
+export async function statsPage(response: Response, download = false) {
   if (!response.ok) return response
+  if (download)
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="interpretle-events.json"',
+        'Cache-Control': 'private, no-store, no-transform',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Robots-Tag': 'noindex, nofollow',
+      },
+    })
   const stats: Stats = await response.json()
+  const gameUrl = (
+    game?: Pick<RecordedGame, 'player' | 'mode' | 'round' | 'feature'>,
+    extra: Record<string, string> = {},
+  ) => {
+    const params = new URLSearchParams({ day: stats.day })
+    if (game) {
+      params.set('browser', game.player)
+      for (const key of ['mode', 'round', 'feature'] as const)
+        params.set(key, game[key])
+    } else {
+      if (stats.browser) params.set('browser', stats.browser.id)
+      if (stats.ip) params.set('ip', stats.ip.id)
+    }
+    for (const [key, value] of Object.entries(extra)) params.set(key, value)
+    return escape('/admin?' + params)
+  }
+  const selectedGame =
+    stats.selectedGame && stats.browser
+      ? { player: stats.browser.id, ...stats.selectedGame }
+      : undefined
   const link = (kind: 'browser' | 'ip', value: unknown) =>
     `<a href="/admin?day=${escape(stats.day)}&amp;${kind}=${encodeURIComponent(String(value))}" title="${escape(value)}">${escape(kind === 'browser' ? String(value).slice(0, 8) : value)}</a>`
   const table = (
@@ -181,10 +239,49 @@ export async function statsPage(response: Response) {
   return new Response(
     `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interpretle stats</title>
 <style>
-:root{color-scheme:light dark;font:16px/1.5 system-ui}body{max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:24px}h2{font-size:18px;margin-top:32px;overflow-wrap:anywhere}a{color:inherit;overflow-wrap:anywhere}.table a{white-space:nowrap}form{display:flex;flex-wrap:wrap;gap:12px;align-items:center}input,button{font:inherit;padding:6px 10px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}dl div{padding:16px;background:light-dark(#f4f4f3,#222);border-radius:10px}dt{font-size:13px}dd{font-size:28px;margin:4px 0 0}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}td,th{padding:10px;border-bottom:1px solid light-dark(#ddd,#333)}p{color:light-dark(#666,#aaa)}
+:root{color-scheme:light dark;font:16px/1.5 system-ui}body{max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:24px}h2{font-size:18px;margin-top:32px;overflow-wrap:anywhere}a{color:inherit;overflow-wrap:anywhere}.table a{white-space:nowrap}form{display:flex;flex-wrap:wrap;gap:12px;align-items:center}input,button{font:inherit;padding:6px 10px}dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}dl div{padding:16px;background:light-dark(#f4f4f3,#222);border-radius:10px}dt{font-size:13px}dd{font-size:28px;margin:4px 0 0}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;text-align:left}td,th{padding:10px;border-bottom:1px solid light-dark(#ddd,#333)}p{color:light-dark(#666,#aaa)}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto;font-size:12px}details{margin:12px 0}
 </style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><label>IP address <input name="ip" value="${escape(stats.ip?.id ?? '')}" placeholder="IPv4 or IPv6" maxlength="45"></label><button>View</button></form>
 <dl>${summary.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>
-<p>Browsers use a random saved ID. IP addresses can be shared or change; neither is a count of people. Rounds begin with the first submitted guess. Custom text stays on the player's device.</p>
+<p>Browsers use a random saved ID. IP addresses can be shared or change; neither is a count of people. Rounds begin with the first submitted guess. Submitted write-ins and game states are saved privately; unsubmitted drafts are not recorded.</p>
+<h2 id="games">Recorded games</h2>
+<p>Latest 200 games in this selection, including unfinished games. Open a game for its event timeline and complete board/score data. Browser timestamps reflect the device's clock; receipt times are authoritative UTC. Recording starts with this update; restored older guesses have no original timestamps.</p>
+<div class="table"><table><thead><tr>${['Browser', 'First received (UTC)', 'Last received (UTC)', 'Mode', 'Puzzle / round', 'Concept', 'Guesses', 'Result', 'History'].map((label) => `<th>${label}</th>`).join('')}</tr></thead><tbody>${stats.games.map((game) => `<tr><td>${link('browser', game.player)}</td>${[game.firstAt, game.lastAt, game.mode, game.round, game.feature, game.guesses, game.outcome ?? 'Unfinished'].map((value) => `<td>${escape(value)}</td>`).join('')}<td><a href="${gameUrl(game)}">Open game</a></td></tr>`).join('')}</tbody></table></div>
+<p><a href="${gameUrl(selectedGame, { format: 'json' })}">Download event JSON</a></p>
+${
+  selectedGame
+    ? `<h3>Game timeline</h3>${table(
+        [
+          'Event',
+          'Browser time (UTC)',
+          'Received (UTC)',
+          'Attempt',
+          'Text / selection',
+          'Percentile / detail',
+        ],
+        stats.events.map((event) => {
+          const guess =
+            event.event === 'guess'
+              ? event.snapshot?.game.guesses.at(-1)
+              : undefined
+          return [
+            event.event,
+            event.at ?? 'Unknown',
+            event.receivedAt,
+            event.attempt ?? '—',
+            event.text ?? guess?.text ?? event.passage ?? '—',
+            guess?.score ??
+              event.code ??
+              (event.expanded === undefined
+                ? '—'
+                : event.expanded
+                  ? 'Expanded'
+                  : 'Collapsed'),
+          ]
+        }),
+      )}<details><summary>Full event records, boards, and token scores</summary><pre>${escape(JSON.stringify(stats.events, null, 2))}</pre></details>`
+    : ''
+}
+${stats.nextCursor !== null ? `<p>More events are available. <a href="${gameUrl(selectedGame, { after: String(stats.nextCursor) })}">Next page</a> · <a href="${gameUrl(selectedGame, { format: 'json', after: String(stats.nextCursor) })}">Download next JSON page</a></p>` : ''}
 <h2 id="model-errors">Model errors</h2>
 <p>${stats.browser ? 'This browser across all days.' : stats.ip ? 'This IP across all days.' : `Received on ${escape(stats.day)} (Pacific time).`} Timestamps below are server receipt times in UTC. Device details are browser-reported; missing information is shown as a dash. Detailed records start with this update; older error totals remain in the counters.</p>
 ${

@@ -188,19 +188,31 @@ combination per visit and Pacific day. Game events carry that theme context too.
 The server also stores visitor IP addresses from Cloudflare's `CF-Connecting-IP`
 header alongside the browser's counters. It accepts IPv4 and IPv6, normalizing
 equivalent IPv6 spellings. IPs are never accepted from the event body or
-`X-Forwarded-For`. No custom text, tokens, or activation values are stored.
+`X-Forwarded-For`. Submitted write-ins, token activations, and board snapshots
+are stored privately to reconstruct games. Unsubmitted drafts are not recorded.
 Browser IDs are random, rather than computed from device properties.
 
 The backend keeps aggregate dimensions, per-browser and per-IP counters,
-completed round summaries, first-visit dates, and opaque event hashes for deduplication. Round IDs
-are puzzle dates or random practice IDs. Model failures additionally record a
+completed round summaries, first-visit dates, and opaque event hashes for deduplication. It also keeps an
+append-only event history with browser event timestamps, session IDs and sequence
+numbers, and authoritative server receipt timestamps in UTC. Round IDs
+are puzzle dates or random practice IDs. Board snapshots preserve the exact
+starting clue, ordered choices, guesses, text, token offsets/activations,
+percentiles, model revisions, and display scale. Write-in submissions are logged
+before local scoring, so a failed or cancelled submission is still visible.
+Snapshot scores and device clocks are client-reported, not authoritative results.
+Model failures additionally record a
 server receipt timestamp (UTC), fixed error code, failed stage, CPU/GPU backend,
 HTTP status or layer when known, and the browser's reported device information.
 The user-agent header supplies the browser/version, OS family, and device type;
 logical core count and approximate RAM are included when the browser exposes them.
 The raw user agent is bounded to 512 characters. These details are collected
-only for model errors, not every gameplay event. Custom text and raw error
-messages are never uploaded. Unknown device details stay unknown.
+only for model errors; the reported user agent is saved with every event.
+Raw error messages are never uploaded. Unknown device details stay unknown.
+Pending events are stored locally and retried after network errors and reloads
+using the same IDs, so retries do not inflate counters. Blocked analytics,
+cleared browser storage, or closing the browser before an event is saved can
+still leave gaps; this is not a guaranteed audit log.
 Browser-reported counters are approximate and may be blocked.
 The private [stats page](https://interpretle.com/admin) uses HTTP Basic
 authentication over HTTPS, with username `henry` and a password stored only in the
@@ -223,6 +235,12 @@ The Model errors section groups failures by cause and device and lists the
 latest 200 errors with timestamps. Selecting a browser or IP shows its errors
 across days; otherwise the report covers the selected Pacific day. These records
 start with this deployment; old aggregate events cannot be backfilled.
+Recorded games includes unfinished games and links to a timestamped timeline,
+full board snapshots, and an authenticated JSON download. Downloads contain
+up to 100 events per page and a `nextCursor`; continue with `after=<nextCursor>`
+to retrieve the remaining records. No game text or event export is public.
+Detailed game recording starts with this release. A restored old game can save
+its current state, but original event times cannot be recovered.
 The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data

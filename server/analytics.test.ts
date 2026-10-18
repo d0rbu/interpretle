@@ -4,6 +4,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import worker from './results'
 import { GameAnalytics } from './analytics'
 import catalog from '../public/puzzles/index.json'
+import {
+  feature as sampleFeature,
+  catalog as sampleCatalog,
+} from '../tests/fixture'
+import { createGame, playCustom } from '../src/lib/game'
+import { gameSnapshot } from '../src/lib/replay'
 
 let db: DatabaseSync, analytics: GameAnalytics
 function restart() {
@@ -74,6 +80,27 @@ const firefoxMac =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0.1'
 const iphoneChrome =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 CriOS/141.0.7390.41 Mobile/15E148 Safari/604.1'
+const auth = {
+  Authorization:
+    'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+}
+const replayFeature = { ...sampleFeature, id: feature }
+const initialReplay = () =>
+  gameSnapshot(
+    createGame('daily', '2026-10-18', feature),
+    replayFeature,
+    sampleCatalog,
+  )
+const replayFields = () => ({
+  mode: 'daily',
+  round: '2026-10-18',
+  feature,
+  visit: crypto.randomUUID(),
+  at: '2026-10-18T11:59:59.123Z',
+  sequence: 1,
+})
+const gameExport = () =>
+  `/admin?format=json&browser=${player}&mode=daily&round=2026-10-18&feature=${feature}`
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-18T12:00:00Z'))
@@ -256,6 +283,170 @@ it('rejects raw diagnostic strings, client timestamps, invalid values, and hardw
     expect((await request(event('model_error', detail))).status).toBe(400)
   expect((await request(event('visit', { cores: 8 }))).status).toBe(400)
   expect((await stats()).modelErrors).toEqual([])
+})
+
+it('keeps a private, replayable game history with distinct event and receipt times and exact submitted write-ins', async () => {
+  const fields = replayFields()
+  const snapshot = initialReplay()
+  const view = event('puzzle_view', { ...fields, snapshot })
+  expect((await request(view)).status).toBe(204)
+  const input = 'A café. <script>alert(1)</script>'
+  const submission = crypto.randomUUID()
+  expect(
+    (
+      await request(
+        event('guess_submit', {
+          ...fields,
+          sequence: 2,
+          at: '2026-10-18T12:00:01.001Z',
+          submission,
+          attempt: 1,
+          text: input,
+          snapshot,
+        }),
+      )
+    ).status,
+  ).toBe(204)
+  const tokens = [{ id: 7, start: 0, end: input.length, activation: 0.5 }]
+  const game = playCustom(snapshot.game, replayFeature, input, tokens, true)
+  vi.setSystemTime(new Date('2026-10-18T12:00:03.456Z'))
+  expect(
+    (
+      await request(
+        event('guess', {
+          ...fields,
+          sequence: 3,
+          at: '2026-10-18T12:00:02.002Z',
+          submission,
+          attempt: 1,
+          snapshot: gameSnapshot(game, replayFeature, sampleCatalog),
+        }),
+      )
+    ).status,
+  ).toBe(204)
+  restart()
+  expect((await request(view)).status).toBe(204)
+  const response = await request(undefined, gameExport(), { headers: auth })
+  expect(response.status).toBe(200)
+  expect(response.headers.get('Cache-Control')).toContain('private')
+  expect(response.headers.get('Content-Disposition')).toContain('attachment')
+  const saved = await response.json()
+  expect(saved.events).toHaveLength(3)
+  expect(saved.events.map((e: { sequence: number }) => e.sequence)).toEqual([
+    1, 2, 3,
+  ])
+  expect(saved.events[0]).toMatchObject({
+    at: fields.at,
+    receivedAt: '2026-10-18T12:00:00.000Z',
+  })
+  expect(saved.events[0].snapshot.options).toEqual(snapshot.options)
+  expect(saved.events[1]).toMatchObject({ text: input, submission })
+  expect(saved.events[2].snapshot.game).toEqual(game)
+  expect(saved.events[2].snapshot.game.guesses[0].tokens).toEqual(tokens)
+  const html = await (
+    await request(undefined, gameExport().replace('format=json&', ''), {
+      headers: auth,
+    })
+  ).text()
+  expect(html).toContain('Game timeline')
+  expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  expect(html).not.toContain('<script>alert(1)</script>')
+  for (const path of [
+    gameExport(),
+    '/admin?format=json',
+    '/api/events?format=json',
+    '/api/stats?format=json',
+  ]) {
+    const denied = await request(undefined, path)
+    expect([401, 404, 405]).toContain(denied.status)
+    expect(await denied.text()).not.toContain(input)
+  }
+})
+
+it('paginates complete history and isolates game and browser selections', async () => {
+  const fields = replayFields()
+  await request(event('puzzle_view', { ...fields, snapshot: initialReplay() }))
+  for (let i = 0; i < 101; i++)
+    await request(
+      event('context', {
+        ...fields,
+        sequence: i + 2,
+        passage: 'prose:1:0-9',
+        expanded: i % 2 === 0,
+      }),
+    )
+  await request(event('visit', { player: crypto.randomUUID() }))
+  await request(event('puzzle_view', { ...fields, round: '2026-10-17' }))
+  const first = await (
+    await request(undefined, gameExport(), { headers: auth })
+  ).json()
+  expect(first.events).toHaveLength(100)
+  expect(first.nextCursor).toBe(first.events.at(-1).seq)
+  const second = await (
+    await request(undefined, gameExport() + '&after=' + first.nextCursor, {
+      headers: auth,
+    })
+  ).json()
+  expect(second.events).toHaveLength(2)
+  expect(second.nextCursor).toBeNull()
+  expect(
+    new Set(
+      [...first.events, ...second.events].map((e: { id: string }) => e.id),
+    ).size,
+  ).toBe(102)
+  expect(
+    [...first.events, ...second.events].every(
+      (e: { round: string }) => e.round === '2026-10-18',
+    ),
+  ).toBe(true)
+  expect(
+    (
+      await request(undefined, '/admin?format=json&round=2026-10-18', {
+        headers: auth,
+      })
+    ).status,
+  ).toBe(400)
+})
+
+it('rejects malformed snapshots, unsolicited draft text, and invalid replay metadata before saving anything', async () => {
+  const fields = replayFields()
+  const valid = initialReplay()
+  for (const snapshot of [
+    { ...valid, game: { ...valid.game, seed: '2026-10-17' } },
+    { ...valid, options: [...valid.options, ...valid.options] },
+    { ...valid, feature: { ...valid.feature, displayScale: -1 } },
+    {
+      ...valid,
+      game: {
+        ...valid.game,
+        guesses: [
+          {
+            kind: 'custom',
+            text: 'bad',
+            tokens: [{ id: 1, start: 0, end: 99, activation: 1 }],
+            rawMax: 1,
+            score: 50,
+          },
+        ],
+      },
+    },
+  ])
+    expect(
+      (await request(event('puzzle_view', { ...fields, snapshot }))).status,
+    ).toBe(400)
+  for (const extra of [
+    { text: 'An unsubmitted draft' },
+    { sequence: -1 },
+    { visit: 'bad' },
+    { at: 'not a timestamp' },
+  ])
+    expect(
+      (await request(event('puzzle_view', { ...fields, ...extra }))).status,
+    ).toBe(400)
+  const exported = await (
+    await request(undefined, '/admin?format=json', { headers: auth })
+  ).json()
+  expect(exported.events).toEqual([])
 })
 afterEach(() => {
   db.close()

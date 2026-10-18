@@ -2,6 +2,7 @@ import type { Catalog, Feature, TokenActivation, TokenSpan } from './types'
 import { MODEL_BACKENDS, modelDiagnostics, modelError } from './model-error'
 import type { ModelDiagnostics } from './model-error'
 import { modelProblem, track } from './analytics'
+import type { EventFields } from './analytics'
 
 type Progress = (message: string, fraction?: number) => void
 type BrowserModel = NonNullable<Catalog['browserModel']>
@@ -94,11 +95,19 @@ function run<T>(
   })
 }
 
-function reportFailure(cause: unknown, stage: string) {
+function reportFailure(
+  cause: unknown,
+  stage: string,
+  context: EventFields = {},
+) {
   const diagnostics =
     (cause as { diagnostics?: ModelDiagnostics } | null)?.diagnostics ??
     modelDiagnostics(cause, stage, backend)
-  track('model_error', { problem: modelProblem(cause), ...diagnostics })
+  track('model_error', {
+    ...context,
+    problem: modelProblem(cause),
+    ...diagnostics,
+  })
 }
 
 // iOS suspends hidden tabs. Keep preparation pending across sleep/offline,
@@ -210,6 +219,7 @@ export function scoreInBrowser(
   progress: Progress,
   signal: AbortSignal,
   onTokens?: (tokens: TokenSpan[]) => void,
+  context: EventFields = {},
 ) {
   return run<TokenActivation[]>(
     {
@@ -226,8 +236,8 @@ export function scoreInBrowser(
     onTokens,
   ).catch((cause) => {
     if (cause instanceof DOMException && cause.name === 'AbortError')
-      track('model_cancel')
-    else reportFailure(cause, 'Scoring')
+      track('model_cancel', context)
+    else reportFailure(cause, 'Scoring', context)
     throw cause
   })
 }

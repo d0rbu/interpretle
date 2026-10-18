@@ -5,10 +5,11 @@ complexity and a low bar for removing it.
 
 - Serve the game as static files. Backend exceptions are the small daily
   results counter and first-party gameplay counters in `server/`, requested by the user.
-  Keep them limited to aggregates, random browser IDs, server-derived visitor IPs,
-  and deduplication, plus timestamped model-error diagnostics with reported
-  device/runtime details; no server inference, game-session
-  service, queue, or storage of custom text. Only the private stats page needs
+  Keep them limited to aggregates and a private, timestamped event history with
+  random browser IDs, server-derived visitor IPs, device/model diagnostics,
+  submitted write-ins, and the boards/token scores needed to replay games.
+  Unsubmitted drafts and raw error messages are not collected. No server inference
+  or game-session service. Only the private stats page needs
   authentication, using a Worker secret.
 - Run the selected dataset through the model and SAE **offline**, preserving
   per-token activations. Also support neuron/activation targets with explicit

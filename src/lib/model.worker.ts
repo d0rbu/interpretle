@@ -149,9 +149,7 @@ async function prepare(url: string) {
   stage = 'Model weight download'
   await downloadWeights(cache, Object.values(manifest.sources), progress)
   prepared = true
-  progress(
-    `Local model ready (${cpu ? 'CPU' : 'GPU'}). Your sentence stays on this device.`,
-  )
+  progress(`Local model ready (${cpu ? 'CPU' : 'GPU'}).`)
 }
 
 async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {

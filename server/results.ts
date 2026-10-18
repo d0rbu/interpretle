@@ -130,6 +130,7 @@ export default {
         if (!env.ANALYTICS) throw new Error('Unavailable')
         return await statsPage(
           await env.ANALYTICS.getByName('gameplay').fetch(request),
+          url.searchParams.get('format') === 'json',
         )
       } catch {
         return json({ error: 'Counters are temporarily unavailable.' }, 503)

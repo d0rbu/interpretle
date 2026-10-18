@@ -34,6 +34,9 @@ test('opens instructions once and shows a compact dated header', async ({
 }) => {
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator('dialog p')).toHaveCount(1)
+  await expect(page.locator('dialog .privacy-note')).toHaveText(
+    'Game activity and submitted write-ins are saved for analytics.',
+  )
   await expect(page.getByText('About the model and data')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Data provenance' })).toHaveCount(
     0,
@@ -867,7 +870,15 @@ test('prefetches without blocking play, joins on focus, and charges only success
   await expect
     .poll(() => events.filter((event) => event.event === 'guess').length)
     .toBe(2)
-  expect(JSON.stringify(events)).not.toContain('custom sentence')
+  expect(
+    events
+      .filter((event) => event.event === 'guess_submit')
+      .map((event) => event.text),
+  ).toEqual([
+    'A custom sentence.',
+    'A custom sentence.',
+    'A second\ncustom sentence.',
+  ])
   expect(
     events
       .filter((event) => event.event === 'guess')
@@ -1364,6 +1375,105 @@ test('counts passage choices, outcomes and practice starts with a reusable rando
         !('text' in event) && !('tokens' in event) && !('score' in event),
     ),
   ).toBe(true)
+})
+
+test('records replayable boards and submitted write-ins, retrying interrupted events across reloads', async ({
+  page,
+}) => {
+  const events: Record<string, any>[] = []
+  let interrupted = false
+  await page.route('**/api/events', (route) => {
+    const event = route.request().postDataJSON()
+    events.push(event)
+    if (event.event === 'guess' && !interrupted) {
+      interrupted = true
+      return route.fulfill({ status: 503 })
+    }
+    return route.fulfill({ status: 204 })
+  })
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: {
+          manifest: '/model/test.json',
+          bytes: 100,
+          approximate: true,
+        },
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    window.Worker = class {
+      onmessage: ((event: { data: object }) => void) | null = null
+      postMessage(message: { type: string; text?: string }) {
+        this.onmessage?.({
+          data: {
+            result:
+              message.type === 'score'
+                ? [
+                    {
+                      id: 7,
+                      start: 0,
+                      end: message.text!.length,
+                      activation: 0.5,
+                    },
+                  ]
+                : null,
+          },
+        })
+      }
+      terminate() {}
+    } as unknown as typeof Worker
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const game = createGame('daily', '2026-10-18', feature.id)
+  const options = choices(game, feature)
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  await input.fill('DRAFT_NOT_SUBMITTED')
+  const selected = options.find((p) => p.band === 0)!
+  await page.getByRole('button', { name: selected.text, exact: true }).click()
+  await expect.poll(() => interrupted).toBe(true)
+  const first = events.find((event) => event.event === 'guess')!
+  expect(first.snapshot.options).toHaveLength(5)
+  expect(first.snapshot.game.guesses[0].text).toBe(selected.text)
+  await page.reload()
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  await expect
+    .poll(() => events.filter((event) => event.id === first.id).length)
+    .toBe(2)
+  expect(events.filter((event) => event.id === first.id).at(-1)).toEqual(first)
+  const text = 'A café with a refrigerator.'
+  await input.fill(text)
+  await input.press('Enter')
+  await expect(page.locator('.history li')).toHaveCount(2)
+  await expect
+    .poll(() =>
+      events.some((event) => event.event === 'guess' && event.attempt === 2),
+    )
+    .toBe(true)
+  const submitted = events.find(
+    (event) => event.event === 'guess_submit' && event.text === text,
+  )!
+  const scored = events.find(
+    (event) => event.event === 'guess' && event.attempt === 2,
+  )!
+  expect(scored.submission).toBe(submitted.submission)
+  expect(scored.snapshot.game.guesses[1]).toMatchObject({
+    text,
+    approximate: true,
+    tokens: [{ id: 7, start: 0, end: text.length, activation: 0.5 }],
+  })
+  expect(
+    events.find((event) => event.event === 'puzzle_view')!.snapshot.options,
+  ).toEqual(options)
+  expect(submitted.at).toMatch(/^2026-10-18T12:/)
+  expect(submitted.sequence).toBeLessThan(scored.sequence)
+  expect(JSON.stringify(events)).not.toContain('DRAFT_NOT_SUBMITTED')
 })
 
 test('tracks selected and resolved themes, including system changes, once per visit combination', async ({

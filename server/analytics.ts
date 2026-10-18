@@ -7,6 +7,7 @@ import {
   MODEL_PHASES,
 } from '../src/lib/model-error'
 import { deviceInfo } from './device'
+import { validSnapshot } from './replay'
 
 interface Sql {
   exec(
@@ -45,6 +46,15 @@ const diagnosticFields = [
   'memoryGb',
   'touchPoints',
 ] as const
+const recordFields = [
+  'at',
+  'visit',
+  'sequence',
+  'submission',
+  'text',
+  'expanded',
+  'snapshot',
+] as const
 
 function normalizeIp(value: string | null) {
   if (!value || !/^[\da-f:.]{2,45}$/i.test(value)) return undefined
@@ -58,8 +68,7 @@ function normalizeIp(value: string | null) {
   }
 }
 
-// Browser/IP counters, round summaries, and timestamped model diagnostics.
-// No custom text, scores, or raw error messages. Reads stay behind /admin auth.
+// Browser/IP counters and append-only game history. Reads stay behind /admin auth.
 export class GameAnalytics {
   sql: Sql
   constructor(state: { storage: { sql: Sql } }) {
@@ -93,6 +102,14 @@ export class GameAnalytics {
       CREATE INDEX IF NOT EXISTS model_errors_day ON model_errors (day, at);
       CREATE INDEX IF NOT EXISTS model_errors_player ON model_errors (player, at);
       CREATE INDEX IF NOT EXISTS model_errors_ip ON model_errors (ip, at);
+      CREATE TABLE IF NOT EXISTS event_log (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
+        day TEXT NOT NULL, at TEXT NOT NULL, player TEXT NOT NULL, ip TEXT,
+        event TEXT NOT NULL, mode TEXT, round TEXT, feature TEXT, details TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS event_log_day ON event_log (day, seq);
+      CREATE INDEX IF NOT EXISTS event_log_ip ON event_log (ip, seq);
+      CREATE INDEX IF NOT EXISTS event_log_game ON event_log (player, mode, round, feature, seq);
     `)
   }
 
@@ -104,12 +121,75 @@ export class GameAnalytics {
       const selected = params.get('day') || day
       const selectedBrowser = params.get('browser') || undefined
       const selectedIp = normalizeIp(params.get('ip'))
+      const selectedRound = params.get('round')
+      const selectedMode = params.get('mode')
+      const selectedFeature = params.get('feature')
+      const after = Number(params.get('after') ?? 0)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(selected) || selected > day)
         return json({ error: 'Invalid day.' }, 400)
       if (selectedBrowser && !uuid.test(selectedBrowser))
         return json({ error: 'Invalid browser ID.' }, 400)
       if (params.get('ip') && !selectedIp)
         return json({ error: 'Invalid IP address.' }, 400)
+      if (
+        !Number.isSafeInteger(after) ||
+        after < 0 ||
+        (selectedRound !== null &&
+          (!selectedBrowser ||
+            !['daily', 'practice'].includes(selectedMode ?? '') ||
+            !targets.has(selectedFeature ?? '') ||
+            !(selectedMode === 'daily'
+              ? /^\d{4}-\d{2}-\d{2}$/.test(selectedRound)
+              : uuid.test(selectedRound))))
+      )
+        return json({ error: 'Invalid game selection.' }, 400)
+      const historyKey = selectedBrowser ? 'player' : selectedIp ? 'ip' : 'day'
+      const historyValues: (string | number)[] = [
+        selectedBrowser ?? selectedIp ?? selected,
+      ]
+      let historyWhere = `${historyKey} = ?`
+      if (selectedRound !== null) {
+        historyWhere += ' AND mode = ? AND round = ? AND feature = ?'
+        historyValues.push(selectedMode!, selectedRound, selectedFeature!)
+      }
+      const events =
+        selectedRound !== null || params.get('format') === 'json'
+          ? [
+              ...this.sql.exec(
+                `SELECT seq, id, at AS receivedAt, player, ip, event, details FROM event_log
+          WHERE ${historyWhere} AND seq > ? ORDER BY seq LIMIT 101`,
+                ...historyValues,
+                after,
+              ),
+            ].map(({ details, ...row }) => ({
+              ...row,
+              ...JSON.parse(String(details)),
+            }))
+          : []
+      const nextCursor = events.length > 100 ? events[99].seq : null
+      if (events.length > 100) events.pop()
+      if (params.get('format') === 'json')
+        return json({
+          version: 1,
+          day: selected,
+          browser: selectedBrowser,
+          round: selectedRound,
+          events,
+          nextCursor,
+        })
+      const games = [
+        ...this.sql.exec(
+          `SELECT player, mode, round, feature,
+        MIN(at) AS firstAt, MAX(at) AS lastAt,
+        COALESCE(MAX(json_array_length(json_extract(details, '$.snapshot.game.guesses'))),
+          MAX(CASE WHEN event = 'guess' THEN json_extract(details, '$.attempt') END), 0) AS guesses,
+        MAX(CASE WHEN event = 'finish' THEN json_extract(details, '$.outcome')
+          WHEN json_extract(details, '$.snapshot.status') IN ('won', 'lost') THEN json_extract(details, '$.snapshot.status') END) AS outcome
+        FROM event_log WHERE ${historyWhere} AND mode IS NOT NULL AND round IS NOT NULL
+        GROUP BY player, mode, round, feature ORDER BY lastAt DESC LIMIT 200`,
+          ...historyValues,
+        ),
+      ]
       const counts = [
         ...this.sql.exec(
           'SELECT event, dimensions, count FROM counters WHERE day = ? ORDER BY event, dimensions',
@@ -288,18 +368,31 @@ export class GameAnalytics {
         ip,
         modelErrors,
         modelErrorGroups,
+        games,
+        events,
+        nextCursor,
+        selectedGame:
+          selectedRound === null
+            ? null
+            : {
+                mode: selectedMode,
+                round: selectedRound,
+                feature: selectedFeature,
+              },
       })
     }
     if (!request.headers.get('Content-Type')?.startsWith('application/json'))
       return json({ error: 'Expected JSON.' }, 415)
     const text = await request.text()
-    if (text.length > 1024) return json({ error: 'Event too large.' }, 413)
+    if (text.length > 262144) return json({ error: 'Event too large.' }, 413)
     let data
     try {
       data = JSON.parse(text)
     } catch {
-      return json({ error: 'Invalid JSON.' }, 400)
+      return json({ error: 'Invalid JSON.' }, text.length > 1024 ? 413 : 400)
     }
+    if (text.length > 1024 && !data?.snapshot)
+      return json({ error: 'Event too large.' }, 413)
     if (
       !data ||
       typeof data.id !== 'string' ||
@@ -309,10 +402,48 @@ export class GameAnalytics {
       !EVENTS.includes(data.event) ||
       Object.keys(data).some(
         (key) =>
-          !['id', 'player', 'event', ...fields, ...diagnosticFields].includes(
-            key,
-          ),
+          ![
+            'id',
+            'player',
+            'event',
+            ...fields,
+            ...diagnosticFields,
+            ...recordFields,
+          ].includes(key),
       ) ||
+      (data.at !== undefined &&
+        (typeof data.at !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(data.at) ||
+          !Number.isFinite(Date.parse(data.at)))) ||
+      (data.visit !== undefined &&
+        (typeof data.visit !== 'string' || !uuid.test(data.visit))) ||
+      (data.sequence !== undefined &&
+        (!Number.isSafeInteger(data.sequence) || data.sequence < 1)) ||
+      (data.submission !== undefined &&
+        (typeof data.submission !== 'string' || !uuid.test(data.submission))) ||
+      (data.text !== undefined &&
+        (data.event !== 'guess_submit' ||
+          data.passage !== undefined ||
+          typeof data.text !== 'string' ||
+          !data.text.trim() ||
+          Array.from(data.text).length > 280)) ||
+      (data.expanded !== undefined &&
+        (data.event !== 'context' || typeof data.expanded !== 'boolean')) ||
+      (data.snapshot !== undefined &&
+        (!['puzzle_view', 'guess_submit', 'guess'].includes(data.event) ||
+          !data.mode ||
+          !data.round ||
+          !data.feature ||
+          !validSnapshot(data.snapshot, {
+            mode: data.mode,
+            round: data.round,
+            feature: data.feature,
+          }))) ||
+      (data.event === 'guess_submit' &&
+        (!data.snapshot ||
+          !data.submission ||
+          !data.attempt ||
+          (data.text === undefined && data.passage === undefined))) ||
       (data.event !== 'model_error' &&
         diagnosticFields.some((key) => data[key] !== undefined)) ||
       (data.code !== undefined && !MODEL_ERROR_CODES.includes(data.code)) ||
@@ -424,6 +555,28 @@ export class GameAnalytics {
     // Cloudflare supplies this header at the edge; never take an IP from the
     // event body or X-Forwarded-For. The Durable Object has no public endpoint.
     const ip = normalizeIp(request.headers.get('CF-Connecting-IP'))
+    const details = {
+      ...Object.fromEntries(
+        [...fields, ...diagnosticFields, ...recordFields]
+          .filter((key) => data[key] !== undefined)
+          .map((key) => [key, data[key]]),
+      ),
+      ...deviceInfo(request.headers.get('User-Agent'), data.touchPoints),
+    }
+    this.sql.exec(
+      `INSERT INTO event_log (id, day, at, player, ip, event, mode, round, feature, details)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      data.id,
+      day,
+      now.toISOString(),
+      data.player,
+      ip ?? null,
+      data.event,
+      data.mode ?? null,
+      data.round ?? null,
+      data.feature ?? null,
+      JSON.stringify(details),
+    )
     if (data.event === 'model_error')
       this.sql.exec(
         'INSERT INTO model_errors (id, day, at, player, ip, details) VALUES (?, ?, ?, ?, ?, ?)',
@@ -437,6 +590,9 @@ export class GameAnalytics {
           code: 'unknown',
           phase: 'unknown',
           backend: 'unknown',
+          ...dimensions,
+          ...(data.round ? { round: data.round } : {}),
+          ...(data.submission ? { submission: data.submission } : {}),
           ...Object.fromEntries(
             diagnosticFields
               .filter((key) => data[key] !== undefined)

@@ -7,7 +7,14 @@ import ModelProgress from './components/ModelProgress'
 import Outcome from './components/Outcome'
 import { cachedFeature, loadCatalog, loadFeature } from './data/puzzles'
 import { puzzleDay } from './lib/day'
-import { trackGame, trackTheme, trackVisit } from './lib/analytics'
+import {
+  setAnalyticsGame,
+  track,
+  trackGame,
+  trackTheme,
+  trackVisit,
+} from './lib/analytics'
+import { gameSnapshot } from './lib/replay'
 import {
   browserModelReady,
   prefetchBrowserModel,
@@ -149,6 +156,9 @@ function Instructions({ close }: { close: () => void }) {
         concept activated in different parts of the passage, and you can also
         write in your own option up to twice in one game.
       </p>
+      <small className="privacy-note">
+        Game activity and submitted write-ins are saved for analytics.
+      </small>
       <button className="primary" onClick={close} autoFocus>
         Play
       </button>
@@ -178,6 +188,7 @@ function PassageContent({
   )
   useEffect(() => () => animations.current.forEach((item) => item.cancel()), [])
   function toggle(event: MouseEvent<HTMLButtonElement>) {
+    if (passage) track('context', { passage: passage.id, expanded: !expanded })
     const container = event.currentTarget.closest(
       '.choice, .result, .history li',
     ) as HTMLElement | null
@@ -369,7 +380,11 @@ function Board({
   }, [game])
   useEffect(() => () => controller.current?.abort(), [])
   useEffect(() => {
-    trackGame('puzzle_view', game)
+    setAnalyticsGame(game)
+    trackGame('puzzle_view', game, {
+      snapshot: gameSnapshot(game, feature, catalog),
+    })
+    return () => setAnalyticsGame()
   }, [])
   useLayoutEffect(() => {
     if (previewElement.current && inputElement.current)
@@ -420,12 +435,34 @@ function Board({
     if (submitting) return
     if (!passageId && !text.trim()) return
     setError('')
+    const submission = crypto.randomUUID()
+    const selected = cards.findIndex((passage) => passage.id === passageId)
+    const selection =
+      selected < 0
+        ? {}
+        : {
+            passage: passageId,
+            slot: selected + 1,
+            band: cards[selected].band,
+          }
     try {
       let next: Game
       if (passageId) {
         next = playPassage(game, feature, passageId)
+        trackGame('guess_submit', game, {
+          ...selection,
+          submission,
+          attempt: game.guesses.length + 1,
+          snapshot: gameSnapshot(game, feature, catalog),
+        })
       } else {
         const input = validateCustom(game, text)
+        trackGame('guess_submit', game, {
+          submission,
+          attempt: game.guesses.length + 1,
+          text: input,
+          snapshot: gameSnapshot(game, feature, catalog),
+        })
         if (!catalog.browserModel)
           throw new Error(
             'The local model is not available yet. Stored passages are ready to play.',
@@ -441,6 +478,13 @@ function Board({
           reportProgress,
           controller.current.signal,
           (tokens) => setTokenized({ text: input, tokens }),
+          {
+            mode: game.mode,
+            round: game.seed,
+            feature: game.featureId,
+            attempt: game.guesses.length + 1,
+            submission,
+          },
         )
         next = playCustom(
           game,
@@ -455,21 +499,17 @@ function Board({
       setText('')
       const guess = next.guesses.at(-1)!
       if (next.guesses.length === 1) trackGame('game_start', next)
-      const selected = cards.findIndex((passage) => passage.id === passageId)
       trackGame('guess', next, {
         attempt: next.guesses.length,
-        ...(selected < 0
-          ? {}
-          : {
-              passage: passageId,
-              slot: selected + 1,
-              band: cards[selected].band,
-            }),
+        submission,
+        ...selection,
+        snapshot: gameSnapshot(next, feature, catalog),
       })
       if (status(next) !== 'playing')
         trackGame('finish', next, {
           attempt: next.guesses.length,
           outcome: status(next) as 'won' | 'lost',
+          submission,
         })
       setAnnouncement(
         `Attempt ${next.guesses.length}: ${guess.approximate ? 'approximately ' : ''}${scoreLabel(guess.score, guess.rawMax > 0)}. ${status(next) === 'won' ? 'Puzzle solved.' : `${game.maxGuesses - next.guesses.length} attempts left.`}`,
@@ -796,7 +836,7 @@ export default function App() {
   const [nextPracticeSeed, setNextPracticeSeed] = useState(() =>
     crypto.randomUUID(),
   )
-  const [help, setHelp] = useState(() => stored(HELP_KEY) !== '1')
+  const [help, setHelp] = useState(() => stored(HELP_KEY) !== '2')
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -944,7 +984,7 @@ export default function App() {
       {help && (
         <Instructions
           close={() => {
-            remember(HELP_KEY, '1')
+            remember(HELP_KEY, '2')
             setHelp(false)
           }}
         />
