@@ -157,7 +157,7 @@ async function prepare(url: string) {
 
 async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
   stage = `Preparing the ${device ? 'GPU' : 'CPU'} runtime`
-  progress(`Preparing the local ${device ? 'GPU' : 'CPU'} model…`)
+  progress(`Preparing the local model (${device ? 'GPU' : 'CPU'})…`)
   cpu = !device
   ort = cpu
     ? await import('onnxruntime-web/wasm')
@@ -271,7 +271,10 @@ async function score(
   const report = (label: string, finished = false) => {
     if (finished) completed++
     stage = label
-    progress(`Scoring: ${label}…`, completed / totalSteps)
+    progress(
+      `Scoring: ${cpu ? 'CPU' : 'GPU'} · ${label}…`,
+      completed / totalSteps,
+    )
   }
   const source = manifest.sources.model
   report('Reading embedding weights')

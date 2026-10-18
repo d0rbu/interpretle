@@ -912,7 +912,7 @@ test('keeps stored choices playable during downloads and cancels after blur with
                   fraction: 0.25,
                 }
               : {
-                  progress: 'Scoring: Layer 2/22 · Q projection…',
+                  progress: 'Scoring: GPU · Layer 2/22 · Q projection…',
                   fraction: 1 / 22,
                 },
         })
@@ -997,10 +997,10 @@ test('keeps stored choices playable during downloads and cancels after blur with
     card.getByRole('img', { name: 'Scoring your passage', exact: true }),
   ).toBeVisible()
   await expect(card.locator('.model-progress-icon title')).toHaveText(
-    'Scoring your passage: Layer 2/22 · Q projection…',
+    'Scoring your passage: GPU · Layer 2/22 · Q projection…',
   )
   await expect(card.locator('.model-progress-label')).toHaveText(
-    'Layer 2/22 · Q projection…',
+    'GPU · Layer 2/22 · Q projection…',
   )
   await expect(page.locator('.passage-select').first()).toBeDisabled()
   await input.blur()
