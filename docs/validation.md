@@ -160,6 +160,16 @@ The compiled worker also passed the Unicode case on the live domain in Firefox,
 using Cloudflare's actual isolation headers and CPU runtime: 108.4 seconds,
 0.0559% relative L2 error, and no weight requests during scoring.
 
+CPU weight restoration now uses a shared 65,536-entry FP16-to-FP32 lookup table.
+An exhaustive conversion check preserves every finite FP16 value, signed zero,
+infinities and NaNs. For a measured 26,214,400-value MLP matrix, median conversion
+time fell from 2.021 seconds to 0.047 seconds in Node 24 on Linux. This measures
+only conversion, not whole-model speed. The updated production worker completed
+the 22-token Unicode SAE case in Firefox CPU mode in 16.994 seconds, with token
+IDs, offsets and activations identical to the earlier worker and no scoring-time
+weight requests. The earlier timings above predate this optimization; neither
+run is a MacBook measurement or a controlled whole-model speed comparison.
+
 For quick SAE and MLP checks using the FP4 reference and a local development server:
 
 ```sh

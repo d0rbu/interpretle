@@ -77,6 +77,16 @@ export function halfToFloat(value: number): number {
   )
 }
 
+let halfTable: Float32Array | undefined
+
+/** Restore CPU tensors without repeating exponent arithmetic for every weight. */
+export function halfToFloat32(bits: Uint16Array): Float32Array {
+  halfTable ??= Float32Array.from({ length: 65536 }, (_, i) => halfToFloat(i))
+  const result = new Float32Array(bits.length)
+  for (let i = 0; i < bits.length; i++) result[i] = halfTable[bits[i]]
+  return result
+}
+
 export function floatToHalf(values: Float32Array): Uint16Array {
   const bits = new Uint32Array(values.buffer, values.byteOffset, values.length)
   const result = new Uint16Array(values.length)

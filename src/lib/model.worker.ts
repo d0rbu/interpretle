@@ -14,6 +14,7 @@ import {
   floatToHalf,
   fp4ToHalf,
   halfToFloat,
+  halfToFloat32,
   tokenOffsets,
 } from './model-math'
 import type { Feature, TokenActivation } from './types'
@@ -204,7 +205,7 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
 
 function tensor(bits: Uint16Array, shape: number[]) {
   return cpu
-    ? new ort.Tensor('float32', Float32Array.from(bits, halfToFloat), shape)
+    ? new ort.Tensor('float32', halfToFloat32(bits), shape)
     : new ort.Tensor('float16', bits, shape)
 }
 

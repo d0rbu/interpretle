@@ -5,6 +5,7 @@ import {
   floatToHalf,
   fp4ToHalf,
   halfToFloat,
+  halfToFloat32,
   tokenOffsets,
 } from './model-math'
 
@@ -37,8 +38,15 @@ describe('browser numeric conversion', () => {
     const bits = Array.from({ length: 65536 }, (_, i) => i).filter(
       (i) => ((i >>> 10) & 31) !== 31,
     )
-    const floats = new Float32Array(bits.map(halfToFloat))
+    const floats = halfToFloat32(new Uint16Array(bits))
+    expect(floats).toEqual(new Float32Array(bits.map(halfToFloat)))
     expect(Array.from(floatToHalf(floats))).toEqual(bits)
+  })
+
+  it('retains infinities, NaNs and signed zero when restoring CPU tensors', () => {
+    expect(
+      halfToFloat32(new Uint16Array([0, 0x8000, 0x7c00, 0xfc00, 0x7e00])),
+    ).toEqual(new Float32Array([0, -0, Infinity, -Infinity, NaN]))
   })
 
   it('converts BF16 subnormals and ties with nearest-even rounding', () => {
