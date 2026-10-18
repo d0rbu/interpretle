@@ -548,7 +548,7 @@ function Board({
           }}
         >
           <div className="choice-heading">
-            <h2>Choose a passage</h2>
+            <h2>Choose the passage that activates the concept most strongly</h2>
           </div>
           <div className="choices">
             {cards.map((passage) => (
@@ -655,6 +655,7 @@ function Board({
           feature={feature}
           firstDay={catalog.firstDay}
           celebrate={celebrate}
+          newPractice={newPractice}
         />
       )}
       <p className="sr-only" role="status" aria-live="polite">

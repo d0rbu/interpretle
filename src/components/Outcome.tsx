@@ -12,11 +12,13 @@ export default function Outcome({
   feature,
   firstDay,
   celebrate,
+  newPractice,
 }: {
   game: Game
   feature: Feature
   firstDay: string
   celebrate: boolean
+  newPractice: () => void
 }) {
   const won = status(game) === 'won'
   const [copied, setCopied] = useState(false)
@@ -253,13 +255,21 @@ export default function Outcome({
           )}
         </div>
       )}
-      <button
-        className={`primary share-button${copied ? ' copied' : ''}`}
-        onClick={share}
-        aria-live="polite"
-      >
-        {copied ? 'Copied to clipboard' : 'Share result'}
-      </button>
+      <div className="outcome-actions">
+        {game.mode === 'practice' && (
+          <button type="button" className="primary" onClick={newPractice}>
+            New puzzle
+          </button>
+        )}
+        <button
+          type="button"
+          className={`${game.mode === 'practice' ? 'secondary' : 'primary'} share-button${copied ? ' copied' : ''}`}
+          onClick={share}
+          aria-live="polite"
+        >
+          {copied ? 'Copied to clipboard' : 'Share result'}
+        </button>
+      </div>
       {fallback && (
         <textarea
           aria-label="Copy your result"

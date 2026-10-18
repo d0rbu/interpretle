@@ -476,7 +476,8 @@ main {
   pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
-.primary {
+.primary,
+.secondary {
   border: 1px solid #2b5139;
   border-radius: 5px;
   background: #2b5139;
@@ -488,6 +489,14 @@ main {
 }
 .primary:hover:not(:disabled) {
   background: #213f2c;
+}
+.secondary {
+  background: transparent;
+  border-color: light-dark(#b9c4b3, #53634e);
+  color: light-dark(#2b5139, #9dccaa);
+}
+.secondary:hover:not(:disabled) {
+  background: light-dark(#eef5e9, #2b3928);
 }
 textarea {
   width: 100%;
@@ -591,9 +600,19 @@ textarea {
   margin: 0;
   overflow-wrap: anywhere;
 }
-.share-button {
-  min-width: 185px;
+.outcome-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
   margin: 12px 0 8px;
+}
+.outcome-actions > button {
+  flex: 1;
+  min-width: 0;
+  max-width: 185px;
+  padding: 10px 12px;
+}
+.share-button {
   transition:
     background-color 150ms,
     color 150ms;
