@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Catalog } from './types'
+import { feature } from '../../tests/fixture'
 
 vi.mock('./analytics', () => ({ track: vi.fn(), modelProblem: vi.fn() }))
 
@@ -109,4 +110,35 @@ it('resumes a disconnected download but does not resume after the user cancels i
   window.dispatchEvent(new Event('online'))
   await Promise.resolve()
   expect(workers).toHaveLength(2)
+})
+
+it('reports token boundaries without finishing scoring or claiming activations', async () => {
+  const { scoreInBrowser, browserModelReady } = await import('./browser')
+  const onTokens = vi.fn()
+  const progress = vi.fn()
+  const result = scoreInBrowser(
+    'A café.',
+    feature,
+    model,
+    progress,
+    new AbortController().signal,
+    onTokens,
+  )
+  const tokens = [
+    { id: 1, start: 0, end: 1 },
+    { id: 2, start: 1, end: 6 },
+    { id: 3, start: 6, end: 7 },
+  ]
+  workers[0].onmessage?.({ data: { tokens } })
+  expect(onTokens).toHaveBeenCalledExactlyOnceWith(tokens)
+  expect(workers[0].onmessage).not.toBeNull()
+  expect(browserModelReady()).toBe(false)
+  workers[0].onmessage?.({
+    data: { progress: 'Scoring: GPU · Layer 1/22…', fraction: 0.1 },
+  })
+  expect(progress).toHaveBeenCalledWith('Scoring: GPU · Layer 1/22…', 0.1)
+  const scored = tokens.map((token) => ({ ...token, activation: 2 }))
+  workers[0].onmessage?.({ data: { result: scored } })
+  await expect(result).resolves.toEqual(scored)
+  expect(browserModelReady()).toBe(true)
 })

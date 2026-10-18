@@ -3,16 +3,12 @@ import { Tokenizer } from '@huggingface/tokenizers'
 import {
   cachedFile,
   downloadWeights,
-  embeddingRows,
   pruneModelCache,
-  readRange,
   saeEncoder,
 } from './model-cache'
 import type { ModelAsset, TensorInfo, WeightSource } from './model-cache'
 import {
-  bf16ToHalf,
   floatToHalf,
-  fp4ToHalf,
   halfToFloat,
   halfToFloat32,
   tokenOffsets,
@@ -21,6 +17,7 @@ import type { Feature, TokenActivation } from './types'
 import { modelError } from './model-error'
 import { runSteps } from './model-steps'
 import type { ModelStep } from './model-steps'
+import type { PreparedWeight } from './model-weights.worker'
 
 type Asset = ModelAsset & { gpuOutputs?: string[] }
 type Graph = Asset & {
@@ -42,7 +39,6 @@ interface Manifest {
   sae: { inputBias: number[] }
 }
 
-const prefix = 'model.language_model.'
 const progress = (message: string, fraction?: number) =>
   self.postMessage({ progress: message, fraction })
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
@@ -50,6 +46,7 @@ let prepared = false
 let stage = 'Model startup'
 let ort: typeof Ort, graphs: Record<string, Graph>
 let cpu = false
+let weightWorker: Worker | undefined
 const sessions: Record<string, ModelStep[]> = {}
 const positions: Record<string, Uint16Array> = {}
 
@@ -215,33 +212,58 @@ function tensor(bits: Uint16Array, shape: number[]) {
     : new ort.Tensor('float16', bits, shape)
 }
 
-function half(bytes: Uint8Array, info: TensorInfo) {
-  if (info.dtype === 'FP4') return fp4ToHalf(bytes)
-  if (info.dtype === 'BF16')
-    return bf16ToHalf(
-      new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2),
-    )
-  if (info.dtype === 'F16')
-    return new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
-  if (info.dtype === 'F32')
-    return floatToHalf(
-      new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4),
-    )
-  throw new Error(`Unsupported model weight type: ${info.dtype}.`)
+function graphWeights(
+  graph: Graph,
+  layer?: number,
+): Record<string, TensorInfo> {
+  return Object.fromEntries(
+    Object.entries(graph.weights).map(([name, template]) => [
+      name,
+      manifest.sources.model.tensors[
+        template.replace('{layer}', String(layer))
+      ],
+    ]),
+  )
 }
 
-async function weights(graph: Graph, layer?: number) {
-  const result: Record<string, Ort.Tensor> = {}
+function readWeights(graph: Graph, layer?: number, ids?: number[]) {
   const source = manifest.sources.model
-  for (const [input, template] of Object.entries(graph.weights)) {
-    const name = template.replace('{layer}', String(layer)),
-      info = source.tensors[name]
-    result[input] = tensor(
-      half(await readRange(cache, source, info.offset, info.bytes), info),
-      info.shape,
-    )
-  }
-  return result
+  const first = !weightWorker
+  weightWorker ??= new Worker(
+    new URL('./model-weights.worker.ts', import.meta.url),
+    { type: 'module' },
+  )
+  const current = weightWorker
+  // There is only one pending read: consume it before requesting the next layer.
+  return new Promise<PreparedWeight[]>((resolve, reject) => {
+    current.onmessage = ({ data }) => {
+      current.onmessage = null
+      current.onerror = null
+      if (data.error) reject(new Error(data.error))
+      else resolve(data.weights)
+    }
+    current.onerror = (event) => {
+      current.terminate()
+      weightWorker = undefined
+      reject(new Error(modelError(event, 'Weight preparation worker')))
+    }
+    current.postMessage({
+      ...(first ? { source, cpu } : {}),
+      weights: graphWeights(graph, layer),
+      ids,
+    })
+  })
+}
+
+function weightTensors(weights: PreparedWeight[]) {
+  return Object.fromEntries(
+    weights.map(({ name, shape, data }) => [
+      name,
+      cpu
+        ? new ort.Tensor('float32', data as Float32Array, shape)
+        : new ort.Tensor('float16', data as Uint16Array, shape),
+    ]),
+  )
 }
 
 async function halfBits(tensor: Ort.Tensor) {
@@ -270,6 +292,9 @@ async function score(
     throw new Error(
       'Please use ordinary text without model control tokens. No attempt was used.',
     )
+  self.postMessage({
+    tokens: encoded.ids.map((id, index) => ({ id, ...offsets[index] })),
+  })
   const totalSteps =
     sessions.embedding.length +
     manifest.layers.reduce((sum, kind) => sum + sessions[kind].length, 0) +
@@ -283,19 +308,44 @@ async function score(
       completed / totalSteps,
     )
   }
-  const source = manifest.sources.model
   report('Reading embedding weights')
-  const embeddingFeeds = await weights(graphs.embedding)
-  for (const [input, name] of [
-    ['token_rows', 'embed_tokens.weight'],
-    ['layer_rows', 'embed_tokens_per_layer.weight'],
-  ]) {
-    const info = source.tensors[prefix + name]
-    embeddingFeeds[input] = tensor(
-      half(await embeddingRows(cache, source, info, ids), info),
-      [1, length, info.shape[1]],
-    )
+  const embeddingFeeds = weightTensors(
+    await readWeights(graphs.embedding, undefined, ids),
+  )
+  // Reserve output bytes before queuing work. Reads and conversion run serially
+  // on the preparation worker, in parallel with inference, within this budget.
+  const budget = 2_000_000_000
+  const pending: { bytes: number; weights: Promise<PreparedWeight[]> }[] = []
+  let reserved = 0
+  let queued = 0
+  let reading: Promise<unknown> = Promise.resolve()
+  const prefetch = () => {
+    while (queued < manifest.layers.length) {
+      const index = queued
+      const bytes = Object.values(
+        graphWeights(graphs[manifest.layers[index]], index),
+      ).reduce(
+        (sum, { shape }) =>
+          sum + shape.reduce((n, dim) => n * dim, cpu ? 4 : 2),
+        0,
+      )
+      if (bytes > budget)
+        throw new Error(
+          'This model layer exceeds the local weight buffer budget.',
+        )
+      if (reserved + bytes > budget) break
+      queued++
+      const next = reading.then(() =>
+        readWeights(graphs[manifest.layers[index]], index),
+      )
+      // Inference can fail or be cancelled before every queued read is used.
+      void next.catch(() => {})
+      pending.push({ bytes, weights: next })
+      reserved += bytes
+      reading = next
+    }
   }
+  prefetch()
   const embedding = await runSteps(
     sessions.embedding,
     embeddingFeeds,
@@ -313,7 +363,11 @@ async function score(
   for (const [index, kind] of manifest.layers.entries()) {
     const layer = `Layer ${index + 1}/${manifest.layers.length}`
     report(`${layer} · Reading weights`)
-    const feeds = await weights(graphs[kind], index)
+    const next = pending.shift()!
+    const weights = await next.weights
+    reserved -= next.bytes
+    prefetch()
+    const feeds = weightTensors(weights)
     const perLayer = new Uint16Array(length * 256)
     for (let token = 0; token < length; token++) {
       const start = (token * manifest.layers.length + index) * 256

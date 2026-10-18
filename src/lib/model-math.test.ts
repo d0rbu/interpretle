@@ -34,6 +34,24 @@ describe('browser numeric conversion', () => {
     expect(() => fp4ToHalf(packed.subarray(1))).toThrow('block')
     expect(() => fp4ToHalf(new Uint8Array(18))).toThrow('scale')
   })
+  it('restores every packed byte with reused scales, including signed zero', () => {
+    const levels = [0, 0.5, 1, 1.5, 2, 3, 4, 6]
+    for (const scale of [0x3c00, 1, 0x3800, 0x3c00]) {
+      const packed = new Uint8Array(16 * 18)
+      const expected: number[] = []
+      for (let byte = 0; byte < 256; byte++) {
+        const block = Math.floor(byte / 16) * 18
+        packed[block] = scale & 255
+        packed[block + 1] = scale >>> 8
+        packed[block + 2 + (byte % 16)] = byte
+        for (const code of [byte & 15, byte >>> 4])
+          expected.push(
+            halfToFloat(scale) * levels[code & 7] * (code & 8 ? -1 : 1),
+          )
+      }
+      expect(fp4ToHalf(packed)).toEqual(floatToHalf(new Float32Array(expected)))
+    }
+  })
   it('converts every finite FP16 value through Float32 without changing bits', () => {
     const bits = Array.from({ length: 65536 }, (_, i) => i).filter(
       (i) => ((i >>> 10) & 31) !== 31,

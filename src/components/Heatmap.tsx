@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
-import type { Feature, TokenActivation } from '../lib/types'
+import type { Feature, TokenSpan } from '../lib/types'
 
 // Some Unicode characters span several tokenizer tokens. Merge overlapping
 // offsets for display, retaining the strongest activation in the highlight.
-export function segments(text: string, tokens: TokenActivation[]) {
-  const result: { start: number; end: number; tokens: TokenActivation[] }[] = []
+export function segments<T extends TokenSpan>(text: string, tokens: T[]) {
+  const result: { start: number; end: number; tokens: T[] }[] = []
   for (const token of tokens) {
     const previous = result.at(-1)
     if (previous && token.start < previous.end) {
@@ -19,7 +19,7 @@ export function segments(text: string, tokens: TokenActivation[]) {
       if (segment.start > end)
         items.push({
           text: text.slice(end, segment.start),
-          tokens: [] as TokenActivation[],
+          tokens: [] as T[],
         })
       items.push({
         text: text.slice(segment.start, segment.end),
@@ -36,11 +36,13 @@ export default function Heatmap({
   tokens,
   feature,
   before,
+  loading = false,
 }: {
   text: string
-  tokens: TokenActivation[]
+  tokens: (TokenSpan & { activation?: number })[]
   feature?: Feature
   before?: string
+  loading?: boolean
 }) {
   const parts = segments(text, tokens)
   const highlighted: ReactNode[] = []
@@ -55,7 +57,10 @@ export default function Heatmap({
     word = []
   }
   parts.forEach((part, index) => {
-    const activation = Math.max(...part.tokens.map((token) => token.activation))
+    const activation = Math.max(
+      0,
+      ...part.tokens.map((token) => token.activation ?? 0),
+    )
     // A small nonzero tint keeps weak activations visible on every feature's scale.
     const strength =
       feature && activation > 0
@@ -63,7 +68,7 @@ export default function Heatmap({
         : 0
     let content = part.text
     let start = 0
-    if (!feature && before === undefined) {
+    if (!feature && !loading && before === undefined) {
       if (index === 0) {
         content = content.replace(/^\n+/, '')
         start = part.text.length - content.length
@@ -79,15 +84,19 @@ export default function Heatmap({
       const node = (
         <span
           key={`${index}-${piece}`}
-          className={`${feature && part.tokens.length ? 'token' : 'passage-token'}${space ? ' token-space' : ''}`}
+          className={`${(feature || loading) && part.tokens.length ? 'token' : 'passage-token'}${space ? ' token-space' : ''}`}
           data-flow={
             space && !/[\r\n]/.test(value) ? `${index}-${piece}` : undefined
           }
           style={{
-            backgroundColor:
-              strength > 0
+            backgroundColor: loading
+              ? undefined
+              : strength > 0
                 ? `light-dark(color-mix(in srgb, #ea963ed1 ${20 + 80 * strength}%, transparent), color-mix(in srgb, #965514 ${Math.min(100, 20 + 160 * strength)}%, transparent))`
                 : 'transparent',
+            animationDelay: loading
+              ? `${(900 * index) / Math.max(1, parts.length - 1)}ms`
+              : undefined,
           }}
         >
           {value}
@@ -109,9 +118,11 @@ export default function Heatmap({
     }
   })
   finishWord()
-  const Tag = feature ? 'p' : 'span'
+  const Tag = feature || loading ? 'p' : 'span'
   return (
-    <Tag className={feature ? 'heatmap-text' : 'passage-text'}>
+    <Tag
+      className={`${feature || loading ? 'heatmap-text' : 'passage-text'}${loading ? ' heatmap-loading' : ''}`}
+    >
       {before !== undefined && (
         <span className="preceding-context">{before}</span>
       )}

@@ -114,18 +114,34 @@ export function floatToHalf(values: Float32Array): Uint16Array {
   return result
 }
 
+export function weightToHalf(bytes: Uint8Array, dtype: string) {
+  if (dtype === 'FP4') return fp4ToHalf(bytes)
+  if (dtype === 'BF16')
+    return bf16ToHalf(
+      new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2),
+    )
+  if (dtype === 'F16')
+    return new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
+  if (dtype === 'F32')
+    return floatToHalf(
+      new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4),
+    )
+  throw new Error(`Unsupported model weight type: ${dtype}.`)
+}
+
+const fp4Tables: (Uint32Array | undefined)[] = []
+
 /** E2M1 blocks: FP16 scale, then 32 four-bit values (low nibble first).
- * Cache the 16 possible restored values per scale instead of expanding the
- * whole tensor to Float32. This matches the offline FP4 experiment exactly. */
+ * Reuse each scale's byte-to-FP16-pair table across tensors and guesses. */
 export function fp4ToHalf(bytes: Uint8Array): Uint16Array {
   if (bytes.length % 18) throw new Error('Invalid FP4 model block.')
   const result = new Uint16Array((bytes.length / 18) * 32)
-  const tables = new Map<number, Uint16Array>()
+  const pairs = new Uint32Array(result.buffer)
   const levels = [0, 0.5, 1, 1.5, 2, 3, 4, 6]
   let output = 0
   for (let start = 0; start < bytes.length; start += 18) {
     const bits = bytes[start] | (bytes[start + 1] << 8)
-    let table = tables.get(bits)
+    let table = fp4Tables[bits]
     if (!table) {
       const scale = halfToFloat(bits)
       if (!(scale > 0) || !Number.isFinite(scale))
@@ -133,15 +149,20 @@ export function fp4ToHalf(bytes: Uint8Array): Uint16Array {
       const positive = floatToHalf(
         new Float32Array(levels.map((v) => v * scale)),
       )
-      table = new Uint16Array(16)
-      table.set(positive)
-      for (let i = 0; i < 8; i++) table[i + 8] = positive[i] | 0x8000
-      tables.set(bits, table)
+      const values = new Uint16Array(16)
+      values.set(positive)
+      for (let i = 0; i < 8; i++) values[i + 8] = positive[i] | 0x8000
+      table = new Uint32Array(256)
+      // Use a shared view so the pair copy also works on either byte order.
+      const halves = new Uint16Array(table.buffer)
+      for (let i = 0; i < 256; i++) {
+        halves[2 * i] = values[i & 15]
+        halves[2 * i + 1] = values[i >>> 4]
+      }
+      fp4Tables[bits] = table
     }
-    for (let i = start + 2; i < start + 18; i++) {
-      result[output++] = table[bytes[i] & 15]
-      result[output++] = table[bytes[i] >>> 4]
-    }
+    for (let i = start + 2; i < start + 18; i++)
+      pairs[output++] = table[bytes[i]]
   }
   return result
 }

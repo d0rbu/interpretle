@@ -5,6 +5,7 @@ import {
   cachedFile,
   downloadWeights,
   pruneModelCache,
+  readRanges,
   saeEncoder,
 } from './model-cache'
 import type { WeightSource } from './model-cache'
@@ -377,6 +378,47 @@ it('reads the last of all 65,536 encoder features entirely from cache', async ()
   expect(last.threshold).toBe(4.75)
   expect(fetch).not.toHaveBeenCalled()
   await expect(saeEncoder(cache, source, 65536)).rejects.toThrow('outside')
+})
+
+it('reads overlapping tensor ranges and split tensors with one read per cached chunk', async () => {
+  const data = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
+  const parts = [chunk(data.subarray(0, 4)), chunk(data.subarray(4), 4)]
+  for (const part of parts)
+    entries.set(
+      `https://interpretle.com/__model_cache/${part.sha256}`,
+      new Response(data.slice(part.offset, part.offset + part.bytes)),
+    )
+  const match = vi.spyOn(cache, 'match')
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  expect(
+    await readRanges(cache, { tensors: {}, chunks: parts }, [
+      { offset: 0, bytes: 4 },
+      { offset: 1, bytes: 2 },
+      { offset: 3, bytes: 3 },
+    ]),
+  ).toEqual([data.slice(0, 4), data.slice(1, 3), data.slice(3, 6)])
+  expect(match).toHaveBeenCalledTimes(2)
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('fails on missing, incomplete or out-of-range cached weights without fetching them', async () => {
+  const data = new Uint8Array([1, 2, 3, 4])
+  const part = chunk(data)
+  const source = { tensors: {}, chunks: [part] }
+  const ranges = [{ offset: 0, bytes: 4 }]
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await expect(readRanges(cache, source, ranges)).rejects.toThrow('cleared')
+  const key = `https://interpretle.com/__model_cache/${part.sha256}`
+  entries.set(key, new Response(data.subarray(0, 3)))
+  await expect(readRanges(cache, source, ranges)).rejects.toThrow('incomplete')
+  expect(entries.has(key)).toBe(false)
+  entries.set(key, new Response(data))
+  await expect(
+    readRanges(cache, source, [{ offset: 0, bytes: 5 }]),
+  ).rejects.toThrow('outside')
+  expect(fetch).not.toHaveBeenCalled()
 })
 
 it('resumes a partially saved weight file across preparations without requesting saved pieces', async () => {

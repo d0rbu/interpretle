@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import Heatmap from './components/Heatmap'
@@ -35,7 +35,14 @@ import {
   storageKey,
   validateCustom,
 } from './lib/game'
-import type { Catalog, Feature, Game, Mode, Passage } from './lib/types'
+import type {
+  Catalog,
+  Feature,
+  Game,
+  Mode,
+  Passage,
+  TokenSpan,
+} from './lib/types'
 
 const HELP_KEY = 'interpretle:instructions-seen'
 const PRACTICE_KEY = 'interpretle:practice-seed'
@@ -340,6 +347,10 @@ function Board({
   const [text, setText] = useState('')
   const [writing, setWriting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [tokenized, setTokenized] = useState<{
+    text: string
+    tokens: TokenSpan[]
+  }>()
   const [busy, setBusy] = useState('')
   const [progress, setProgress] = useState<number>()
   const [error, setError] = useState('')
@@ -348,6 +359,8 @@ function Board({
   const [celebrate, setCelebrate] = useState(false)
   const controller = useRef<AbortController | null>(null)
   const loading = useRef<Promise<boolean> | null>(null)
+  const inputElement = useRef<HTMLTextAreaElement>(null)
+  const previewElement = useRef<HTMLDivElement>(null)
   const phase = status(game)
   const cards = choices(game, feature)
   const best = bestScore(game)
@@ -358,6 +371,10 @@ function Board({
   useEffect(() => {
     trackGame('puzzle_view', game)
   }, [])
+  useLayoutEffect(() => {
+    if (previewElement.current && inputElement.current)
+      previewElement.current.scrollTop = inputElement.current.scrollTop
+  }, [tokenized])
 
   function reportProgress(message: string, fraction?: number) {
     setBusy(message)
@@ -423,6 +440,7 @@ function Board({
           catalog.browserModel,
           reportProgress,
           controller.current.signal,
+          (tokens) => setTokenized({ text: input, tokens }),
         )
         next = playCustom(
           game,
@@ -465,6 +483,7 @@ function Board({
       )
     } finally {
       setSubmitting(false)
+      setTokenized(undefined)
       if (!loading.current) {
         setBusy('')
         controller.current = null
@@ -579,48 +598,75 @@ function Board({
                   setWriting(false)
               }}
             >
-              <textarea
-                aria-label="Your sentence"
-                aria-description="Enter to submit. Shift+Enter for a new line."
-                aria-describedby={
-                  [
-                    !error && (text || writing) ? 'custom-count' : '',
-                    error ? 'custom-error' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ') || undefined
-                }
-                placeholder={`Write your own (${customRemaining(game)} left)`}
-                value={text}
-                onChange={(event) =>
-                  setText(
-                    Array.from(event.target.value)
-                      .slice(0, MAX_CUSTOM_LENGTH)
-                      .join(''),
-                  )
-                }
-                onFocus={() => {
-                  setWriting(true)
-                  trackGame('writein_open', game, {
-                    attempt: game.guesses.length + 1,
-                  })
-                  void loadModel()
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault()
-                    void submit()
+              <div className="write-in-editor">
+                <textarea
+                  ref={inputElement}
+                  className={tokenized ? 'tokenized' : undefined}
+                  aria-label="Your sentence"
+                  aria-description={
+                    tokenized
+                      ? 'Scoring your sentence. Animated highlights indicate loading, not activation scores.'
+                      : 'Enter to submit. Shift+Enter for a new line.'
                   }
-                }}
-                rows={3}
-                enterKeyHint="send"
-                readOnly={submitting}
-                disabled={customRemaining(game) === 0}
-              />
+                  aria-busy={submitting}
+                  aria-describedby={
+                    [
+                      !error && (text || writing) ? 'custom-count' : '',
+                      error ? 'custom-error' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
+                  placeholder={`Write your own (${customRemaining(game)} left)`}
+                  value={text}
+                  onChange={(event) =>
+                    setText(
+                      Array.from(event.target.value)
+                        .slice(0, MAX_CUSTOM_LENGTH)
+                        .join(''),
+                    )
+                  }
+                  onFocus={() => {
+                    setWriting(true)
+                    trackGame('writein_open', game, {
+                      attempt: game.guesses.length + 1,
+                    })
+                    void loadModel()
+                  }}
+                  onScroll={(event) => {
+                    if (previewElement.current)
+                      previewElement.current.scrollTop =
+                        event.currentTarget.scrollTop
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault()
+                      void submit()
+                    }
+                  }}
+                  rows={3}
+                  enterKeyHint="send"
+                  readOnly={submitting}
+                  disabled={customRemaining(game) === 0}
+                />
+                {tokenized && (
+                  <div
+                    className="write-in-preview"
+                    ref={previewElement}
+                    aria-hidden="true"
+                  >
+                    <Heatmap
+                      text={tokenized.text}
+                      tokens={tokenized.tokens}
+                      loading
+                    />
+                  </div>
+                )}
+              </div>
               {error && (
                 <p id="custom-error" className="error" role="alert">
                   {error}

@@ -296,6 +296,20 @@ main {
 .token {
   padding: 2px 0;
 }
+.heatmap-loading .token {
+  background-color: light-dark(#ea963e38, #96551480);
+  animation: token-wave 1.8s ease-in-out infinite both;
+}
+@keyframes token-wave {
+  0%,
+  65%,
+  100% {
+    background-color: light-dark(#ea963e20, #96551450);
+  }
+  30% {
+    background-color: light-dark(#ea963ea8, #b47226e0);
+  }
+}
 .token-space[data-flow] {
   position: relative;
 }
@@ -411,6 +425,12 @@ main {
   right: 6px;
   margin: 0;
 }
+.write-in-editor {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
 .write-in textarea {
   flex: 1;
   min-height: 0;
@@ -422,6 +442,27 @@ main {
   font-size: 14px;
   line-height: 1.6;
   resize: none;
+  scrollbar-gutter: stable;
+}
+.write-in textarea.tokenized {
+  color: transparent;
+  caret-color: transparent;
+}
+.write-in-preview {
+  position: absolute;
+  inset: 0;
+  padding: 14px 16px 4px;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  pointer-events: none;
+}
+.write-in-preview .heatmap-text {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.write-in-preview .passage-word,
+.write-in-preview .passage-piece {
+  display: inline;
 }
 .write-in textarea:focus-visible {
   outline: none;
@@ -708,6 +749,9 @@ textarea {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .heatmap-loading .token {
+    animation: none;
+  }
   .celebration {
     display: none;
   }

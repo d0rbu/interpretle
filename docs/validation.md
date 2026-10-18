@@ -218,6 +218,39 @@ against native FP4 both before and after the change, exceeding the 1% native
 threshold. Its activation mask still matched, and the optimization preserved its
 existing output exactly; this does not establish native parity for that case.
 
+Weight preparation now runs in a separate worker: cached chunks are read together,
+FP4 values are restored using shared byte-pair lookup tables, and completed arrays
+are transferred to the inference worker. The preparation queue reserves its output
+bytes before scheduling work, with a hard limit of 2,000,000,000 bytes on every
+device, for both GPU and CPU execution. That fits ten prepared GPU layers or five
+CPU layers. Reads and conversion overlap with inference; no server scoring or
+new model format is involved.
+
+Sizes calculated from the pinned manifest (decimal GB, weights only):
+
+| Prepared weights                                        | FP16 GPU | FP32 CPU |
+| ------------------------------------------------------- | -------: | -------: |
+| Largest single layer                                    |    0.212 |    0.425 |
+| Largest ten-layer window                                |    1.914 |    3.828 |
+| Largest eleven-layer window                             |    2.100 |    4.200 |
+| All 22 transformer layers                               |    4.174 |    8.348 |
+| Full trimmed model, including complete embedding tables |    8.498 |   16.995 |
+
+The 2 GB limit covers prepared future layers. The current layer, temporary packed
+reads, runtime allocations, activations and GPU buffers are additional. The complete
+SAE encoder adds 0.672 GB in browser storage; scoring reads only its selected row.
+
+With this queue, the same three-case Chromium/RTX 4090 comparison preserved
+every token ID, offset and activation exactly, including the existing Unicode
+MLP limitation above. No weights were fetched during scoring. Median scoring
+time fell from 10.741 to 5.762 seconds; time waiting for weights fell from 5.955
+to 0.332 seconds. The largest observed prepared queue was 1,887,704,084 bytes.
+These are shared-machine measurements, not MacBook results. An exhaustive check
+of all 65,536 FP16 scale encodings and all 256 packed bytes also preserved the
+previous converter's output bits and rejected scales exactly. The Firefox CPU
+regression case retained every token ID, offset and activation exactly, with no
+scoring-time weight requests.
+
 ## Interface and results
 
 The unit/data and desktop/mobile browser checks cover six-attempt new games,
@@ -239,6 +272,11 @@ the actual elements relative to their card with the Web Animations API; it does
 not require view transitions. Collapsing context keeps tokens on one line while
 they return to normal weight, without a jump at the start of the animation.
 Devices requesting reduced motion update immediately.
+Write-ins reuse the same token rendering with a loading wave over actual tokenizer
+offsets. Intermediate token messages carry no activations and cannot complete or
+charge an attempt. The overlay preserves the draft, focus, scroll position and
+card height; completion, cancellation and errors remove it. Reduced motion uses a
+static tint. Preview tokens and text are never included in analytics.
 Checks also cover background model preparation without blocking stored passages,
 joining the same download on focus, silent cancellation and retries,
 queued Enter submission, the `0/280` counter, Unicode

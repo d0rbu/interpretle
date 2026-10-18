@@ -398,10 +398,10 @@ export async function saeEncoder(
   if (!Number.isInteger(index) || index < 0 || index >= matrix.shape[0])
     throw new Error('This SAE feature is outside the downloaded dictionary.')
   const width = matrix.shape[1]
-  const parts = await Promise.all([
-    readRange(cache, source, matrix.offset + index * width * 4, width * 4),
-    readRange(cache, source, source.tensors.b_enc.offset + index * 4, 4),
-    readRange(cache, source, source.tensors.threshold.offset + index * 4, 4),
+  const parts = await readRanges(cache, source, [
+    { offset: matrix.offset + index * width * 4, bytes: width * 4 },
+    { offset: source.tensors.b_enc.offset + index * 4, bytes: 4 },
+    { offset: source.tensors.threshold.offset + index * 4, bytes: 4 },
   ])
   return {
     weight: new Float32Array(parts[0].buffer),
@@ -410,33 +410,58 @@ export async function saeEncoder(
   }
 }
 
-export async function readRange(
+/** Read a layer's packed tensors together, loading each cached chunk once. */
+export async function readRanges(
   cache: Cache,
   source: WeightSource,
-  start: number,
-  length: number,
+  ranges: Pick<TensorInfo, 'offset' | 'bytes'>[],
 ) {
-  const result = new Uint8Array(length)
-  let copied = 0
-  for (const chunk of source.chunks) {
-    const from = Math.max(start, chunk.offset),
-      to = Math.min(start + length, chunk.offset + chunk.bytes)
-    if (to <= from) continue
-    const saved = await cache.match(key(chunk))
-    if (!saved)
-      throw new Error(
-        'The browser cleared part of the model cache. Load the model again; no attempt was used.',
+  const chunks = await Promise.all(
+    source.chunks
+      .filter((chunk) =>
+        ranges.some(
+          (range) =>
+            range.offset < chunk.offset + chunk.bytes &&
+            range.offset + range.bytes > chunk.offset,
+        ),
       )
-    const bytes = new Uint8Array(await saved.arrayBuffer())
-    result.set(
-      bytes.subarray(from - chunk.offset, to - chunk.offset),
-      from - start,
+      .map(async (chunk) => {
+        const saved = await cache.match(key(chunk))
+        if (!saved)
+          throw new Error(
+            'The browser cleared part of the model cache. Load the model again; no attempt was used.',
+          )
+        const data = new Uint8Array(await saved.arrayBuffer())
+        if (data.length !== chunk.bytes) {
+          await cache.delete(key(chunk))
+          throw new Error(
+            'The cached model weights are incomplete. Reload the model.',
+          )
+        }
+        return { ...chunk, data }
+      }),
+  )
+  return ranges.map(({ offset, bytes }) => {
+    const whole = chunks.find(
+      (chunk) => chunk.offset === offset && chunk.bytes === bytes,
     )
-    copied += to - from
-  }
-  if (copied !== length)
-    throw new Error('Model tensor is outside the downloaded weights.')
-  return result
+    if (whole) return whole.data
+    const result = new Uint8Array(bytes)
+    let copied = 0
+    for (const chunk of chunks) {
+      const from = Math.max(offset, chunk.offset),
+        to = Math.min(offset + bytes, chunk.offset + chunk.bytes)
+      if (to <= from) continue
+      result.set(
+        chunk.data.subarray(from - chunk.offset, to - chunk.offset),
+        from - offset,
+      )
+      copied += to - from
+    }
+    if (copied !== bytes)
+      throw new Error('Model tensor is outside the downloaded weights.')
+    return result
+  })
 }
 
 /** Read only relevant cached chunks, once each, without loading a multi-GB table. */

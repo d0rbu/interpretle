@@ -1,4 +1,4 @@
-import type { Catalog, Feature, TokenActivation } from './types'
+import type { Catalog, Feature, TokenActivation, TokenSpan } from './types'
 import { modelError } from './model-error'
 import { modelProblem, track } from './analytics'
 
@@ -21,6 +21,7 @@ function run<T>(
   message: object,
   progress: Progress,
   signal: AbortSignal,
+  onTokens?: (tokens: TokenSpan[]) => void,
 ): Promise<T> {
   if (running)
     return Promise.reject(new Error('The local model is already busy.'))
@@ -46,6 +47,7 @@ function run<T>(
     }
     current.onmessage = ({ data }) => {
       if (data.progress) progress(data.progress, data.fraction)
+      else if (data.tokens) onTokens?.(data.tokens)
       else {
         finish()
         if (data.error) {
@@ -179,6 +181,7 @@ export function scoreInBrowser(
   model: BrowserModel,
   progress: Progress,
   signal: AbortSignal,
+  onTokens?: (tokens: TokenSpan[]) => void,
 ) {
   return run<TokenActivation[]>(
     {
@@ -192,6 +195,7 @@ export function scoreInBrowser(
     },
     progress,
     signal,
+    onTokens,
   ).catch((cause) => {
     if (cause instanceof DOMException && cause.name === 'AbortError')
       track('model_cancel')

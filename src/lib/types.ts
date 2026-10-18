@@ -1,10 +1,13 @@
 export type Band = 0 | 50 | 90 | 95 | 99 | 99.9
 export type Mode = 'daily' | 'practice'
 
-export interface TokenActivation {
+export interface TokenSpan {
   id: number
   start: number
   end: number
+}
+
+export interface TokenActivation extends TokenSpan {
   activation: number
 }
 

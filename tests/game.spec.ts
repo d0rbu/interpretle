@@ -1012,6 +1012,119 @@ test('keeps stored choices playable during downloads and cancels after blur with
   await expect(page.locator('.passage-select').first()).toBeEnabled()
 })
 
+test('waves over tokenized write-ins while scoring and restores drafts on cancel or failure', async ({
+  page,
+}) => {
+  await page.route('**/puzzles/index.json', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        browserModel: { manifest: '/model/test.json', bytes: 100 },
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    window.Worker = class {
+      onmessage: ((event: { data: object }) => void) | null = null
+      postMessage({ type }: { type: string }) {
+        if (type === 'prepare') {
+          this.onmessage?.({ data: { result: null } })
+          return
+        }
+        // Include a Unicode character split across byte-fallback tokens.
+        const tokens = [
+          [0, 1],
+          [1, 4],
+          [4, 6],
+          [6, 7],
+          [7, 9],
+          [7, 9],
+          [9, 10],
+        ].map(([start, end], id) => ({ id, start, end }))
+        this.onmessage?.({ data: { tokens } })
+        this.onmessage?.({
+          data: { progress: 'Scoring: GPU · Layer 1/22…', fraction: 0.1 },
+        })
+        Object.assign(window, {
+          finishWriteIn: (fail: boolean) =>
+            this.onmessage?.({
+              data: fail
+                ? { error: 'The test GPU stopped.' }
+                : {
+                    result: tokens.map((token) => ({
+                      ...token,
+                      activation: 5001,
+                    })),
+                  },
+            }),
+        })
+      }
+      terminate() {}
+    } as unknown as typeof Worker
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const input = page.getByRole('textbox', {
+    name: 'Your sentence',
+    exact: true,
+  })
+  const card = page.locator('.write-in')
+  const preview = card.locator('.write-in-preview')
+  const finish = (fail: boolean) =>
+    page.evaluate(
+      (fail) =>
+        (
+          window as unknown as { finishWriteIn(fail: boolean): void }
+        ).finishWriteIn(fail),
+      fail,
+    )
+  await input.fill('A café 😀.')
+  const height = (await card.boundingBox())!.height
+  await input.press('Enter')
+  await expect(preview).toBeVisible()
+  await expect(preview).toHaveText('A café 😀.')
+  await expect(input).toBeFocused()
+  await expect(input).toHaveAttribute('readonly', '')
+  await expect(input).toHaveAttribute('aria-busy', 'true')
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
+  await expect(page.locator('.history')).toHaveCount(0)
+  expect((await card.boundingBox())!.height).toBe(height)
+  const animated = preview.locator('.token').first()
+  await expect(animated).toHaveCSS('animation-name', 'token-wave')
+  const delays = await preview
+    .locator('.token')
+    .evaluateAll((tokens) =>
+      tokens.map((token) => getComputedStyle(token).animationDelay),
+    )
+  expect(new Set(delays).size).toBeGreaterThan(3)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(animated).toHaveCSS('animation-name', 'none')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await expect(animated).toHaveCSS('animation-name', 'token-wave')
+  await card.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(preview).toHaveCount(0)
+  await expect(input).toHaveValue('A café 😀.')
+  await expect(page.locator('.game-status')).toContainText('Attempt 1 of 6')
+  await input.press('Enter')
+  await expect(preview).toBeVisible()
+  await finish(true)
+  await expect(preview).toHaveCount(0)
+  await expect(card.getByRole('alert')).toContainText('The test GPU stopped.')
+  await expect(input).toHaveValue('A café 😀.')
+  expect((await card.boundingBox())!.height).toBe(height)
+  await input.press('Enter')
+  await expect(preview).toBeVisible()
+  await finish(false)
+  await expect(preview).toHaveCount(0)
+  await expect(page.locator('.game-status')).toContainText('Attempt 2 of 6')
+  await expect(page.locator('.history .heatmap-text')).toHaveText('A café 😀.')
+  await expect(page.locator('.history .token').first()).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  await expect(input).toHaveValue('')
+})
+
 test('shows the worker failure reason without growing the card or losing a draft', async ({
   page,
 }) => {

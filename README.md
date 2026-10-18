@@ -102,6 +102,9 @@ and caches it in browser storage. Stored passages remain playable during backgro
 Focusing the write-in card joins that download and shows progress beside a Cancel
 button. Type directly into the card; Enter submits and Shift+Enter adds a newline.
 Enter during loading waits for the model to be ready. Each puzzle allows two write-ins.
+After tokenization, the card shows the tokenizer's actual text spans with a loading
+wave until scoring finishes. The wave is not an activation measurement; completed
+guesses use the measured highlights. Reduced-motion settings disable the wave.
 It needs enough browser storage and memory; a dedicated graphics card is not required.
 CPU scoring can take longer, and stays in a worker so the game remains responsive. Loading,
 cancelled runs, unsupported devices, and failed inference do not consume an
@@ -153,7 +156,12 @@ The client checks download hashes and never contacts an
 inference service. All required weight chunks are downloaded **before** looking
 up input tokens, so input-dependent embedding requests cannot disclose text.
 Packed weights are restored to FP16 for inference, with FP32 matrix accumulation
-and reductions. Floating-point layer outputs stay on the GPU between execution
+and reductions. A separate worker reads and expands weights while inference runs,
+transferring the finished buffers without copying them. Prepared weights have a
+2 GB buffer budget on every device, for both GPU and CPU execution.
+The queue reserves the actual output size before preparing a layer. The current
+layer and runtime allocations are additional. This keeps weight conversion off the inference thread without
+keeping the whole model expanded. Floating-point layer outputs stay on the GPU between execution
 steps; shape outputs stay on the CPU. Per-layer embeddings and the final feature
 tensor are downloaded when needed. The CPU graphs compute in FP32 and preserve the
 FP16 rounding boundaries, reusing the same downloaded weights and SAE.
