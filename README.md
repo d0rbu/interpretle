@@ -153,7 +153,9 @@ The client checks download hashes and never contacts an
 inference service. All required weight chunks are downloaded **before** looking
 up input tokens, so input-dependent embedding requests cannot disclose text.
 Packed weights are restored to FP16 for inference, with FP32 matrix accumulation
-and reductions. The CPU graphs compute in FP32 and explicitly preserve the
+and reductions. Floating-point layer outputs stay on the GPU between execution
+steps; shape outputs stay on the CPU. Per-layer embeddings and the final feature
+tensor are downloaded when needed. The CPU graphs compute in FP32 and preserve the
 FP16 rounding boundaries, reusing the same downloaded weights and SAE.
 CPU execution uses up to four threads when the browser allows shared memory,
 otherwise one. Its pinned runtime is hosted on Cloudflare; the larger GPU runtime

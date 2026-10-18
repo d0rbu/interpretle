@@ -22,7 +22,7 @@ import { modelError } from './model-error'
 import { runSteps } from './model-steps'
 import type { ModelStep } from './model-steps'
 
-type Asset = ModelAsset
+type Asset = ModelAsset & { gpuOutputs?: string[] }
 type Graph = Asset & {
   weights: Record<string, string>
   steps?: (Asset & { label: string })[]
@@ -196,6 +196,12 @@ async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
               ? [{ name: 'webgpu', device }]
               : ['wasm'],
             graphOptimizationLevel: 'disabled',
+            // Keep activations on the GPU between steps; shape outputs stay on CPU.
+            preferredOutputLocation: device
+              ? Object.fromEntries(
+                  (part.gpuOutputs ?? []).map((name) => [name, 'gpu-buffer']),
+                )
+              : undefined,
           },
         ),
       })
@@ -238,12 +244,13 @@ async function weights(graph: Graph, layer?: number) {
   return result
 }
 
-function halfBits(tensor: Ort.Tensor) {
-  if (tensor.type === 'float32') return floatToHalf(tensor.data as Float32Array)
+async function halfBits(tensor: Ort.Tensor) {
+  const data = await tensor.getData()
+  if (tensor.type === 'float32') return floatToHalf(data as Float32Array)
   // ORT returns Float16Array on newer browsers and Uint16Array on older ones.
   // Read the same underlying bits in either case.
-  const data = tensor.data as Uint16Array
-  return new Uint16Array(data.buffer, data.byteOffset, data.byteLength / 2)
+  const bits = data as Uint16Array
+  return new Uint16Array(bits.buffer, bits.byteOffset, bits.byteLength / 2)
 }
 
 async function score(
@@ -298,7 +305,7 @@ async function score(
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
   let hidden = embedding.hidden
   let mlp: Ort.Tensor | undefined
-  const allPerLayer = halfBits(embedding.per_layer)
+  const allPerLayer = await halfBits(embedding.per_layer)
   const maskData = new Uint16Array(length * length)
   for (let row = 0; row < length; row++)
     maskData.fill(0xfbff, row * length + row + 1, (row + 1) * length)
@@ -336,7 +343,7 @@ async function score(
     if (captureMlp) mlp = output.mlp
   }
   report('Feature activation')
-  const values = halfBits(mlp ?? hidden)
+  const values = await halfBits(mlp ?? hidden)
   if (values.some((value) => (value & 0x7c00) === 0x7c00))
     throw new Error(
       'The local model returned non-finite values. No attempt was used.',

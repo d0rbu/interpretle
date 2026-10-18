@@ -201,6 +201,23 @@ confirmed that the new checkpointed CPU output is bit-for-bit identical to the
 previous whole-layer output on this case as well; all 15 progress stages were
 reported, with no scoring-time weight requests.
 
+WebGPU now keeps floating-point outputs on the GPU between execution steps;
+integer shape outputs remain on the CPU. The graphs, weights and precision are
+unchanged. A paired compiled-worker check on an NVIDIA RTX 4090 with Chromium
+and Linux Vulkan preserved every token ID, offset and activation exactly across
+three SAE/MLP cases, including Unicode text. No weights were downloaded during
+scoring. The median scoring time was 10.846 seconds before and 9.012 seconds after
+the change (about 17% faster). This was a shared, busy GPU, not a controlled
+hardware benchmark or a MacBook measurement.
+The Firefox CPU regression case also retained exactly the same token IDs,
+offsets and activations as the previous compiled worker (0.0559% relative L2
+error against native FP4).
+
+On that GPU, the same Unicode MLP stress case had **1.0903%** relative L2 error
+against native FP4 both before and after the change, exceeding the 1% native
+threshold. Its activation mask still matched, and the optimization preserved its
+existing output exactly; this does not establish native parity for that case.
+
 ## Interface and results
 
 The unit/data and desktop/mobile browser checks cover six-attempt new games,

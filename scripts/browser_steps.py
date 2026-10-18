@@ -34,6 +34,14 @@ BOUNDARIES = [
 ]
 
 
+def gpu_outputs(graph):
+    # Shape tensors stay on the CPU; floating-point activations stay on the GPU.
+    return [v.name for v in graph.output
+            if v.type.tensor_type.elem_type in (
+                onnx.TensorProto.FLOAT16, onnx.TensorProto.FLOAT,
+            )]
+
+
 def split(asset, root):
     path = root / Path(asset['url']).name
     model = onnx.shape_inference.infer_shapes(onnx.load(path))
@@ -62,7 +70,8 @@ def split(asset, root):
         digest = hashlib.sha256(data).hexdigest()
         filename = f'{path.stem}-step-{len(steps):02}-{digest[:12]}.onnx'
         (root / filename).write_bytes(data)
-        steps.append(dict(label=label, url=f'/model/{filename}', sha256=digest))
+        steps.append(dict(label=label, url=f'/model/{filename}', sha256=digest,
+                          gpuOutputs=gpu_outputs(part.graph)))
         start = end
     assert start == len(nodes)
     return steps
@@ -78,6 +87,9 @@ if __name__ == '__main__':
         for name, asset in manifest[kind].items():
             if name != 'embedding':
                 asset['steps'] = split(asset, args.manifest.parent)
+            else:
+                path = args.manifest.parent / Path(asset['url']).name
+                asset['gpuOutputs'] = gpu_outputs(onnx.load(path).graph)
     manifest['version'] = str(manifest['version']) + '-steps'
     args.output.write_text(json.dumps(manifest, indent=2) + '\n')
     print(f'Wrote {args.output}; weights and full-quality scores unchanged.')

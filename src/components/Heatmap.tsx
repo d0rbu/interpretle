@@ -56,6 +56,7 @@ export default function Heatmap({
   }
   parts.forEach((part, index) => {
     const activation = Math.max(...part.tokens.map((token) => token.activation))
+    // A small nonzero tint keeps weak activations visible on every feature's scale.
     const strength =
       feature && activation > 0
         ? Math.min(1, activation / feature.displayScale)
@@ -85,7 +86,7 @@ export default function Heatmap({
           style={{
             backgroundColor:
               strength > 0
-                ? `light-dark(color-mix(in srgb, #ea963ed1 ${100 * strength}%, transparent), color-mix(in srgb, #965514 ${Math.min(100, 200 * strength)}%, transparent))`
+                ? `light-dark(color-mix(in srgb, #ea963ed1 ${20 + 80 * strength}%, transparent), color-mix(in srgb, #965514 ${Math.min(100, 20 + 160 * strength)}%, transparent))`
                 : 'transparent',
           }}
         >

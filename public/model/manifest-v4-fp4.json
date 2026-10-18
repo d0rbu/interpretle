@@ -141,7 +141,11 @@
       "weights": {
         "per_layer_model_projection.weight": "model.language_model.per_layer_model_projection.weight",
         "per_layer_projection_norm.weight": "model.language_model.per_layer_projection_norm.weight"
-      }
+      },
+      "gpuOutputs": [
+        "hidden",
+        "per_layer"
+      ]
     },
     "sliding": {
       "url": "/model/sliding-v2.onnx",
@@ -169,77 +173,126 @@
         {
           "label": "Input norm",
           "url": "/model/sliding-v2-step-00-0c1f87367b7f.onnx",
-          "sha256": "0c1f87367b7f8ba19145f91708c9549afbed83fb6b5819fc61bd67dac94ae647"
+          "sha256": "0c1f87367b7f8ba19145f91708c9549afbed83fb6b5819fc61bd67dac94ae647",
+          "gpuOutputs": [
+            "/layer/input_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "Q projection",
           "url": "/model/sliding-v2-step-01-bd4397f6c53c.onnx",
-          "sha256": "bd4397f6c53c83b4a22a8acb08d8909ec0b5d8a639e5bdd62980fa4373743b5e"
+          "sha256": "bd4397f6c53c83b4a22a8acb08d8909ec0b5d8a639e5bdd62980fa4373743b5e",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_output_0"
+          ]
         },
         {
           "label": "Q norm & position",
           "url": "/model/sliding-v2-step-02-e6b6ef3dd44c.onnx",
-          "sha256": "e6b6ef3dd44c9176a0bd03e5dd926e82f3214ac125fa21d8ceb30be380d28d4e"
+          "sha256": "e6b6ef3dd44c9176a0bd03e5dd926e82f3214ac125fa21d8ceb30be380d28d4e",
+          "gpuOutputs": [
+            "/layer/self_attn/Unsqueeze_12_output_0",
+            "/layer/self_attn/Unsqueeze_13_output_0",
+            "/layer/self_attn/Transpose_output_0"
+          ]
         },
         {
           "label": "K projection",
           "url": "/model/sliding-v2-step-03-e91f9db0d647.onnx",
-          "sha256": "e91f9db0d6477217c4841766d738908c2c231c81d31468c22761dde672bda516"
+          "sha256": "e91f9db0d6477217c4841766d738908c2c231c81d31468c22761dde672bda516",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_1_output_0"
+          ]
         },
         {
           "label": "V projection",
           "url": "/model/sliding-v2-step-04-2905b30cb7da.onnx",
-          "sha256": "2905b30cb7da2856ac67bb7d2b4314b8587600e8f3b917e4daa252dc04198880"
+          "sha256": "2905b30cb7da2856ac67bb7d2b4314b8587600e8f3b917e4daa252dc04198880",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_2_output_0"
+          ]
         },
         {
           "label": "K/V norms & position",
           "url": "/model/sliding-v2-step-05-2a9571a486be.onnx",
-          "sha256": "2a9571a486be4a0732a622797849e120f922837c262feda517e5e4351357f6ab"
+          "sha256": "2a9571a486be4a0732a622797849e120f922837c262feda517e5e4351357f6ab",
+          "gpuOutputs": [
+            "/layer/self_attn/Transpose_1_output_0",
+            "/layer/self_attn/Transpose_2_output_0"
+          ]
         },
         {
           "label": "Attention",
           "url": "/model/sliding-v2-step-06-7d7fc9e7165a.onnx",
-          "sha256": "7d7fc9e7165a6bce8e6142ae9213765cc25197c6a58b36527da4c06792c8ca91"
+          "sha256": "7d7fc9e7165a6bce8e6142ae9213765cc25197c6a58b36527da4c06792c8ca91",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_7_output_0"
+          ]
         },
         {
           "label": "O projection",
           "url": "/model/sliding-v2-step-07-29daa7ffa25f.onnx",
-          "sha256": "29daa7ffa25f0ba0308612944eb8850ed5162591a79e3448ef8a048d1b107334"
+          "sha256": "29daa7ffa25f0ba0308612944eb8850ed5162591a79e3448ef8a048d1b107334",
+          "gpuOutputs": [
+            "/layer/self_attn/o_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "Attention & MLP norms",
           "url": "/model/sliding-v2-step-08-eae3877e9567.onnx",
-          "sha256": "eae3877e956789714818b1af5537957c4f586288548d7f04abbccb5dd45a2391"
+          "sha256": "eae3877e956789714818b1af5537957c4f586288548d7f04abbccb5dd45a2391",
+          "gpuOutputs": [
+            "/layer/Add_output_0",
+            "/layer/pre_feedforward_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "MLP gate projection",
           "url": "/model/sliding-v2-step-09-823f87fb3a96.onnx",
-          "sha256": "823f87fb3a96ee9d080cb7e3cb89308a4b4ad641c8eb88a5c7af77df73c5ab60"
+          "sha256": "823f87fb3a96ee9d080cb7e3cb89308a4b4ad641c8eb88a5c7af77df73c5ab60",
+          "gpuOutputs": [
+            "/layer/mlp/act_fn/Cast_1_output_0"
+          ]
         },
         {
           "label": "MLP up projection",
           "url": "/model/sliding-v2-step-10-123c5e8364ba.onnx",
-          "sha256": "123c5e8364ba62066f3efca5204659aaecd3a5349c596ae56ddd4a3f69d248f6"
+          "sha256": "123c5e8364ba62066f3efca5204659aaecd3a5349c596ae56ddd4a3f69d248f6",
+          "gpuOutputs": [
+            "mlp"
+          ]
         },
         {
           "label": "MLP down projection",
           "url": "/model/sliding-v2-step-11-e392bbe502f6.onnx",
-          "sha256": "e392bbe502f6414a717b30522aea364b28c42ee36f8dc6f5527485545a906bf5"
+          "sha256": "e392bbe502f6414a717b30522aea364b28c42ee36f8dc6f5527485545a906bf5",
+          "gpuOutputs": [
+            "/layer/mlp/down_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "MLP norm & residual",
           "url": "/model/sliding-v2-step-12-6f93168c5e7c.onnx",
-          "sha256": "6f93168c5e7c75436c0683e6ceb7f19d77a481dca08b8ec3acd10a150efe106a"
+          "sha256": "6f93168c5e7c75436c0683e6ceb7f19d77a481dca08b8ec3acd10a150efe106a",
+          "gpuOutputs": [
+            "/layer/Add_1_output_0"
+          ]
         },
         {
           "label": "Per-layer gate & projection",
           "url": "/model/sliding-v2-step-13-154bd8a24553.onnx",
-          "sha256": "154bd8a24553ca6c66c79440d51a57bd4b9dbd8ccf385b168b711166612cc018"
+          "sha256": "154bd8a24553ca6c66c79440d51a57bd4b9dbd8ccf385b168b711166612cc018",
+          "gpuOutputs": [
+            "/layer/per_layer_projection/MatMul_output_0"
+          ]
         },
         {
           "label": "Output norm & residual",
           "url": "/model/sliding-v2-step-14-83eb97b475aa.onnx",
-          "sha256": "83eb97b475aa30e6b63bcfe6d1400f2e480eead083f158fdeba94fa7b96c1b52"
+          "sha256": "83eb97b475aa30e6b63bcfe6d1400f2e480eead083f158fdeba94fa7b96c1b52",
+          "gpuOutputs": [
+            "output"
+          ]
         }
       ]
     },
@@ -269,77 +322,126 @@
         {
           "label": "Input norm",
           "url": "/model/full-v2-step-00-0c1f87367b7f.onnx",
-          "sha256": "0c1f87367b7f8ba19145f91708c9549afbed83fb6b5819fc61bd67dac94ae647"
+          "sha256": "0c1f87367b7f8ba19145f91708c9549afbed83fb6b5819fc61bd67dac94ae647",
+          "gpuOutputs": [
+            "/layer/input_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "Q projection",
           "url": "/model/full-v2-step-01-02cd1bd86cc2.onnx",
-          "sha256": "02cd1bd86cc212954af4f7bd2b7de584d2b5d8cb379c96cbf3ba3fd27975b758"
+          "sha256": "02cd1bd86cc212954af4f7bd2b7de584d2b5d8cb379c96cbf3ba3fd27975b758",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_output_0"
+          ]
         },
         {
           "label": "Q norm & position",
           "url": "/model/full-v2-step-02-0a10d3082005.onnx",
-          "sha256": "0a10d30820051238abbdd10e0f978ccde03b5f25b13c68ec3bf5ba091070786a"
+          "sha256": "0a10d30820051238abbdd10e0f978ccde03b5f25b13c68ec3bf5ba091070786a",
+          "gpuOutputs": [
+            "/layer/self_attn/Unsqueeze_12_output_0",
+            "/layer/self_attn/Unsqueeze_13_output_0",
+            "/layer/self_attn/Transpose_output_0"
+          ]
         },
         {
           "label": "K projection",
           "url": "/model/full-v2-step-03-18136a20248a.onnx",
-          "sha256": "18136a20248a4f6d65efc3e1524098bbae55e366af756a2999393566d574b4d4"
+          "sha256": "18136a20248a4f6d65efc3e1524098bbae55e366af756a2999393566d574b4d4",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_1_output_0"
+          ]
         },
         {
           "label": "V projection",
           "url": "/model/full-v2-step-04-af0cecbca288.onnx",
-          "sha256": "af0cecbca288707fb1d9c0d5eebb6e6f0cce9312283ee51ab5ec122c69ab83e0"
+          "sha256": "af0cecbca288707fb1d9c0d5eebb6e6f0cce9312283ee51ab5ec122c69ab83e0",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_2_output_0"
+          ]
         },
         {
           "label": "K/V norms & position",
           "url": "/model/full-v2-step-05-ea433a7f10c6.onnx",
-          "sha256": "ea433a7f10c6c35eba6707203befa67abc1ef84795d7a85153f244e77e18a9ee"
+          "sha256": "ea433a7f10c6c35eba6707203befa67abc1ef84795d7a85153f244e77e18a9ee",
+          "gpuOutputs": [
+            "/layer/self_attn/Transpose_1_output_0",
+            "/layer/self_attn/Transpose_2_output_0"
+          ]
         },
         {
           "label": "Attention",
           "url": "/model/full-v2-step-06-52f64acd3aaf.onnx",
-          "sha256": "52f64acd3aaf39d12d16c5a419f295e210103bab7e3b1b1324373038b1e14386"
+          "sha256": "52f64acd3aaf39d12d16c5a419f295e210103bab7e3b1b1324373038b1e14386",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_7_output_0"
+          ]
         },
         {
           "label": "O projection",
           "url": "/model/full-v2-step-07-aae1cf07f345.onnx",
-          "sha256": "aae1cf07f345e7953f80157587df81c5abb045a529a5d701bc5a5b939582c164"
+          "sha256": "aae1cf07f345e7953f80157587df81c5abb045a529a5d701bc5a5b939582c164",
+          "gpuOutputs": [
+            "/layer/self_attn/o_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "Attention & MLP norms",
           "url": "/model/full-v2-step-08-eae3877e9567.onnx",
-          "sha256": "eae3877e956789714818b1af5537957c4f586288548d7f04abbccb5dd45a2391"
+          "sha256": "eae3877e956789714818b1af5537957c4f586288548d7f04abbccb5dd45a2391",
+          "gpuOutputs": [
+            "/layer/Add_output_0",
+            "/layer/pre_feedforward_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "MLP gate projection",
           "url": "/model/full-v2-step-09-823f87fb3a96.onnx",
-          "sha256": "823f87fb3a96ee9d080cb7e3cb89308a4b4ad641c8eb88a5c7af77df73c5ab60"
+          "sha256": "823f87fb3a96ee9d080cb7e3cb89308a4b4ad641c8eb88a5c7af77df73c5ab60",
+          "gpuOutputs": [
+            "/layer/mlp/act_fn/Cast_1_output_0"
+          ]
         },
         {
           "label": "MLP up projection",
           "url": "/model/full-v2-step-10-123c5e8364ba.onnx",
-          "sha256": "123c5e8364ba62066f3efca5204659aaecd3a5349c596ae56ddd4a3f69d248f6"
+          "sha256": "123c5e8364ba62066f3efca5204659aaecd3a5349c596ae56ddd4a3f69d248f6",
+          "gpuOutputs": [
+            "mlp"
+          ]
         },
         {
           "label": "MLP down projection",
           "url": "/model/full-v2-step-11-e392bbe502f6.onnx",
-          "sha256": "e392bbe502f6414a717b30522aea364b28c42ee36f8dc6f5527485545a906bf5"
+          "sha256": "e392bbe502f6414a717b30522aea364b28c42ee36f8dc6f5527485545a906bf5",
+          "gpuOutputs": [
+            "/layer/mlp/down_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "MLP norm & residual",
           "url": "/model/full-v2-step-12-6f93168c5e7c.onnx",
-          "sha256": "6f93168c5e7c75436c0683e6ceb7f19d77a481dca08b8ec3acd10a150efe106a"
+          "sha256": "6f93168c5e7c75436c0683e6ceb7f19d77a481dca08b8ec3acd10a150efe106a",
+          "gpuOutputs": [
+            "/layer/Add_1_output_0"
+          ]
         },
         {
           "label": "Per-layer gate & projection",
           "url": "/model/full-v2-step-13-154bd8a24553.onnx",
-          "sha256": "154bd8a24553ca6c66c79440d51a57bd4b9dbd8ccf385b168b711166612cc018"
+          "sha256": "154bd8a24553ca6c66c79440d51a57bd4b9dbd8ccf385b168b711166612cc018",
+          "gpuOutputs": [
+            "/layer/per_layer_projection/MatMul_output_0"
+          ]
         },
         {
           "label": "Output norm & residual",
           "url": "/model/full-v2-step-14-83eb97b475aa.onnx",
-          "sha256": "83eb97b475aa30e6b63bcfe6d1400f2e480eead083f158fdeba94fa7b96c1b52"
+          "sha256": "83eb97b475aa30e6b63bcfe6d1400f2e480eead083f158fdeba94fa7b96c1b52",
+          "gpuOutputs": [
+            "output"
+          ]
         }
       ]
     }
@@ -24428,7 +24530,11 @@
       "weights": {
         "per_layer_model_projection.weight": "model.language_model.per_layer_model_projection.weight",
         "per_layer_projection_norm.weight": "model.language_model.per_layer_projection_norm.weight"
-      }
+      },
+      "gpuOutputs": [
+        "hidden",
+        "per_layer"
+      ]
     },
     "sliding": {
       "url": "/model/sliding-cpu-v1.onnx",
@@ -24456,77 +24562,126 @@
         {
           "label": "Input norm",
           "url": "/model/sliding-cpu-v1-step-00-996ad8395b51.onnx",
-          "sha256": "996ad8395b51bd9364c7c36afe7de1b3bf8f1842cda613501a2b95f383649a67"
+          "sha256": "996ad8395b51bd9364c7c36afe7de1b3bf8f1842cda613501a2b95f383649a67",
+          "gpuOutputs": [
+            "/layer/input_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "Q projection",
           "url": "/model/sliding-cpu-v1-step-01-228e901f8250.onnx",
-          "sha256": "228e901f8250a80afe6bf3c1e1d408b5708c150af90cc71482c3c088242797e8"
+          "sha256": "228e901f8250a80afe6bf3c1e1d408b5708c150af90cc71482c3c088242797e8",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_output_0"
+          ]
         },
         {
           "label": "Q norm & position",
           "url": "/model/sliding-cpu-v1-step-02-ed4abb83f12b.onnx",
-          "sha256": "ed4abb83f12bd90bd2d90d3024b04bcbd1b49b2b58af3c2512786c7b815bc40a"
+          "sha256": "ed4abb83f12bd90bd2d90d3024b04bcbd1b49b2b58af3c2512786c7b815bc40a",
+          "gpuOutputs": [
+            "/layer/self_attn/Unsqueeze_12_output_0",
+            "/layer/self_attn/Unsqueeze_13_output_0",
+            "/layer/self_attn/Transpose_output_0"
+          ]
         },
         {
           "label": "K projection",
           "url": "/model/sliding-cpu-v1-step-03-1181fd413e7d.onnx",
-          "sha256": "1181fd413e7dce4abbfef22f1b0d419bcf9d575a8cc4657399c297a31e273b47"
+          "sha256": "1181fd413e7dce4abbfef22f1b0d419bcf9d575a8cc4657399c297a31e273b47",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_1_output_0"
+          ]
         },
         {
           "label": "V projection",
           "url": "/model/sliding-cpu-v1-step-04-a18b154b169d.onnx",
-          "sha256": "a18b154b169dd4b78bba25f8aeb58a1c056559956276da333d01ab6f9a4d1d27"
+          "sha256": "a18b154b169dd4b78bba25f8aeb58a1c056559956276da333d01ab6f9a4d1d27",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_2_output_0"
+          ]
         },
         {
           "label": "K/V norms & position",
           "url": "/model/sliding-cpu-v1-step-05-b28f3c32b70e.onnx",
-          "sha256": "b28f3c32b70e3217a4ca4b411298b03390590be6aa13de5bbae98e957c550652"
+          "sha256": "b28f3c32b70e3217a4ca4b411298b03390590be6aa13de5bbae98e957c550652",
+          "gpuOutputs": [
+            "/layer/self_attn/Transpose_1_output_0",
+            "/layer/self_attn/Transpose_2_output_0"
+          ]
         },
         {
           "label": "Attention",
           "url": "/model/sliding-cpu-v1-step-06-9c8a7acbec85.onnx",
-          "sha256": "9c8a7acbec85f0b6d8255d47c27160b5cc8b2a8b548f6b43464906c360fd60a6"
+          "sha256": "9c8a7acbec85f0b6d8255d47c27160b5cc8b2a8b548f6b43464906c360fd60a6",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_7_output_0"
+          ]
         },
         {
           "label": "O projection",
           "url": "/model/sliding-cpu-v1-step-07-6bf8b786ab68.onnx",
-          "sha256": "6bf8b786ab683137ee067f3a99a2c0cae95d8dd69b83344815cd36795ab4fcd5"
+          "sha256": "6bf8b786ab683137ee067f3a99a2c0cae95d8dd69b83344815cd36795ab4fcd5",
+          "gpuOutputs": [
+            "/layer/self_attn/o_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "Attention & MLP norms",
           "url": "/model/sliding-cpu-v1-step-08-159cf4fc6572.onnx",
-          "sha256": "159cf4fc65726f09038980d5ffc18e4df5e6ac6489ce0b89bf06cf16ce84f75a"
+          "sha256": "159cf4fc65726f09038980d5ffc18e4df5e6ac6489ce0b89bf06cf16ce84f75a",
+          "gpuOutputs": [
+            "/layer/Add_output_0",
+            "/layer/pre_feedforward_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "MLP gate projection",
           "url": "/model/sliding-cpu-v1-step-09-8edc6c5b2044.onnx",
-          "sha256": "8edc6c5b2044256ddb9992ec2bd92ad2e6a86c8c0ad387b8fa0e2d689418c2f9"
+          "sha256": "8edc6c5b2044256ddb9992ec2bd92ad2e6a86c8c0ad387b8fa0e2d689418c2f9",
+          "gpuOutputs": [
+            "/layer/mlp/act_fn/Cast_1_output_0"
+          ]
         },
         {
           "label": "MLP up projection",
           "url": "/model/sliding-cpu-v1-step-10-dd49dde5b42c.onnx",
-          "sha256": "dd49dde5b42c9b5357542deecbd9d520a8c5300ef56010190dc661d567a64647"
+          "sha256": "dd49dde5b42c9b5357542deecbd9d520a8c5300ef56010190dc661d567a64647",
+          "gpuOutputs": [
+            "mlp"
+          ]
         },
         {
           "label": "MLP down projection",
           "url": "/model/sliding-cpu-v1-step-11-e67e7edb6728.onnx",
-          "sha256": "e67e7edb67280a9eeeb0480889e7f369b8ecc477e2ad749e033ca42525e1fc3d"
+          "sha256": "e67e7edb67280a9eeeb0480889e7f369b8ecc477e2ad749e033ca42525e1fc3d",
+          "gpuOutputs": [
+            "/layer/mlp/down_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "MLP norm & residual",
           "url": "/model/sliding-cpu-v1-step-12-7e0621992af3.onnx",
-          "sha256": "7e0621992af3b9c77caf55346d33fd346b853599f1f3b7b8dc1bd53ccba10a99"
+          "sha256": "7e0621992af3b9c77caf55346d33fd346b853599f1f3b7b8dc1bd53ccba10a99",
+          "gpuOutputs": [
+            "/layer/Add_1_output_0"
+          ]
         },
         {
           "label": "Per-layer gate & projection",
           "url": "/model/sliding-cpu-v1-step-13-c975ab2ebf7f.onnx",
-          "sha256": "c975ab2ebf7f5abdb60aa377ef7814890e8805f87289f53c24007e17f63f2948"
+          "sha256": "c975ab2ebf7f5abdb60aa377ef7814890e8805f87289f53c24007e17f63f2948",
+          "gpuOutputs": [
+            "/layer/per_layer_projection/MatMul_output_0"
+          ]
         },
         {
           "label": "Output norm & residual",
           "url": "/model/sliding-cpu-v1-step-14-c77e2248c50e.onnx",
-          "sha256": "c77e2248c50e4102777a3ddae3746de1754c31f906ee24dc38a7ec33917e4872"
+          "sha256": "c77e2248c50e4102777a3ddae3746de1754c31f906ee24dc38a7ec33917e4872",
+          "gpuOutputs": [
+            "output"
+          ]
         }
       ]
     },
@@ -24556,77 +24711,126 @@
         {
           "label": "Input norm",
           "url": "/model/full-cpu-v1-step-00-996ad8395b51.onnx",
-          "sha256": "996ad8395b51bd9364c7c36afe7de1b3bf8f1842cda613501a2b95f383649a67"
+          "sha256": "996ad8395b51bd9364c7c36afe7de1b3bf8f1842cda613501a2b95f383649a67",
+          "gpuOutputs": [
+            "/layer/input_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "Q projection",
           "url": "/model/full-cpu-v1-step-01-684e9aa6ef49.onnx",
-          "sha256": "684e9aa6ef4966838a29d7df008d6e769be4a1701adf47b8bb886245f895521a"
+          "sha256": "684e9aa6ef4966838a29d7df008d6e769be4a1701adf47b8bb886245f895521a",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_output_0"
+          ]
         },
         {
           "label": "Q norm & position",
           "url": "/model/full-cpu-v1-step-02-33929ef4bea2.onnx",
-          "sha256": "33929ef4bea294526348bcac9ca2de364fe8078c0a587ae3c1669e2a6f831930"
+          "sha256": "33929ef4bea294526348bcac9ca2de364fe8078c0a587ae3c1669e2a6f831930",
+          "gpuOutputs": [
+            "/layer/self_attn/Unsqueeze_12_output_0",
+            "/layer/self_attn/Unsqueeze_13_output_0",
+            "/layer/self_attn/Transpose_output_0"
+          ]
         },
         {
           "label": "K projection",
           "url": "/model/full-cpu-v1-step-03-81ccf4d51faf.onnx",
-          "sha256": "81ccf4d51faf24843eafe3fa0f22532443d39cf86b48404eb368bf697d8df7f1"
+          "sha256": "81ccf4d51faf24843eafe3fa0f22532443d39cf86b48404eb368bf697d8df7f1",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_1_output_0"
+          ]
         },
         {
           "label": "V projection",
           "url": "/model/full-cpu-v1-step-04-8ee6bbed6f4a.onnx",
-          "sha256": "8ee6bbed6f4a8a4d4461ce721d012707bb164e00d4617055a4598afd2f60e66d"
+          "sha256": "8ee6bbed6f4a8a4d4461ce721d012707bb164e00d4617055a4598afd2f60e66d",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_2_output_0"
+          ]
         },
         {
           "label": "K/V norms & position",
           "url": "/model/full-cpu-v1-step-05-db43945fc27b.onnx",
-          "sha256": "db43945fc27b484c6977898d47e1e2569433003c347fca2da75625bc3f4aad1b"
+          "sha256": "db43945fc27b484c6977898d47e1e2569433003c347fca2da75625bc3f4aad1b",
+          "gpuOutputs": [
+            "/layer/self_attn/Transpose_1_output_0",
+            "/layer/self_attn/Transpose_2_output_0"
+          ]
         },
         {
           "label": "Attention",
           "url": "/model/full-cpu-v1-step-06-f1570e8a96b6.onnx",
-          "sha256": "f1570e8a96b695c6ae453847eca02904e120be8599c1fc6c0b747bd7c57b103e"
+          "sha256": "f1570e8a96b695c6ae453847eca02904e120be8599c1fc6c0b747bd7c57b103e",
+          "gpuOutputs": [
+            "/layer/self_attn/Reshape_7_output_0"
+          ]
         },
         {
           "label": "O projection",
           "url": "/model/full-cpu-v1-step-07-e3ab1bb6d877.onnx",
-          "sha256": "e3ab1bb6d877ac01cda22b7488a00a60fc922a166f941fbbc1b6fc785bbd454e"
+          "sha256": "e3ab1bb6d877ac01cda22b7488a00a60fc922a166f941fbbc1b6fc785bbd454e",
+          "gpuOutputs": [
+            "/layer/self_attn/o_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "Attention & MLP norms",
           "url": "/model/full-cpu-v1-step-08-159cf4fc6572.onnx",
-          "sha256": "159cf4fc65726f09038980d5ffc18e4df5e6ac6489ce0b89bf06cf16ce84f75a"
+          "sha256": "159cf4fc65726f09038980d5ffc18e4df5e6ac6489ce0b89bf06cf16ce84f75a",
+          "gpuOutputs": [
+            "/layer/Add_output_0",
+            "/layer/pre_feedforward_layernorm/Cast_2_output_0"
+          ]
         },
         {
           "label": "MLP gate projection",
           "url": "/model/full-cpu-v1-step-09-8edc6c5b2044.onnx",
-          "sha256": "8edc6c5b2044256ddb9992ec2bd92ad2e6a86c8c0ad387b8fa0e2d689418c2f9"
+          "sha256": "8edc6c5b2044256ddb9992ec2bd92ad2e6a86c8c0ad387b8fa0e2d689418c2f9",
+          "gpuOutputs": [
+            "/layer/mlp/act_fn/Cast_1_output_0"
+          ]
         },
         {
           "label": "MLP up projection",
           "url": "/model/full-cpu-v1-step-10-dd49dde5b42c.onnx",
-          "sha256": "dd49dde5b42c9b5357542deecbd9d520a8c5300ef56010190dc661d567a64647"
+          "sha256": "dd49dde5b42c9b5357542deecbd9d520a8c5300ef56010190dc661d567a64647",
+          "gpuOutputs": [
+            "mlp"
+          ]
         },
         {
           "label": "MLP down projection",
           "url": "/model/full-cpu-v1-step-11-e67e7edb6728.onnx",
-          "sha256": "e67e7edb67280a9eeeb0480889e7f369b8ecc477e2ad749e033ca42525e1fc3d"
+          "sha256": "e67e7edb67280a9eeeb0480889e7f369b8ecc477e2ad749e033ca42525e1fc3d",
+          "gpuOutputs": [
+            "/layer/mlp/down_proj/MatMul_output_0"
+          ]
         },
         {
           "label": "MLP norm & residual",
           "url": "/model/full-cpu-v1-step-12-7e0621992af3.onnx",
-          "sha256": "7e0621992af3b9c77caf55346d33fd346b853599f1f3b7b8dc1bd53ccba10a99"
+          "sha256": "7e0621992af3b9c77caf55346d33fd346b853599f1f3b7b8dc1bd53ccba10a99",
+          "gpuOutputs": [
+            "/layer/Add_1_output_0"
+          ]
         },
         {
           "label": "Per-layer gate & projection",
           "url": "/model/full-cpu-v1-step-13-c975ab2ebf7f.onnx",
-          "sha256": "c975ab2ebf7f5abdb60aa377ef7814890e8805f87289f53c24007e17f63f2948"
+          "sha256": "c975ab2ebf7f5abdb60aa377ef7814890e8805f87289f53c24007e17f63f2948",
+          "gpuOutputs": [
+            "/layer/per_layer_projection/MatMul_output_0"
+          ]
         },
         {
           "label": "Output norm & residual",
           "url": "/model/full-cpu-v1-step-14-c77e2248c50e.onnx",
-          "sha256": "c77e2248c50e4102777a3ddae3746de1754c31f906ee24dc38a7ec33917e4872"
+          "sha256": "c77e2248c50e4102777a3ddae3746de1754c31f906ee24dc38a7ec33917e4872",
+          "gpuOutputs": [
+            "output"
+          ]
         }
       ]
     }
