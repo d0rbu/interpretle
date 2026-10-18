@@ -16,7 +16,6 @@ import {
 } from './lib/browser'
 import {
   MAX_CUSTOM_LENGTH,
-  MAX_GUESSES,
   WIN_SCORE,
   bestScore,
   choices,
@@ -135,11 +134,12 @@ function Instructions({ close }: { close: () => void }) {
       </button>
       <h2 id="instructions-title">How to play</h2>
       <p>
-        Find text that lights up a hidden concept in a language model. Select
-        the option you think most highly activates the concept you're looking
-        for, or write in your own. You only have two write-ins available, and{' '}
-        <strong>{MAX_GUESSES} attempts</strong> to find a text passage that
-        activates at the <strong>99.9th percentile</strong>.
+        There is a hidden concept in a language model, such as "refrigerator" or
+        "transportation rental". Your job is to figure out what it is and,
+        within six attempts, find a passage so closely related to the concept
+        that it activates at the 99.9th percentile. Highlights reveal how
+        strongly the concept activated in different parts of the passage, and
+        you can also write in your own option up to twice in one game.
       </p>
       <button className="primary" onClick={close} autoFocus>
         Play

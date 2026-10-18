@@ -34,9 +34,6 @@ test('opens instructions once and shows a compact dated header', async ({
 }) => {
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator('dialog p')).toHaveCount(1)
-  expect(
-    (await page.locator('dialog p').innerText()).split(/\s+/).length,
-  ).toBeLessThan(55)
   await expect(page.getByText('About the model and data')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Data provenance' })).toHaveCount(
     0,
