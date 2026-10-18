@@ -1,6 +1,7 @@
 import type { Game } from './types'
 import { puzzleDay } from './day'
 import { isStorageFull } from './model-error'
+import type { ModelDiagnostics } from './model-error'
 
 export const EVENTS = [
   'visit',
@@ -24,7 +25,7 @@ export const PROBLEMS = [
   'memory',
   'runtime',
 ] as const
-export type EventFields = {
+export type EventFields = Partial<ModelDiagnostics> & {
   theme?: 'light' | 'dark'
   themePreference?: (typeof THEMES)[number]
   mode?: Game['mode']
@@ -36,6 +37,9 @@ export type EventFields = {
   attempt?: number
   outcome?: 'won' | 'lost'
   problem?: (typeof PROBLEMS)[number]
+  cores?: number
+  memoryGb?: number
+  touchPoints?: number
 }
 let player: string | undefined, visit: string | undefined
 let currentTheme: Pick<EventFields, 'theme' | 'themePreference'> = {}
@@ -73,6 +77,24 @@ export function track(
     sent.add(key)
     const browser = player
     const theme = currentTheme
+    const memory =
+      event === 'model_error'
+        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+        : undefined
+    const device =
+      event === 'model_error'
+        ? {
+            cores:
+              navigator.hardwareConcurrency > 0
+                ? navigator.hardwareConcurrency
+                : undefined,
+            memoryGb:
+              memory && Number.isFinite(memory) && memory > 0
+                ? memory
+                : undefined,
+            touchPoints: navigator.maxTouchPoints,
+          }
+        : {}
     const digest = crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(`${browser}:${key}`),
@@ -91,6 +113,7 @@ export function track(
             event,
             ...theme,
             ...fields,
+            ...device,
           }),
         }),
       )

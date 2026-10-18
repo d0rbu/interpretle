@@ -25,6 +25,104 @@ export function isStorageFull(cause: unknown) {
   )
 }
 
+export const MODEL_BACKENDS = ['unknown', 'cpu', 'gpu'] as const
+export const MODEL_PHASES = [
+  'unknown',
+  'startup',
+  'manifest',
+  'storage',
+  'download',
+  'tokenizer',
+  'runtime',
+  'weights',
+  'inference',
+  'worker',
+] as const
+export const MODEL_ERROR_CODES = [
+  'unknown',
+  'storage_full',
+  'storage_unavailable',
+  'out_of_memory',
+  'gpu_lost',
+  'gpu_unsupported',
+  'http',
+  'network',
+  'integrity',
+  'tokenizer',
+  'invalid_input',
+  'non_finite',
+  'worker',
+  'runtime',
+] as const
+export type ModelDiagnostics = {
+  code: (typeof MODEL_ERROR_CODES)[number]
+  phase: (typeof MODEL_PHASES)[number]
+  backend: (typeof MODEL_BACKENDS)[number]
+  httpStatus?: number
+  layer?: number
+}
+
+// Only fixed categories and numbers leave the browser; error messages can
+// contain paths or input text and stay on the player's device.
+export function modelDiagnostics(
+  cause: unknown,
+  stage: string,
+  backend: ModelDiagnostics['backend'] = 'unknown',
+): ModelDiagnostics {
+  const detail = errorDetail(cause)
+  const httpStatus = Number(/\bHTTP\s+(\d{3})\b/i.exec(detail)?.[1])
+  const layer = /\blayer\s+(\d+)\b/i.exec(stage)?.[1]
+  const phase =
+    (
+      [
+        ['tokenizer', /tokeniz/i],
+        ['manifest', /manifest/i],
+        ['storage', /storage|cleaning/i],
+        ['weights', /weights?/i],
+        ['download', /download/i],
+        ['runtime', /runtime|graph/i],
+        ['worker', /worker/i],
+        ['inference', /layer|embedding|scor/i],
+      ] as const
+    ).find(([, pattern]) => pattern.test(stage))?.[0] ?? 'startup'
+  const code = isStorageFull(cause)
+    ? 'storage_full'
+    : ((
+        [
+          [
+            'storage_unavailable',
+            /storage.*(?:unavailable|blocked|denied)|SecurityError/i,
+          ],
+          [
+            'out_of_memory',
+            /out of memory|allocation failed|cannot allocate|buffer budget/i,
+          ],
+          ['gpu_lost', /device.*lost/i],
+          [
+            'gpu_unsupported',
+            /unsupported.*GPU|WebGPU.*(?:unavailable|support)|shader-f16/i,
+          ],
+          ['http', /\bHTTP\s+[1-5]\d{2}\b/i],
+          ['integrity', /integrity|checksum|hash mismatch/i],
+          ['network', /failed to fetch|network|download.*fail|load failed/i],
+          ['non_finite', /non-finite/i],
+          ['invalid_input', /exceeds.*tokens|model control tokens/i],
+        ] as const
+      ).find(([, pattern]) => pattern.test(detail))?.[0] ??
+      (phase === 'tokenizer'
+        ? 'tokenizer'
+        : phase === 'worker'
+          ? 'worker'
+          : 'runtime'))
+  return {
+    code,
+    phase,
+    backend,
+    ...(httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}),
+    ...(layer !== undefined ? { layer: Number(layer) } : {}),
+  }
+}
+
 export function modelError(cause: unknown, stage: string) {
   let detail = errorDetail(cause)
   let hint = ''

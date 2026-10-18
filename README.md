@@ -188,12 +188,19 @@ combination per visit and Pacific day. Game events carry that theme context too.
 The server also stores visitor IP addresses from Cloudflare's `CF-Connecting-IP`
 header alongside the browser's counters. It accepts IPv4 and IPv6, normalizing
 equivalent IPv6 spellings. IPs are never accepted from the event body or
-`X-Forwarded-For`. No custom text, tokens, activation values, or fingerprints are
-stored by this counter.
+`X-Forwarded-For`. No custom text, tokens, or activation values are stored.
+Browser IDs are random, rather than computed from device properties.
 
 The backend keeps aggregate dimensions, per-browser and per-IP counters,
 completed round summaries, first-visit dates, and opaque event hashes for deduplication. Round IDs
-are puzzle dates or random practice IDs. It does not keep raw event timestamps.
+are puzzle dates or random practice IDs. Model failures additionally record a
+server receipt timestamp (UTC), fixed error code, failed stage, CPU/GPU backend,
+HTTP status or layer when known, and the browser's reported device information.
+The user-agent header supplies the browser/version, OS family, and device type;
+logical core count and approximate RAM are included when the browser exposes them.
+The raw user agent is bounded to 512 characters. These details are collected
+only for model errors, not every gameplay event. Custom text and raw error
+messages are never uploaded. Unknown device details stay unknown.
 Browser-reported counters are approximate and may be blocked.
 The private [stats page](https://interpretle.com/admin) uses HTTP Basic
 authentication over HTTPS, with username `henry` and a password stored only in the
@@ -212,6 +219,10 @@ also links to the IPs it has used. IP tracking starts with its deployment; old
 events are not backfilled. These addresses and their histories are available
 only in the authenticated stats page. Shared networks and changing addresses
 mean an IP is not a unique person.
+The Model errors section groups failures by cause and device and lists the
+latest 200 errors with timestamps. Selecting a browser or IP shows its errors
+across days; otherwise the report covers the selected Pacific day. These records
+start with this deployment; old aggregate events cannot be backfilled.
 The existing daily solve histogram remains separate and excludes practice.
 
 ## Rebuild the data

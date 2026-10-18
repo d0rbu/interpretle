@@ -14,7 +14,8 @@ import {
   tokenOffsets,
 } from './model-math'
 import type { Feature, TokenActivation } from './types'
-import { modelError } from './model-error'
+import { modelDiagnostics, modelError } from './model-error'
+import type { ModelDiagnostics } from './model-error'
 import { runSteps } from './model-steps'
 import type { ModelStep } from './model-steps'
 import type { PreparedWeight } from './model-weights.worker'
@@ -39,8 +40,9 @@ interface Manifest {
   sae: { inputBias: number[] }
 }
 
+let backend: ModelDiagnostics['backend'] = 'unknown'
 const progress = (message: string, fraction?: number) =>
-  self.postMessage({ progress: message, fraction })
+  self.postMessage({ progress: message, fraction, backend })
 let manifest: Manifest, cache: Cache, tokenizer: Tokenizer
 let prepared = false
 let stage = 'Model startup'
@@ -153,6 +155,7 @@ async function prepare(url: string) {
 }
 
 async function loadSessions(device?: GPUDevice, adapter?: GPUAdapter | null) {
+  backend = device ? 'gpu' : 'cpu'
   stage = `Preparing the ${device ? 'GPU' : 'CPU'} runtime`
   progress(`Preparing the local model (${device ? 'GPU' : 'CPU'})…`)
   cpu = !device
@@ -446,6 +449,9 @@ self.onmessage = async ({ data }) => {
         data.type === 'score' ? await score(data.text, data.target) : null,
     })
   } catch (cause) {
-    self.postMessage({ error: modelError(cause, stage) })
+    self.postMessage({
+      error: modelError(cause, stage),
+      diagnostics: modelDiagnostics(cause, stage, backend),
+    })
   }
 }

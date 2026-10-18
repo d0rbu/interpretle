@@ -70,11 +70,192 @@ const stats = async (day?: string) =>
       new Request('https://internal/' + (day ? '?day=' + day : '')),
     )
   ).json()
+const firefoxMac =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0.1'
+const iphoneChrome =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 CriOS/141.0.7390.41 Mobile/15E148 Safari/604.1'
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-18T12:00:00Z'))
   db = new DatabaseSync(':memory:')
   restart()
+})
+
+it('stores server receipt times and reported device details once per model error', async () => {
+  const data = event('model_error', {
+    problem: 'storage',
+    code: 'storage_full',
+    phase: 'tokenizer',
+    backend: 'unknown',
+    cores: 8,
+  })
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': firefoxMac,
+    'CF-Connecting-IP': '203.0.113.8',
+  }
+  expect((await request(data, '/api/events', { headers })).status).toBe(204)
+  vi.setSystemTime(new Date('2026-10-18T12:05:00Z'))
+  restart()
+  expect((await request(data, '/api/events', { headers })).status).toBe(204)
+  const result = await stats()
+  expect(result.modelErrors).toHaveLength(1)
+  expect(result.modelErrors[0]).toMatchObject({
+    at: '2026-10-18T12:00:00.000Z',
+    player,
+    ip: '203.0.113.8',
+    code: 'storage_full',
+    phase: 'tokenizer',
+    backend: 'unknown',
+    browser: 'Firefox 157.0.1',
+    os: 'macOS',
+    device: 'desktop',
+    cores: 8,
+    userAgent: firefoxMac,
+  })
+  expect(result.modelErrors[0]).not.toHaveProperty('memoryGb')
+  expect(result.modelErrorGroups).toEqual([
+    expect.objectContaining({
+      code: 'storage_full',
+      browser: 'Firefox 157.0.1',
+      count: 1,
+    }),
+  ])
+  expect(
+    result.counters.find(
+      (row: { event: string }) => row.event === 'model_error',
+    ).count,
+  ).toBe(1)
+})
+
+it('filters model errors by Pacific day, browser, or source IP and shows them only in private reports', async () => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': iphoneChrome,
+    'CF-Connecting-IP': '203.0.113.9',
+  }
+  const detail = {
+    problem: 'network',
+    code: 'http',
+    phase: 'weights',
+    backend: 'cpu',
+    httpStatus: 503,
+    cores: 6,
+  }
+  await request(event('model_error', detail), '/api/events', { headers })
+  vi.setSystemTime(new Date('2026-10-19T12:00:00Z'))
+  await request(event('model_error', detail), '/api/events', { headers })
+  await request(
+    event('model_error', { ...detail, player: crypto.randomUUID() }),
+    '/api/events',
+    {
+      headers: { ...headers, 'CF-Connecting-IP': '203.0.113.10' },
+    },
+  )
+  expect((await stats('2026-10-18')).modelErrors).toHaveLength(1)
+  expect((await stats()).modelErrors).toHaveLength(2)
+  const byBrowser = await (
+    await analytics.fetch(new Request(`https://internal/?browser=${player}`))
+  ).json()
+  expect(byBrowser.modelErrors).toHaveLength(2)
+  const byIp = await (
+    await analytics.fetch(new Request('https://internal/?ip=203.0.113.9'))
+  ).json()
+  expect(byIp.modelErrors).toHaveLength(2)
+  expect(byIp.modelErrors[0]).toMatchObject({
+    at: '2026-10-19T12:00:00.000Z',
+    device: 'phone',
+    os: 'iOS',
+    browser: 'Chrome 141.0.7390.41',
+    httpStatus: 503,
+  })
+  const privateResponse = await request(undefined, `/admin?browser=${player}`, {
+    headers: {
+      Authorization:
+        'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+    },
+  })
+  const html = await privateResponse.text()
+  expect(html).toContain('Model errors')
+  expect(html).toContain('2026-10-19 12:00:00 UTC')
+  expect(html).toContain('Chrome 141.0.7390.41')
+  expect(html).toContain('HTTP 503')
+  for (const path of [
+    `/admin?browser=${player}`,
+    '/api/stats',
+    '/api/events',
+  ]) {
+    const denied = await request(undefined, path)
+    expect([401, 404, 405]).toContain(denied.status)
+    expect(await denied.text()).not.toContain('Chrome 141.0.7390.41')
+  }
+})
+
+it('keeps full device error counts while limiting detailed reports to the latest 200', async () => {
+  for (let i = 0; i < 205; i++) {
+    vi.setSystemTime(new Date(Date.UTC(2026, 9, 18, 12, 0, i)))
+    await request(
+      event('model_error', {
+        problem: 'runtime',
+        code: 'runtime',
+        phase: 'runtime',
+        backend: 'cpu',
+      }),
+    )
+  }
+  const result = await stats()
+  expect(result.modelErrors).toHaveLength(200)
+  expect(result.modelErrors[0].at).toBe('2026-10-18T12:03:24.000Z')
+  expect(result.modelErrorGroups).toEqual([
+    expect.objectContaining({ count: 205 }),
+  ])
+})
+
+it('accepts errors from older clients with unknown diagnostics and escapes reported user agents', async () => {
+  const userAgent = '<script>alert("x")</script>'
+  await request(event('model_error', { problem: 'memory' }), '/api/events', {
+    headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent },
+  })
+  expect((await stats()).modelErrors[0]).toMatchObject({
+    code: 'unknown',
+    phase: 'unknown',
+    backend: 'unknown',
+    device: 'unknown',
+    userAgent,
+  })
+  const response = await request(undefined, '/admin', {
+    headers: {
+      Authorization:
+        'Basic ' + btoa('henry:a-test-password-not-used-in-production'),
+    },
+  })
+  const html = await response.text()
+  expect(html).not.toContain(userAgent)
+  expect(html).toContain('&lt;script&gt;')
+})
+
+it('rejects raw diagnostic strings, client timestamps, invalid values, and hardware fields on gameplay events', async () => {
+  for (const detail of [
+    { at: '2026-01-01' },
+    { userAgent: 'fake' },
+    { message: 'PRIVATE TEXT' },
+    { code: 'PRIVATE TEXT' },
+    { phase: 'PRIVATE TEXT' },
+    { backend: 'mlx' },
+    { httpStatus: 999 },
+    { httpStatus: '503' },
+    { layer: -1 },
+    { layer: 1.5 },
+    { cores: 0 },
+    { cores: 1025 },
+    { memoryGb: -1 },
+    { memoryGb: '8' },
+    { touchPoints: -1 },
+    { touchPoints: 0.5 },
+  ])
+    expect((await request(event('model_error', detail))).status).toBe(400)
+  expect((await request(event('visit', { cores: 8 }))).status).toBe(400)
+  expect((await stats()).modelErrors).toEqual([])
 })
 afterEach(() => {
   db.close()

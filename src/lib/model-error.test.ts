@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { isStorageFull, modelError } from './model-error'
+import { isStorageFull, modelDiagnostics, modelError } from './model-error'
 import { modelProblem } from './analytics'
 
 it('preserves runtime rejections that are not Error instances', () => {
@@ -68,4 +68,83 @@ it('does not invent a cause when the browser provides none', () => {
   expect(modelError(undefined, 'Model worker')).toContain(
     'The browser did not report a reason',
   )
+})
+
+it.each([
+  [
+    new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE'),
+    'Tokenizer vocabulary download',
+    'storage_full',
+    'tokenizer',
+  ],
+  [
+    new Error('HTTP 503 fetching model data'),
+    'Model weight download',
+    'http',
+    'weights',
+  ],
+  [
+    new TypeError('Failed to fetch'),
+    'Model manifest download',
+    'network',
+    'manifest',
+  ],
+  [
+    new Error('GPU device was lost'),
+    'Layer 12/22 attention',
+    'gpu_lost',
+    'inference',
+  ],
+  [
+    new Error('Cannot allocate memory: out of memory'),
+    'Layer 7/22',
+    'out_of_memory',
+    'inference',
+  ],
+  [
+    new Error('Model checksum integrity failure'),
+    'Model data download',
+    'integrity',
+    'download',
+  ],
+  [
+    new Error('Tokenizer rejected "PRIVATE INPUT"'),
+    'Text tokenization',
+    'tokenizer',
+    'tokenizer',
+  ],
+  [
+    new Error('This sentence exceeds 127 model tokens'),
+    'Text tokenization',
+    'invalid_input',
+    'tokenizer',
+  ],
+  [
+    new Error('The model returned non-finite values'),
+    'Scoring',
+    'non_finite',
+    'inference',
+  ],
+  [undefined, 'Model worker', 'worker', 'worker'],
+])('reports safe diagnostics for %s', (cause, stage, code, phase) => {
+  const result = modelDiagnostics(cause, stage as string, 'cpu')
+  expect(result).toMatchObject({ code, phase, backend: 'cpu' })
+  expect(JSON.stringify(result)).not.toContain('PRIVATE INPUT')
+  expect(result).not.toHaveProperty('message')
+})
+
+it('preserves HTTP status and layer as numbers without exporting raw messages', () => {
+  expect(
+    modelDiagnostics(
+      new Error('HTTP 502 at a private URL'),
+      'Layer 4/22',
+      'gpu',
+    ),
+  ).toEqual({
+    code: 'http',
+    phase: 'inference',
+    backend: 'gpu',
+    httpStatus: 502,
+    layer: 4,
+  })
 })

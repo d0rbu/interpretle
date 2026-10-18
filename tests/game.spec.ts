@@ -1214,7 +1214,15 @@ test('keeps failed background loading silent and reuses a successful retry', asy
         this.onmessage?.({
           data:
             messages.length === 1
-              ? { error: 'A test download failure.' }
+              ? {
+                  error: 'A test download failure.',
+                  diagnostics: {
+                    code: 'http',
+                    phase: 'tokenizer',
+                    backend: 'unknown',
+                    httpStatus: 503,
+                  },
+                }
               : { result: null },
         })
       }
@@ -1256,6 +1264,18 @@ test('keeps failed background loading silent and reuses a successful retry', asy
     )
     .toBe(true)
   expect(JSON.stringify(events)).not.toContain('A test download failure')
+  expect(events.find((event) => event.event === 'model_error')).toMatchObject({
+    code: 'http',
+    phase: 'tokenizer',
+    backend: 'unknown',
+    httpStatus: 503,
+  })
+  expect(
+    events.find((event) => event.event === 'model_error')?.cores,
+  ).toBeGreaterThan(0)
+  expect(events.find((event) => event.event === 'visit')).not.toHaveProperty(
+    'cores',
+  )
 })
 
 test('counts passage choices, outcomes and practice starts with a reusable random browser ID', async ({

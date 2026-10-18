@@ -36,6 +36,23 @@ type Counters = ({ event: string; count: number } & Record<
   string,
   string | number
 >)[]
+interface ModelError {
+  at: string
+  player: string
+  ip: string | null
+  problem: string
+  code: string
+  phase: string
+  backend: string
+  device: string
+  browser: string
+  os: string
+  userAgent: string
+  httpStatus?: number
+  layer?: number
+  cores?: number
+  memoryGb?: number
+}
 interface Stats {
   day: string
   players: number
@@ -44,6 +61,11 @@ interface Stats {
   practiceRounds: number
   practice: { rounds: number; players: number }[]
   counters: Counters
+  modelErrors: ModelError[]
+  modelErrorGroups: (Pick<
+    ModelError,
+    'problem' | 'code' | 'phase' | 'backend' | 'device' | 'browser' | 'os'
+  > & { count: number })[]
   browsers: BrowserStats[]
   browser?: BrowserStats & {
     firstDay: string
@@ -163,6 +185,63 @@ export async function statsPage(response: Response) {
 </style><h1>interpretle · private stats</h1><form action="/admin"><label>Pacific day <input type="date" name="day" value="${escape(stats.day)}"></label><label>Browser ID <input name="browser" value="${escape(stats.browser?.id ?? '')}" placeholder="All browsers"></label><label>IP address <input name="ip" value="${escape(stats.ip?.id ?? '')}" placeholder="IPv4 or IPv6" maxlength="45"></label><button>View</button></form>
 <dl>${summary.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>
 <p>Browsers use a random saved ID. IP addresses can be shared or change; neither is a count of people. Rounds begin with the first submitted guess. Custom text stays on the player's device.</p>
+<h2 id="model-errors">Model errors</h2>
+<p>${stats.browser ? 'This browser across all days.' : stats.ip ? 'This IP across all days.' : `Received on ${escape(stats.day)} (Pacific time).`} Timestamps below are server receipt times in UTC. Device details are browser-reported; missing information is shown as a dash. Detailed records start with this update; older error totals remain in the counters.</p>
+${
+  stats.modelErrorGroups.length
+    ? table(
+        [
+          'Errors',
+          'Category / code',
+          'Stage / backend',
+          'Device',
+          'Browser',
+          'OS',
+        ],
+        stats.modelErrorGroups.map((row) => [
+          row.count,
+          `${row.problem} / ${row.code}`,
+          `${row.phase} / ${row.backend}`,
+          row.device,
+          row.browser,
+          row.os,
+        ]),
+      )
+    : '<p>No detailed model errors recorded for this selection.</p>'
+}
+${
+  stats.modelErrors.length
+    ? `<h3>Latest errors</h3>${table(
+        [
+          'Browser ID',
+          'Received (UTC)',
+          'IP',
+          'Error',
+          'Stage / backend',
+          'Device / browser / OS',
+          'Logical cores / approximate RAM',
+        ],
+        stats.modelErrors.map((row) => [
+          row.player,
+          row.at.replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC'),
+          row.ip ?? '—',
+          `${row.code}${row.httpStatus ? ` (HTTP ${row.httpStatus})` : ''}`,
+          `${row.phase}${row.layer !== undefined ? ` · layer ${row.layer}` : ''} / ${row.backend}`,
+          `${row.device} / ${row.browser} / ${row.os}`,
+          `${row.cores ?? '—'} / ${row.memoryGb !== undefined ? `${row.memoryGb} GB` : '—'}`,
+        ]),
+        'browser',
+      )}<details><summary>Reported user agents</summary>${table(
+        ['Browser ID', 'Received (UTC)', 'User agent'],
+        stats.modelErrors.map((row) => [
+          row.player,
+          row.at,
+          row.userAgent || '—',
+        ]),
+        'browser',
+      )}</details><p>Up to 200 groups and the latest 200 errors are shown. Group counts cover all matching errors, not just the latest 200.</p>`
+    : ''
+}
 ${
   stats.browser
     ? `<h2>Browser ${escape(stats.browser.id.slice(0, 8))}</h2>

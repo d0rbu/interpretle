@@ -1,11 +1,17 @@
 import catalog from '../public/puzzles/index.json'
 import { puzzleDay } from '../src/lib/day'
 import { EVENTS, PROBLEMS, THEMES } from '../src/lib/analytics'
+import {
+  MODEL_BACKENDS,
+  MODEL_ERROR_CODES,
+  MODEL_PHASES,
+} from '../src/lib/model-error'
+import { deviceInfo } from './device'
 
 interface Sql {
   exec(
     query: string,
-    ...values: (string | number)[]
+    ...values: (string | number | null)[]
   ): Iterable<Record<string, string | number>>
 }
 const json = (body: object, status = 200) =>
@@ -29,6 +35,16 @@ const fields = [
   'outcome',
   'problem',
 ] as const
+const diagnosticFields = [
+  'code',
+  'phase',
+  'backend',
+  'httpStatus',
+  'layer',
+  'cores',
+  'memoryGb',
+  'touchPoints',
+] as const
 
 function normalizeIp(value: string | null) {
   if (!value || !/^[\da-f:.]{2,45}$/i.test(value)) return undefined
@@ -42,8 +58,8 @@ function normalizeIp(value: string | null) {
   }
 }
 
-// Browser/IP counters and round summaries. No custom text, scores, or raw
-// event timestamps. Reads stay behind /admin auth.
+// Browser/IP counters, round summaries, and timestamped model diagnostics.
+// No custom text, scores, or raw error messages. Reads stay behind /admin auth.
 export class GameAnalytics {
   sql: Sql
   constructor(state: { storage: { sql: Sql } }) {
@@ -70,11 +86,19 @@ export class GameAnalytics {
       ) WITHOUT ROWID;
       CREATE INDEX IF NOT EXISTS ip_counters_day ON ip_counters (day);
       CREATE INDEX IF NOT EXISTS ip_counters_player ON ip_counters (player);
+      CREATE TABLE IF NOT EXISTS model_errors (
+        id TEXT PRIMARY KEY, day TEXT NOT NULL, at TEXT NOT NULL,
+        player TEXT NOT NULL, ip TEXT, details TEXT NOT NULL
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS model_errors_day ON model_errors (day, at);
+      CREATE INDEX IF NOT EXISTS model_errors_player ON model_errors (player, at);
+      CREATE INDEX IF NOT EXISTS model_errors_ip ON model_errors (ip, at);
     `)
   }
 
   async fetch(request: Request) {
-    const day = puzzleDay()
+    const now = new Date()
+    const day = puzzleDay(now)
     if (request.method === 'GET') {
       const params = new URL(request.url).searchParams
       const selected = params.get('day') || day
@@ -227,6 +251,31 @@ export class GameAnalytics {
         }))
         ip = { id: selectedIp, ...totals, browsers, history, counters }
       }
+      const errorKey = selectedBrowser ? 'player' : selectedIp ? 'ip' : 'day'
+      const errorValue = selectedBrowser ?? selectedIp ?? selected
+      const modelErrors = [
+        ...this.sql.exec(
+          `SELECT at, player, ip, details FROM model_errors WHERE ${errorKey} = ?
+        ORDER BY at DESC, id DESC LIMIT 200`,
+          errorValue,
+        ),
+      ].map(({ at, player, ip, details }) => ({
+        at,
+        player,
+        ip,
+        ...JSON.parse(String(details)),
+      }))
+      const modelErrorGroups = [
+        ...this.sql.exec(
+          `SELECT json_extract(details, '$.problem') AS problem,
+          json_extract(details, '$.code') AS code, json_extract(details, '$.phase') AS phase,
+          json_extract(details, '$.backend') AS backend, json_extract(details, '$.device') AS device,
+          json_extract(details, '$.browser') AS browser, json_extract(details, '$.os') AS os, COUNT(*) AS count
+        FROM model_errors WHERE ${errorKey} = ? GROUP BY problem, code, phase, backend, device, browser, os
+        ORDER BY count DESC, code LIMIT 200`,
+          errorValue,
+        ),
+      ]
       return json({
         day: selected,
         ...players,
@@ -237,6 +286,8 @@ export class GameAnalytics {
         ipCount,
         ips,
         ip,
+        modelErrors,
+        modelErrorGroups,
       })
     }
     if (!request.headers.get('Content-Type')?.startsWith('application/json'))
@@ -257,8 +308,37 @@ export class GameAnalytics {
       !uuid.test(data.player) ||
       !EVENTS.includes(data.event) ||
       Object.keys(data).some(
-        (key) => !['id', 'player', 'event', ...fields].includes(key),
+        (key) =>
+          !['id', 'player', 'event', ...fields, ...diagnosticFields].includes(
+            key,
+          ),
       ) ||
+      (data.event !== 'model_error' &&
+        diagnosticFields.some((key) => data[key] !== undefined)) ||
+      (data.code !== undefined && !MODEL_ERROR_CODES.includes(data.code)) ||
+      (data.phase !== undefined && !MODEL_PHASES.includes(data.phase)) ||
+      (data.backend !== undefined && !MODEL_BACKENDS.includes(data.backend)) ||
+      (data.httpStatus !== undefined &&
+        (!Number.isInteger(data.httpStatus) ||
+          data.httpStatus < 100 ||
+          data.httpStatus > 599)) ||
+      (data.layer !== undefined &&
+        (!Number.isInteger(data.layer) ||
+          data.layer < 0 ||
+          data.layer > 255)) ||
+      (data.cores !== undefined &&
+        (!Number.isInteger(data.cores) ||
+          data.cores < 1 ||
+          data.cores > 1024)) ||
+      (data.memoryGb !== undefined &&
+        (typeof data.memoryGb !== 'number' ||
+          !Number.isFinite(data.memoryGb) ||
+          data.memoryGb <= 0 ||
+          data.memoryGb > 1024)) ||
+      (data.touchPoints !== undefined &&
+        (!Number.isInteger(data.touchPoints) ||
+          data.touchPoints < 0 ||
+          data.touchPoints > 100)) ||
       (data.mode !== undefined && !['daily', 'practice'].includes(data.mode)) ||
       (data.round !== undefined &&
         (typeof data.round !== 'string' ||
@@ -344,6 +424,27 @@ export class GameAnalytics {
     // Cloudflare supplies this header at the edge; never take an IP from the
     // event body or X-Forwarded-For. The Durable Object has no public endpoint.
     const ip = normalizeIp(request.headers.get('CF-Connecting-IP'))
+    if (data.event === 'model_error')
+      this.sql.exec(
+        'INSERT INTO model_errors (id, day, at, player, ip, details) VALUES (?, ?, ?, ?, ?, ?)',
+        data.id,
+        day,
+        now.toISOString(),
+        data.player,
+        ip ?? null,
+        JSON.stringify({
+          problem: data.problem ?? 'runtime',
+          code: 'unknown',
+          phase: 'unknown',
+          backend: 'unknown',
+          ...Object.fromEntries(
+            diagnosticFields
+              .filter((key) => data[key] !== undefined)
+              .map((key) => [key, data[key]]),
+          ),
+          ...deviceInfo(request.headers.get('User-Agent'), data.touchPoints),
+        }),
+      )
     if (ip)
       this.sql.exec(
         `INSERT INTO ip_counters (ip, day, player, event, dimensions, count) VALUES (?, ?, ?, ?, ?, 1)

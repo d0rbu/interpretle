@@ -2,7 +2,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Catalog } from './types'
 import { feature } from '../../tests/fixture'
 
-vi.mock('./analytics', () => ({ track: vi.fn(), modelProblem: vi.fn() }))
+const telemetry = vi.hoisted(() => ({
+  track: vi.fn(),
+  modelProblem: vi.fn(() => 'runtime'),
+}))
+vi.mock('./analytics', () => telemetry)
 
 const model: NonNullable<Catalog['browserModel']> = {
   manifest: '/model/test.json',
@@ -14,7 +18,7 @@ let navigator: { onLine: boolean }
 let workers: TestWorker[]
 class TestWorker {
   onmessage: ((event: { data: object }) => void) | null = null
-  onerror = null
+  onerror: ((event: { message: string }) => void) | null = null
   postMessage = vi.fn()
   terminate = vi.fn()
   constructor() {
@@ -26,6 +30,7 @@ class TestWorker {
 }
 beforeEach(() => {
   vi.resetModules()
+  telemetry.track.mockClear()
   document = Object.assign(new EventTarget(), { hidden: false })
   window = new EventTarget()
   navigator = { onLine: true }
@@ -70,6 +75,9 @@ it('keeps preparation pending through sleep and restarts on wake without reporti
   workers[1].complete()
   await preparation
   expect(browserModelReady()).toBe(true)
+  expect(
+    telemetry.track.mock.calls.some(([event]) => event === 'model_error'),
+  ).toBe(false)
 })
 
 it('waits for a connection and allows cancellation while offline without restarting', async () => {
@@ -141,4 +149,64 @@ it('reports token boundaries without finishing scoring or claiming activations',
   workers[0].onmessage?.({ data: { result: scored } })
   await expect(result).resolves.toEqual(scored)
   expect(browserModelReady()).toBe(true)
+})
+
+it('passes safe worker diagnostics through to telemetry without the error message', async () => {
+  const { prepareBrowserModel } = await import('./browser')
+  const preparation = prepareBrowserModel(
+    model,
+    () => {},
+    new AbortController().signal,
+  )
+  const rejected = expect(preparation).rejects.toThrow('PRIVATE PATH')
+  await vi.waitFor(() => expect(workers).toHaveLength(1))
+  workers[0].onmessage?.({
+    data: {
+      error: 'Tokenizer download failed at PRIVATE PATH',
+      diagnostics: {
+        code: 'http',
+        phase: 'tokenizer',
+        backend: 'unknown',
+        httpStatus: 503,
+      },
+    },
+  })
+  await rejected
+  expect(telemetry.track).toHaveBeenCalledWith('model_error', {
+    problem: 'runtime',
+    code: 'http',
+    phase: 'tokenizer',
+    backend: 'unknown',
+    httpStatus: 503,
+  })
+  expect(JSON.stringify(telemetry.track.mock.calls)).not.toContain(
+    'PRIVATE PATH',
+  )
+})
+
+it('identifies a crashed worker using its last execution backend and layer', async () => {
+  const { scoreInBrowser } = await import('./browser')
+  const result = scoreInBrowser(
+    'PRIVATE INPUT',
+    feature,
+    model,
+    () => {},
+    new AbortController().signal,
+  )
+  const rejected = expect(result).rejects.toThrow('GPU device was lost')
+  workers[0].onmessage?.({
+    data: { progress: 'Scoring: GPU · Layer 7/22 attention', backend: 'gpu' },
+  })
+  workers[0].onerror?.({ message: 'GPU device was lost' })
+  await rejected
+  expect(telemetry.track).toHaveBeenCalledWith('model_error', {
+    problem: 'runtime',
+    code: 'gpu_lost',
+    phase: 'inference',
+    backend: 'gpu',
+    layer: 7,
+  })
+  expect(JSON.stringify(telemetry.track.mock.calls)).not.toContain(
+    'PRIVATE INPUT',
+  )
 })

@@ -1,5 +1,6 @@
 import type { Catalog, Feature, TokenActivation, TokenSpan } from './types'
-import { modelError } from './model-error'
+import { MODEL_BACKENDS, modelDiagnostics, modelError } from './model-error'
+import type { ModelDiagnostics } from './model-error'
 import { modelProblem, track } from './analytics'
 
 type Progress = (message: string, fraction?: number) => void
@@ -14,6 +15,7 @@ let worker: Worker | undefined
 let running = false
 let ready = false
 let preparation: Preparation | undefined
+let backend: ModelDiagnostics['backend'] = 'unknown'
 
 export const browserModelReady = () => ready
 
@@ -26,10 +28,14 @@ function run<T>(
   if (running)
     return Promise.reject(new Error('The local model is already busy.'))
   if (signal.aborted) return Promise.reject(new DOMException('', 'AbortError'))
-  worker ??= new Worker(new URL('./model.worker.ts', import.meta.url), {
-    type: 'module',
-  })
+  if (!worker) {
+    backend = 'unknown'
+    worker = new Worker(new URL('./model.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+  }
   const current = worker
+  let lastStage = 'Model worker'
   running = true
   return new Promise((resolve, reject) => {
     function finish() {
@@ -46,15 +52,24 @@ function run<T>(
       reject(new DOMException('', 'AbortError'))
     }
     current.onmessage = ({ data }) => {
-      if (data.progress) progress(data.progress, data.fraction)
-      else if (data.tokens) onTokens?.(data.tokens)
+      if (MODEL_BACKENDS.includes(data.backend)) backend = data.backend
+      if (data.progress) {
+        lastStage = data.progress
+        progress(data.progress, data.fraction)
+      } else if (data.tokens) onTokens?.(data.tokens)
       else {
         finish()
         if (data.error) {
           current.terminate()
           worker = undefined
           ready = false
-          reject(new Error(data.error))
+          reject(
+            Object.assign(new Error(data.error), {
+              diagnostics:
+                data.diagnostics ??
+                modelDiagnostics(data.error, lastStage, backend),
+            }),
+          )
         } else {
           ready = true
           resolve(data.result as T)
@@ -66,11 +81,24 @@ function run<T>(
       worker = undefined
       ready = false
       finish()
-      reject(new Error(modelError(event, 'Model worker')))
+      const diagnostics = modelDiagnostics(event, lastStage, backend)
+      if (diagnostics.code === 'runtime') diagnostics.code = 'worker'
+      reject(
+        Object.assign(new Error(modelError(event, 'Model worker')), {
+          diagnostics,
+        }),
+      )
     }
     signal.addEventListener('abort', cancel, { once: true })
     current.postMessage(message)
   })
+}
+
+function reportFailure(cause: unknown, stage: string) {
+  const diagnostics =
+    (cause as { diagnostics?: ModelDiagnostics } | null)?.diagnostics ??
+    modelDiagnostics(cause, stage, backend)
+  track('model_error', { problem: modelProblem(cause), ...diagnostics })
 }
 
 // iOS suspends hidden tabs. Keep preparation pending across sleep/offline,
@@ -139,7 +167,7 @@ function startPreparation(model: BrowserModel) {
       .catch((cause) => {
         if (cause instanceof DOMException && cause.name === 'AbortError')
           track('model_cancel')
-        else track('model_error', { problem: modelProblem(cause) })
+        else reportFailure(cause, 'Model startup')
         throw cause
       })
       .finally(() => {
@@ -199,7 +227,7 @@ export function scoreInBrowser(
   ).catch((cause) => {
     if (cause instanceof DOMException && cause.name === 'AbortError')
       track('model_cancel')
-    else track('model_error', { problem: modelProblem(cause) })
+    else reportFailure(cause, 'Scoring')
     throw cause
   })
 }
