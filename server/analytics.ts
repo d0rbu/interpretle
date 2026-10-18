@@ -10,6 +10,7 @@ import { deviceInfo } from './device'
 import { validSnapshot } from './replay'
 import { validReport, errorFingerprint } from './diagnostics'
 import { dashboardData } from './insights'
+import { validProfile } from '../src/lib/model-profile'
 
 export interface Sql {
   exec(
@@ -57,6 +58,7 @@ const recordFields = [
   'text',
   'expanded',
   'snapshot',
+  'profile',
 ] as const
 
 function normalizeIp(value: string | null) {
@@ -396,7 +398,10 @@ export class GameAnalytics {
     } catch {
       return json({ error: 'Invalid JSON.' }, text.length > 1024 ? 413 : 400)
     }
-    if (text.length > (data?.report ? 32768 : 1024) && !data?.snapshot)
+    if (
+      text.length > (data?.profile ? 131072 : data?.report ? 32768 : 1024) &&
+      !data?.snapshot
+    )
       return json({ error: 'Event too large.' }, 413)
     if (
       !data ||
@@ -449,8 +454,18 @@ export class GameAnalytics {
           !data.submission ||
           !data.attempt ||
           (data.text === undefined && data.passage === undefined))) ||
+      (data.profile !== undefined &&
+        (data.event !== 'model_profile' || !validProfile(data.profile))) ||
+      (data.event === 'model_profile' && !data.profile) ||
       (!['model_error', 'client_error'].includes(data.event) &&
-        diagnosticFields.some((key) => data[key] !== undefined)) ||
+        diagnosticFields.some(
+          (key) =>
+            data[key] !== undefined &&
+            !(
+              data.event === 'model_profile' &&
+              ['backend', 'cores', 'memoryGb', 'touchPoints'].includes(key)
+            ),
+        )) ||
       (data.report !== undefined && !validReport(data.report)) ||
       (data.code !== undefined && !MODEL_ERROR_CODES.includes(data.code)) ||
       (data.phase !== undefined && !MODEL_PHASES.includes(data.phase)) ||

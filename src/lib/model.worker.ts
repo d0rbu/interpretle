@@ -21,6 +21,8 @@ import type { ModelStep } from './model-steps'
 import type { PreparedWeight } from './model-weights.worker'
 import { breadcrumb, runtimeReport } from './diagnostics'
 import type { Breadcrumb, RuntimeReport } from './diagnostics'
+import { ForwardProfile } from './model-profile'
+import type { ModelProfile } from './model-profile'
 
 type Asset = ModelAsset & { gpuOutputs?: string[] }
 type Graph = Asset & {
@@ -57,6 +59,10 @@ let cpu = false
 let weightWorker: Worker | undefined
 const sessions: Record<string, ModelStep[]> = {}
 const positions: Record<string, Uint16Array> = {}
+let profile: ForwardProfile | undefined
+let runs = 0
+const profileSnapshot = (status: ModelProfile['status']) =>
+  profile?.snapshot(status)
 
 async function prepare(url: string) {
   if (prepared) return
@@ -244,6 +250,8 @@ function graphWeights(
 }
 
 function readWeights(graph: Graph, layer?: number, ids?: number[]) {
+  const start = performance.now()
+  const pass = profile
   const source = manifest.sources.model
   const first = !weightWorker
   weightWorker ??= new Worker(
@@ -256,11 +264,18 @@ function readWeights(graph: Graph, layer?: number, ids?: number[]) {
     current.onmessage = ({ data }) => {
       current.onmessage = null
       current.onerror = null
+      pass?.record('weights', 'Read & prepare weights', start, layer, {
+        ...data.timing,
+        ...(data.error ? { failed: true } : {}),
+      })
       if (data.error)
         reject(Object.assign(new Error(data.error), { report: data.report }))
       else resolve(data.weights)
     }
     current.onerror = (event) => {
+      pass?.record('weights', 'Read & prepare weights', start, layer, {
+        failed: true,
+      })
       current.terminate()
       weightWorker = undefined
       reject(
@@ -312,12 +327,21 @@ async function score(
   text: string,
   target: Pick<Feature, 'kind' | 'index'>,
 ): Promise<TokenActivation[]> {
+  const pass = (profile = new ForwardProfile({
+    backend: cpu ? 'cpu' : 'gpu',
+    threads: reportContext.threads ?? 1,
+    run: ++runs,
+    manifest: reportContext.manifest ?? '',
+  }))
   stage = 'Text tokenization'
+  const tokenizing = performance.now()
   const encoded = tokenizer.encode(text, { add_special_tokens: false })
   const offsets = tokenOffsets(text, encoded.tokens)
   const ids = [manifest.bos, ...encoded.ids],
     length = ids.length
   reportContext.tokens = length
+  pass.tokens = length
+  pass.record('tokenize', 'Tokenization', tokenizing)
   if (length > manifest.maxTokens)
     throw new Error(
       `This sentence exceeds ${manifest.maxTokens - 1} model tokens. Shorten it and retry; no attempt was used.`,
@@ -328,6 +352,7 @@ async function score(
     )
   self.postMessage({
     tokens: encoded.ids.map((id, index) => ({ id, ...offsets[index] })),
+    profile: pass.snapshot('running'),
   })
   const totalSteps =
     sessions.embedding.length +
@@ -344,7 +369,9 @@ async function score(
   }
   report('Reading embedding weights')
   const embeddingFeeds = weightTensors(
-    await readWeights(graphs.embedding, undefined, ids),
+    await pass.measure('wait', 'Await embedding weights', () =>
+      readWeights(graphs.embedding, undefined, ids),
+    ),
   )
   // Reserve output bytes before queuing work. Reads and conversion run serially
   // on the preparation worker, in parallel with inference, within this budget.
@@ -385,11 +412,15 @@ async function score(
     embeddingFeeds,
     ['hidden', 'per_layer'],
     report,
+    (name, start, failed) =>
+      pass.record('compute', name, start, undefined, { failed }),
   )
   Object.values(embeddingFeeds).forEach((tensor) => tensor.dispose())
   let hidden = embedding.hidden
   let mlp: Ort.Tensor | undefined
-  const allPerLayer = await halfBits(embedding.per_layer)
+  const allPerLayer = await pass.measure('readback', 'Embedding readback', () =>
+    halfBits(embedding.per_layer),
+  )
   const maskData = new Uint16Array(length * length)
   for (let row = 0; row < length; row++)
     maskData.fill(0xfbff, row * length + row + 1, (row + 1) * length)
@@ -398,9 +429,15 @@ async function score(
     const layer = `Layer ${index + 1}/${manifest.layers.length}`
     report(`${layer} · Reading weights`)
     const next = pending.shift()!
-    const weights = await next.weights
+    const weights = await pass.measure(
+      'wait',
+      'Await layer weights',
+      () => next.weights,
+      index,
+    )
     reserved -= next.bytes
     prefetch()
+    const inputStart = performance.now()
     const feeds = weightTensors(weights)
     const perLayer = new Uint16Array(length * 256)
     for (let token = 0; token < length; token++) {
@@ -419,27 +456,36 @@ async function score(
     }
     const captureMlp =
       target.kind === 'mlp' && index === manifest.layers.length - 1
+    pass.record('inputs', 'Prepare layer inputs', inputStart, index)
     const output = await runSteps(
       sessions[kind],
       { ...feeds, hidden, mask },
       captureMlp ? ['output', 'mlp'] : ['output'],
       (label, finished) => report(`${layer} · ${label}`, finished),
+      (name, start, failed) =>
+        pass.record('compute', name, start, index, { failed }),
     )
     hidden.dispose()
     Object.values(feeds).forEach((tensor) => tensor.dispose())
     hidden = output.output
     if (captureMlp) mlp = output.mlp
+    self.postMessage({ profile: pass.snapshot('running') })
   }
   report('Feature activation')
-  const values = await halfBits(mlp ?? hidden)
+  const values = await pass.measure('readback', 'Activation readback', () =>
+    halfBits(mlp ?? hidden),
+  )
   if (values.some((value) => (value & 0x7c00) === 0x7c00))
     throw new Error(
       'The local model returned non-finite values. No attempt was used.',
     )
   const encoder =
     target.kind === 'sae'
-      ? await saeEncoder(cache, manifest.sources.sae, target.index)
+      ? await pass.measure('activation', 'Read SAE encoder', () =>
+          saeEncoder(cache, manifest.sources.sae, target.index),
+        )
       : undefined
+  const activationStart = performance.now()
   const result = encoded.ids.map((id, index) => {
     const start = (index + 1) * (target.kind === 'mlp' ? 10240 : 2560)
     let activation: number
@@ -464,6 +510,7 @@ async function score(
       )
     return { id, ...offsets[index], activation }
   })
+  pass.record('activation', 'Feature activation', activationStart)
   hidden.dispose()
   mlp?.dispose()
   embedding.per_layer.dispose()
@@ -476,11 +523,13 @@ self.onmessage = async ({ data }) => {
   const started = performance.now()
   trail.length = 0
   delete reportContext.tokens
+  profile = undefined
   try {
     await prepare(data.manifest)
     self.postMessage({
       result:
         data.type === 'score' ? await score(data.text, data.target) : null,
+      profile: profileSnapshot('ok'),
     })
   } catch (cause) {
     const errorStage =
@@ -488,6 +537,7 @@ self.onmessage = async ({ data }) => {
     self.postMessage({
       error: modelError(cause, errorStage),
       diagnostics: modelDiagnostics(cause, errorStage, backend),
+      profile: profileSnapshot('error'),
       report: runtimeReport(cause, errorStage, 'model', {
         ...reportContext,
         elapsedMs: Math.round(performance.now() - started),

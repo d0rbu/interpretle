@@ -1,6 +1,7 @@
 import type { InferenceSession, Tensor } from 'onnxruntime-web'
 import { expect, it, vi } from 'vitest'
 import { runSteps } from './model-steps'
+import { ForwardProfile } from './model-profile'
 
 const tensor = () => ({ dispose: vi.fn() }) as unknown as Tensor
 const step = (
@@ -70,4 +71,42 @@ it('frees intermediates on failure without claiming that the failed step finishe
   expect(q.dispose).toHaveBeenCalledOnce()
   expect(input.dispose).not.toHaveBeenCalled()
   expect(progress.mock.calls.at(-1)).toEqual(['Attention', false])
+})
+
+it('measures actual session calls including a failed operation', async () => {
+  let now = 0
+  const clock = vi.spyOn(performance, 'now').mockImplementation(() => now)
+  const p = new ForwardProfile({
+    backend: 'cpu',
+    threads: 4,
+    manifest: '/test',
+    run: 1,
+  })
+  try {
+    await expect(
+      runSteps(
+        [
+          step('Q projection', ['input'], async () => {
+            now += 12.5
+            return { q: tensor() }
+          }),
+          step('Attention', ['q'], async () => {
+            now += 20
+            throw new Error('failed')
+          }),
+        ],
+        { input: tensor() },
+        ['output'],
+        () => {},
+        (name, start, failed) =>
+          p.record('compute', name, start, 4, { failed }),
+      ),
+    ).rejects.toThrow('failed')
+    expect(p.snapshot('error').steps).toMatchObject([
+      { name: 'Q projection', layer: 4, startMs: 0, ms: 12.5, failed: false },
+      { name: 'Attention', layer: 4, startMs: 12.5, ms: 20, failed: true },
+    ])
+  } finally {
+    clock.mockRestore()
+  }
 })

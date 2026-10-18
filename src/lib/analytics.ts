@@ -1,10 +1,11 @@
 import type { Game } from './types'
 import { puzzleDay } from './day'
-import { isStorageFull } from './model-error'
+import { isStorageError } from './model-error'
 import type { ModelDiagnostics } from './model-error'
 import type { GameSnapshot } from './replay'
 import { breadcrumb, runtimeReport } from './diagnostics'
 import type { Breadcrumb, RuntimeReport } from './diagnostics'
+import type { ModelProfile } from './model-profile'
 
 export const EVENTS = [
   'visit',
@@ -22,6 +23,7 @@ export const EVENTS = [
   'model_error',
   'client_error',
   'model_cancel',
+  'model_profile',
 ] as const
 export const THEMES = ['light', 'dark', 'system'] as const
 export const PROBLEMS = [
@@ -51,6 +53,7 @@ export type EventFields = Partial<ModelDiagnostics> & {
   expanded?: boolean
   snapshot?: GameSnapshot
   report?: RuntimeReport
+  profile?: ModelProfile
 }
 let player: string | undefined,
   visit: string | undefined,
@@ -193,10 +196,11 @@ export function track(
           .filter(Boolean)
           .join(' · '),
       )
-    const memory = failure
+    const diagnostic = failure || event === 'model_profile'
+    const memory = diagnostic
       ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
       : undefined
-    const device = failure
+    const device = diagnostic
       ? {
           cores:
             navigator.hardwareConcurrency > 0
@@ -301,8 +305,7 @@ export function modelProblem(error: unknown): (typeof PROBLEMS)[number] {
     : error instanceof Error
       ? `${error.name} ${error.message}`
       : String(error)
-  if (isStorageFull(error) || /storage|quota|cache/i.test(message))
-    return 'storage'
+  if (isStorageError(error)) return 'storage'
   if (/download|fetch|network|HTTP|integrity/i.test(message)) return 'network'
   if (/out of memory|allocation|cannot allocate/i.test(message)) return 'memory'
   if (/WebGPU|shader-f16|GPU.*(?:support|lost)|16-bit float/i.test(message))

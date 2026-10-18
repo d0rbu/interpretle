@@ -1,4 +1,58 @@
 import { isStorageFull } from './model-error'
+import { runtimeReport } from './diagnostics'
+
+// Keep downloads parallel, but avoid concurrent CacheStorage writes on iOS.
+// Retry transient filesystem failures using the bytes already in memory.
+let writes = Promise.resolve()
+function cacheWrite(cache: Cache, url: string, bytes: Uint8Array<ArrayBuffer>) {
+  const write = writes.then(async () => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await cache.put(url, new Response(bytes))
+        return
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause)
+        if (
+          attempt < 3 &&
+          !isStorageFull(cause) &&
+          /internal error|failed writing data|invalidstateerror/i.test(message)
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 250 * attempt))
+          continue
+        }
+        let estimate: StorageEstimate = {}
+        try {
+          estimate = (await navigator.storage?.estimate()) ?? {}
+        } catch {
+          /* Storage diagnostics cannot mask the original failure. */
+        }
+        const report = runtimeReport(
+          cause,
+          'Saving model download to browser storage',
+          'model',
+          {
+            storageOperation: 'CacheStorage.put',
+            asset: new URL(url, location.origin).pathname,
+            assetBytes: bytes.byteLength,
+            storageAttempts: attempt,
+            ...(Number.isFinite(estimate.usage)
+              ? { storageUsageBytes: estimate.usage }
+              : {}),
+            ...(Number.isFinite(estimate.quota)
+              ? { storageQuotaBytes: estimate.quota }
+              : {}),
+          },
+        )
+        throw Object.assign(new Error(message, { cause }), {
+          name: report.name,
+          report,
+        })
+      }
+    }
+  })
+  writes = write.catch(() => {})
+  return write
+}
 
 export interface TensorInfo {
   shape: number[]
@@ -255,7 +309,7 @@ async function downloadAsset(
           transferred,
         ),
     )
-    await cache.put(partKey(part), new Response(bytes))
+    await cacheWrite(cache, partKey(part), bytes)
     await copy(part, bytes, at)
     received?.(completed, 0)
   }
@@ -280,7 +334,7 @@ export async function cachedFile(cache: Cache, asset: ModelAsset) {
     }
   }
   const data = await downloadAsset(cache, asset)
-  await cache.put(cacheKey, new Response(data))
+  await cacheWrite(cache, cacheKey, data)
   await removeParts(cache, asset)
   return data
 }
@@ -373,7 +427,7 @@ export async function downloadWeights(
             },
           )
           // CacheStorage does not accept HTTP 206; save verified bytes as a local 200 response.
-          await cache.put(key(chunk), new Response(data))
+          await cacheWrite(cache, key(chunk), data)
           await removeParts(cache, chunk)
           inFlight.delete(chunk.sha256)
           done += data.byteLength

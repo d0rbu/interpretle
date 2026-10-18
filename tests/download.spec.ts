@@ -85,10 +85,18 @@ test.beforeEach(async () => {
         onmessage = async ({ data }) => {
           try {
             const cache = await caches.open('resumable-test');
+            let writeAttempts = 0;
+            const put = cache.put.bind(cache);
+            cache.put = async (...args) => {
+              writeAttempts++;
+              if (writeAttempts <= (data.failWrites || 0))
+                throw new TypeError(writeAttempts === 1 ? 'Internal error' : 'Failed writing data to the file system');
+              return put(...args);
+            };
             if (data.file) await cachedFile(cache, data.file);
             else await downloadWeights(cache, [data.source],
               (message, fraction) => postMessage({ fraction }));
-            postMessage({ done: true });
+            postMessage({ done: true, writeAttempts });
           } catch (error) { postMessage({ error: String(error) }); }
         };`)
     } else if (path.startsWith('/part/')) {
@@ -112,6 +120,53 @@ test.beforeEach(async () => {
   if (!address || typeof address === 'string')
     throw new Error('Missing test port')
   origin = `http://127.0.0.1:${address.port}`
+})
+
+test('recovers transient Safari write errors without losing pieces or repeating transfers', async ({
+  page,
+}) => {
+  hold = false
+  const asset = {
+    url: '/unused-whole-file',
+    offset: 0,
+    bytes: full.length,
+    sha256: hash(full),
+    parts: pieces.map((bytes, n) => ({
+      url: `/part/${n}`,
+      sha256: hash(bytes),
+      bytes: bytes.length,
+    })),
+  }
+  await page.goto(origin)
+  const result = await page.evaluate(
+    (source) =>
+      new Promise<{ done?: boolean; error?: string; writeAttempts: number }>(
+        (resolve) => {
+          const worker = new Worker('/worker.js', { type: 'module' })
+          worker.onmessage = ({ data }) => {
+            if (data.done || data.error) {
+              worker.terminate()
+              resolve(data)
+            }
+          }
+          worker.postMessage({ source, failWrites: 2 })
+        },
+      ),
+    { tensors: {}, chunks: [asset] },
+  )
+  expect(result).toEqual({ done: true, writeAttempts: 7 })
+  expect(requests).toEqual([1, 1, 1, 1])
+  const saved = await page.evaluate(async (hash) => {
+    const cache = await caches.open('resumable-test')
+    const response = await cache.match(
+      new URL(`/__model_cache/${hash}`, location.origin).href,
+    )
+    return {
+      keys: (await cache.keys()).length,
+      bytes: (await response!.arrayBuffer()).byteLength,
+    }
+  }, asset.sha256)
+  expect(saved).toEqual({ keys: 1, bytes: full.length })
 })
 
 test.afterEach(async () => {

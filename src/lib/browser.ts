@@ -5,6 +5,7 @@ import { modelProblem, track } from './analytics'
 import type { EventFields } from './analytics'
 import { breadcrumb, runtimeReport } from './diagnostics'
 import type { Breadcrumb, RuntimeReport } from './diagnostics'
+import type { ModelProfile } from './model-profile'
 
 type Progress = (message: string, fraction?: number) => void
 type BrowserModel = NonNullable<Catalog['browserModel']>
@@ -27,6 +28,7 @@ function run<T>(
   progress: Progress,
   signal: AbortSignal,
   onTokens?: (tokens: TokenSpan[]) => void,
+  onProfile?: (profile: ModelProfile) => void,
 ): Promise<T> {
   if (running)
     return Promise.reject(new Error('The local model is already busy.'))
@@ -57,13 +59,14 @@ function run<T>(
       reject(new DOMException('', 'AbortError'))
     }
     current.onmessage = ({ data }) => {
+      if (data.profile) onProfile?.(data.profile)
       if (MODEL_BACKENDS.includes(data.backend)) backend = data.backend
       if (data.progress) {
         lastStage = data.progress
         breadcrumb(trail, lastStage)
         progress(data.progress, data.fraction)
       } else if (data.tokens) onTokens?.(data.tokens)
-      else {
+      else if (data.error || 'result' in data) {
         finish()
         if (data.error) {
           current.terminate()
@@ -239,6 +242,23 @@ export function scoreInBrowser(
   onTokens?: (tokens: TokenSpan[]) => void,
   context: EventFields = {},
 ) {
+  let profile: ModelProfile | undefined
+  let updated = 0
+  const record = (status: ModelProfile['status']) => {
+    if (!profile) return
+    track('model_profile', {
+      ...context,
+      backend: profile.backend,
+      profile:
+        profile.status === 'running'
+          ? {
+              ...profile,
+              status,
+              totalMs: profile.totalMs + performance.now() - updated,
+            }
+          : profile,
+    })
+  }
   return run<TokenActivation[]>(
     {
       type: 'score',
@@ -252,10 +272,24 @@ export function scoreInBrowser(
     progress,
     signal,
     onTokens,
-  ).catch((cause) => {
-    if (cause instanceof DOMException && cause.name === 'AbortError')
-      track('model_cancel', context)
-    else reportFailure(cause, 'Scoring', context)
-    throw cause
-  })
+    (value) => {
+      profile = value
+      updated = performance.now()
+    },
+  )
+    .then((result) => {
+      record('ok')
+      return result
+    })
+    .catch((cause) => {
+      record(
+        cause instanceof DOMException && cause.name === 'AbortError'
+          ? 'cancelled'
+          : 'error',
+      )
+      if (cause instanceof DOMException && cause.name === 'AbortError')
+        track('model_cancel', context)
+      else reportFailure(cause, 'Scoring', context)
+      throw cause
+    })
 }

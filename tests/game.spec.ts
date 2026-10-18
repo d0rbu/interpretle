@@ -1662,11 +1662,12 @@ test('records a failed daily game in the X bar without counting a reload twice',
     'aria-label',
     'Failed: 1 player, your result',
   )
-  await expect(page.locator('.distribution-heading')).toContainText('0 solved')
+  await expect(page.locator('.distribution-heading')).toContainText('1 play')
   await page.reload()
   await expect(page.locator('.distribution .your-result')).toHaveAttribute(
     'aria-label',
     'Failed: 1 player, your result',
   )
   await expect(page.locator('.celebration')).toHaveCount(0)
+  await expect(page.locator('.distribution-heading')).toContainText('1 play')
 })

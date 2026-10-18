@@ -8,6 +8,7 @@ export async function runSteps(
   feeds: Record<string, Tensor>,
   outputs: string[],
   progress: (label: string, finished: boolean) => void,
+  timing?: (label: string, start: number, failed: boolean) => void,
 ) {
   const values = { ...feeds }
   const owned = new Map<string, Tensor>()
@@ -15,11 +16,19 @@ export async function runSteps(
   try {
     for (const [index, { label, session }] of steps.entries()) {
       progress(label, false)
-      const result = await session.run(
-        Object.fromEntries(
-          session.inputNames.map((name) => [name, values[name]]),
-        ),
-      )
+      const start = performance.now()
+      let result: Record<string, Tensor>
+      try {
+        result = await session.run(
+          Object.fromEntries(
+            session.inputNames.map((name) => [name, values[name]]),
+          ),
+        )
+      } catch (cause) {
+        timing?.(label, start, true)
+        throw cause
+      }
+      timing?.(label, start, false)
       Object.assign(values, result)
       for (const [name, tensor] of Object.entries(result))
         owned.set(name, tensor)

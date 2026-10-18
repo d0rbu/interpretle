@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Catalog } from './types'
 import { feature } from '../../tests/fixture'
+import { profileFixture } from '../../tests/profile-fixture'
 
 const telemetry = vi.hoisted(() => ({
   track: vi.fn(),
@@ -236,3 +237,69 @@ it('identifies a crashed worker using its last execution backend and layer', asy
     'PRIVATE INPUT',
   )
 })
+
+it('records one private profile linked to the write-in submission without sending its text again', async () => {
+  const { scoreInBrowser } = await import('./browser')
+  const context = {
+    mode: 'daily' as const,
+    round: '2026-10-18',
+    feature: feature.id,
+    submission: crypto.randomUUID(),
+    attempt: 2,
+  }
+  const result = scoreInBrowser(
+    'PRIVATE INPUT',
+    feature,
+    model,
+    () => {},
+    new AbortController().signal,
+    undefined,
+    context,
+  )
+  const profile = profileFixture()
+  workers[0].onmessage?.({
+    data: { profile: { ...profile, status: 'running' } },
+  })
+  expect(workers[0].onmessage).not.toBeNull()
+  expect(telemetry.track).not.toHaveBeenCalled()
+  workers[0].onmessage?.({ data: { result: [], profile } })
+  await expect(result).resolves.toEqual([])
+  expect(telemetry.track).toHaveBeenCalledExactlyOnceWith('model_profile', {
+    ...context,
+    backend: 'gpu',
+    profile,
+  })
+  expect(JSON.stringify(telemetry.track.mock.calls)).not.toContain(
+    'PRIVATE INPUT',
+  )
+})
+
+it.each(['cancelled', 'error'])(
+  'retains the last partial trace when scoring is %s',
+  async (status) => {
+    const { scoreInBrowser } = await import('./browser')
+    const controller = new AbortController()
+    const result = scoreInBrowser(
+      'A sentence',
+      feature,
+      model,
+      () => {},
+      controller.signal,
+    )
+    const rejected = expect(result).rejects.toThrow()
+    workers[0].onmessage?.({
+      data: { profile: profileFixture({ status: 'running' }) },
+    })
+    if (status === 'cancelled') controller.abort()
+    else workers[0].onerror?.({ message: 'GPU device was lost' })
+    await rejected
+    const profiles = telemetry.track.mock.calls.filter(
+      ([event]) => event === 'model_profile',
+    )
+    expect(profiles).toHaveLength(1)
+    expect(profiles[0][1]).toMatchObject({
+      profile: { status, steps: profileFixture().steps },
+    })
+    expect(profiles[0][1].profile.totalMs).toBeGreaterThanOrEqual(2000)
+  },
+)

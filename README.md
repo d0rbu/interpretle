@@ -181,7 +181,7 @@ The game counters use a random first-party browser ID in local storage to
 recognize returning players, plus a session ID in session storage. They count
 visits, puzzle views, starts, selected public passage IDs/positions/bands,
 attempt numbers, completed outcomes, practice rounds, write-in selections,
-shares, and model loading outcomes. Error categories are aggregated; bounded
+shares, model loading outcomes, and forward-pass profiles. Error categories are aggregated; bounded
 exception reports are stored separately and privately. Theme usage records the selected Light/Dark/System setting
 and the actual light/dark appearance, including system changes, once per
 combination per visit and Pacific day. Game events carry that theme context too.
@@ -207,7 +207,7 @@ HTTP status or layer when known, and the browser's reported device information.
 The user-agent header supplies the browser/version, OS family, and device type;
 logical core count and approximate RAM are included when the browser exposes them.
 The raw user agent is bounded to 512 characters. Device capabilities are collected
-for model and uncaught page errors; the reported user agent is saved with every event.
+for forward-pass profiles and model/uncaught page errors; the reported user agent is saved with every event.
 Errors also include a bounded original message, stack and cause, the failed operation,
 build ID, model manifest, backend/thread/token details when available, and the last
 24 gameplay/model breadcrumbs. Breadcrumbs contain actions and stages, not drafts.
@@ -232,6 +232,28 @@ partial games are counted separately, and older aggregate activity remains in th
 time-series plots. Audience/errors cover all modes; the game filter applies to
 gameplay charts. The overview also shows attempt/option distributions, practice
 frequency, themes and devices. No external chart service is used.
+
+The local model panel records every completed or failed forward pass, plus partial
+traces for cancellations or crashed workers. Profiles include start time, elapsed
+milliseconds, token count, CPU/GPU backend, worker run number, build and thread count.
+Each layer records the individual graph operations (norms, Q/K/V projections,
+attention, output and MLP projections), input preparation and waits for weights.
+The weight worker reports cache-read and FP4 expansion time separately. These
+background spans overlap computation; they must not be added to total latency.
+GPU operation timings measure `session.run()` wall time, including dispatch and
+runtime overhead, not isolated GPU kernel duration. Final readback is timed too;
+profiling adds no GPU fences. Download/setup time is excluded. The dashboard shows
+CPU/GPU medians and p95s, recent-pass latency, phase/operation/layer breakdowns and
+individual timelines. Filter by runtime to avoid mixing CPU and GPU comparisons.
+Raw profiles are in the existing private event export, linked to the write-in's
+submission ID. Old passes have no retrospective profiling data.
+
+Model downloads stay parallel, but CacheStorage writes are serialized. Transient
+Safari filesystem write errors retry up to three times using the already-downloaded
+bytes; quota errors stop immediately. Saved files/pieces survive a failed write.
+If writing still fails, its private report includes the original exception, exact
+cache operation/file, write size/attempt count and storage usage/quota when exposed
+by the browser. A generic filesystem failure does not prove the disk is full.
 
 The detailed tables and exports live at [/admin/raw](https://interpretle.com/admin/raw).
 Existing `/admin?browser=...` and JSON links still work.

@@ -1,5 +1,6 @@
 import type { Sql } from './analytics'
 import type { RuntimeReport } from '../src/lib/diagnostics'
+import { readProfiles } from './profiles'
 
 type Counts = { label: string; count: number }
 export type FlowGroup = {
@@ -38,7 +39,14 @@ type Issue = {
   samples: ErrorSample[]
 }
 
-function readInsights(sql: Sql, end: string, days: number, mode: string) {
+function readInsights(
+  sql: Sql,
+  end: string,
+  days: number,
+  mode: string,
+  runtime: string,
+  profile?: string,
+) {
   const start = new Date(Date.parse(end + 'T12:00:00Z') - (days - 1) * 86400000)
     .toISOString()
     .slice(0, 10)
@@ -230,6 +238,7 @@ function readInsights(sql: Sql, end: string, days: number, mode: string) {
     themes,
     devices,
     practice,
+    profiles: readProfiles(sql, start, end, mode, runtime, profile),
   }
 }
 
@@ -238,14 +247,18 @@ export type Insights = ReturnType<typeof readInsights>
 export function dashboardData(sql: Sql, params: URLSearchParams, end: string) {
   const days = Number(params.get('days') ?? 14)
   const mode = params.get('game') ?? 'all'
+  const runtime = params.get('runtime') ?? 'all'
+  const profile = params.get('pass') ?? undefined
   if (
     ![1, 7, 14, 30, 90].includes(days) ||
     !['all', 'daily', 'practice'].includes(mode) ||
+    !['all', 'gpu', 'cpu'].includes(runtime) ||
+    (profile !== undefined && !/^[a-f0-9]{64}$/.test(profile)) ||
     !Number.isFinite(Date.parse(end + 'T12:00:00Z')) ||
     new Date(end + 'T12:00:00Z').toISOString().slice(0, 10) !== end
   )
     return Response.json({ error: 'Invalid dashboard range.' }, { status: 400 })
-  return Response.json(readInsights(sql, end, days, mode), {
+  return Response.json(readInsights(sql, end, days, mode, runtime, profile), {
     headers: { 'Cache-Control': 'private, no-store, no-transform' },
   })
 }

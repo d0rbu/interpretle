@@ -15,6 +15,21 @@ let cpu = false
 let cache: Promise<Cache>
 
 self.onmessage = async ({ data: request }) => {
+  let readMs = 0,
+    decodeMs = 0
+  const read = async <T>(run: () => Promise<T>) => {
+    const start = performance.now()
+    try {
+      return await run()
+    } finally {
+      readMs += performance.now() - start
+    }
+  }
+  const timing = (bytes = 0) => ({
+    readMs: Math.round(readMs * 100) / 100,
+    decodeMs: Math.round(decodeMs * 100) / 100,
+    bytes,
+  })
   try {
     if (request.source) {
       source = request.source
@@ -23,18 +38,23 @@ self.onmessage = async ({ data: request }) => {
     }
     const saved = await cache
     const entries = Object.entries(request.weights) as [string, TensorInfo][]
-    const packed = await readRanges(
-      saved,
-      source,
-      entries.map(([, info]) => info),
+    const packed = await read(() =>
+      readRanges(
+        saved,
+        source,
+        entries.map(([, info]) => info),
+      ),
     )
     const prepare = (
       name: string,
       bytes: Uint8Array,
       info: TensorInfo,
     ): PreparedWeight => {
+      const start = performance.now()
       const half = weightToHalf(bytes, info.dtype)
-      return { name, shape: info.shape, data: cpu ? halfToFloat32(half) : half }
+      const data = cpu ? halfToFloat32(half) : half
+      decodeMs += performance.now() - start
+      return { name, shape: info.shape, data }
     }
     const weights = entries.map(([name, info], index) =>
       prepare(name, packed[index], info),
@@ -45,7 +65,9 @@ self.onmessage = async ({ data: request }) => {
         ['layer_rows', 'embed_tokens_per_layer.weight'],
       ]) {
         const info = source.tensors[`model.language_model.${tensor}`]
-        const rows = await embeddingRows(saved, source, info, request.ids)
+        const rows = await read(() =>
+          embeddingRows(saved, source, info, request.ids),
+        )
         weights.push(
           prepare(name, rows, {
             ...info,
@@ -56,7 +78,10 @@ self.onmessage = async ({ data: request }) => {
     }
     // Transfer ownership instead of copying the expanded weights.
     self.postMessage(
-      { weights },
+      {
+        weights,
+        timing: timing(weights.reduce((n, w) => n + w.data.byteLength, 0)),
+      },
       {
         transfer: [
           ...new Set(weights.map(({ data }) => data.buffer as ArrayBuffer)),
@@ -67,6 +92,7 @@ self.onmessage = async ({ data: request }) => {
     self.postMessage({
       error: modelError(cause, 'Preparing model weights'),
       report: runtimeReport(cause, request.stage, 'weights'),
+      timing: timing(),
     })
   }
 }

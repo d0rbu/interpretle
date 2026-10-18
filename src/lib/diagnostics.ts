@@ -20,6 +20,8 @@ export const REPORT_TEXT_LIMITS = {
   filename: 500,
   manifest: 240,
   gpu: 240,
+  storageOperation: 80,
+  asset: 300,
 } as const
 export const REPORT_NUMBER_LIMITS = {
   line: 10_000_000,
@@ -27,6 +29,10 @@ export const REPORT_NUMBER_LIMITS = {
   elapsedMs: 604_800_000,
   threads: 1024,
   tokens: 10000,
+  assetBytes: 4_000_000_000,
+  storageUsageBytes: 2 ** 44,
+  storageQuotaBytes: 2 ** 44,
+  storageAttempts: 3,
 } as const
 export type Breadcrumb = { at: string; stage: string }
 export type RuntimeReport = {
@@ -41,11 +47,17 @@ export type RuntimeReport = {
   filename?: string
   manifest?: string
   gpu?: string
+  storageOperation?: string
+  asset?: string
   line?: number
   column?: number
   elapsedMs?: number
   threads?: number
   tokens?: number
+  assetBytes?: number
+  storageUsageBytes?: number
+  storageQuotaBytes?: number
+  storageAttempts?: number
   isolated?: boolean
   online?: boolean
   visible?: boolean

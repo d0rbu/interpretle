@@ -13,6 +13,7 @@ import { gameSnapshot } from '../src/lib/replay'
 import { runtimeReport } from '../src/lib/diagnostics'
 import { flowSteps } from './dashboard'
 import type { Insights } from './insights'
+import { profileFixture } from '../tests/profile-fixture'
 
 let db: DatabaseSync, analytics: GameAnalytics
 function restart() {
@@ -116,6 +117,142 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-10-18T12:00:00Z'))
   db = new DatabaseSync(':memory:')
   restart()
+})
+
+it('stores per-pass timings privately, deduplicates delivery and summarizes CPU and GPU separately', async () => {
+  const submission = crypto.randomUUID()
+  const payload = event('model_profile', {
+    ...replayFields(),
+    submission,
+    backend: 'gpu',
+    cores: 8,
+    profile: profileFixture(),
+  })
+  expect(
+    (
+      await request(payload, '/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': firefoxMac,
+        },
+        body: JSON.stringify(payload),
+      })
+    ).status,
+  ).toBe(204)
+  expect((await request(payload)).status).toBe(204)
+  for (const totalMs of [4000, 6000]) {
+    vi.setSystemTime(new Date(Date.now() + 1000))
+    const response = await request(
+      event('model_profile', {
+        ...replayFields(),
+        profile: profileFixture({ totalMs }),
+      }),
+    )
+    expect(response.status).toBe(204)
+  }
+  for (const status of ['error', 'cancelled'] as const) {
+    const response = await request(
+      event('model_profile', {
+        ...replayFields(),
+        profile: profileFixture({ status, totalMs: 500, steps: [] }),
+      }),
+    )
+    expect(response.status).toBe(204)
+  }
+  const cpu = await request(
+    event('model_profile', {
+      ...replayFields(),
+      profile: profileFixture({ backend: 'cpu', totalMs: 8000, threads: 4 }),
+    }),
+  )
+  expect(cpu.status).toBe(204)
+  const data = await overview()
+  expect(data.profiles.summary).toEqual([
+    {
+      backend: 'cpu',
+      count: 1,
+      completed: 1,
+      failed: 0,
+      cancelled: 0,
+      p50Ms: 8000,
+      p95Ms: 8000,
+    },
+    {
+      backend: 'gpu',
+      count: 5,
+      completed: 3,
+      failed: 1,
+      cancelled: 1,
+      p50Ms: 4000,
+      p95Ms: 6000,
+    },
+  ])
+  expect(data.profiles.operations).toEqual([
+    { name: 'Attention', ms: 450, count: 4 },
+    { name: 'Q projection', ms: 250, count: 4 },
+  ])
+  expect(data.profiles.layers).toEqual([{ layer: 0, ms: 700, count: 4 }])
+  expect(data.profiles.phases).toContainEqual({
+    kind: 'wait',
+    ms: 402,
+    count: 4,
+  })
+  expect(data.profiles.phases).toContainEqual({
+    kind: 'weight_read',
+    ms: 300,
+    count: 4,
+  })
+  expect(data.profiles.recent).toHaveLength(6)
+  expect((await overview('runtime=gpu')).profiles.summary).toHaveLength(1)
+  expect((await overview('game=practice')).profiles.summary).toEqual([])
+  const selected = await overview('pass=' + payload.id)
+  expect(selected.profiles.selected).toEqual({
+    id: payload.id,
+    profile: profileFixture(),
+  })
+  const saved = await (
+    await request(undefined, gameExport(), { headers: auth })
+  ).json()
+  expect(saved.events[0]).toMatchObject({
+    submission,
+    profile: profileFixture(),
+    browser: 'Firefox 157.0.1',
+    cores: 8,
+  })
+  expect(JSON.stringify((await stats()).counters)).not.toContain('test-build')
+  expect((await request(undefined, '/admin?pass=' + payload.id)).status).toBe(
+    401,
+  )
+  const html = await (
+    await request(undefined, '/admin?pass=' + payload.id, { headers: auth })
+  ).text()
+  expect(html).toContain('Forward-pass duration over time')
+  expect(html).toContain('Layer 1 · Attention')
+  expect(html).toContain('2.00 s')
+  expect(
+    (await request(undefined, '/admin?pass=invalid', { headers: auth })).status,
+  ).toBe(400)
+})
+
+it('rejects misplaced, oversized and invalid profiling payloads without logging them', async () => {
+  for (const fields of [
+    {},
+    { profile: { ...profileFixture(), rawText: 'unsolicited' } },
+    {
+      profile: profileFixture({
+        steps: Array(513).fill(profileFixture().steps[0]),
+      }),
+    },
+    { profile: profileFixture({ status: 'running' }) },
+    { profile: profileFixture({ totalMs: -1 }) },
+    { profile: profileFixture(), report: runtimeReport('x', 'x', 'model') },
+  ])
+    expect((await request(event('model_profile', fields))).status).toBe(400)
+  expect(
+    (await request(event('visit', { profile: profileFixture() }))).status,
+  ).toBe(400)
+  expect((await overview()).profiles.summary).toEqual([])
 })
 
 it('stores bounded original exceptions privately, groups retries correctly, and preserves raw exports', async () => {

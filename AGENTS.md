@@ -9,6 +9,8 @@ complexity and a low bar for removing it.
   random browser IDs, server-derived visitor IPs, device/model diagnostics,
   submitted write-ins, and the boards/token scores needed to replay games.
   Bounded exception messages, stacks and runtime breadcrumbs are private too.
+  Per-forward-pass wall-clock timings, including overlapping weight preparation,
+  are private telemetry too; do not add GPU synchronization just for profiling.
   Unsubmitted drafts are not collected. No server inference
   or game-session service. Only the private stats page needs
   authentication, using a Worker secret.

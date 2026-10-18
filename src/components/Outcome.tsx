@@ -24,6 +24,7 @@ export default function Outcome({
   const [copied, setCopied] = useState(false)
   const [fallback, setFallback] = useState('')
   const [counts, setCounts] = useState<number[] | null>(null)
+  const plays = counts?.reduce((sum, count) => sum + count, 0) ?? 0
   const [statsError, setStatsError] = useState(false)
   const [confetti, setConfetti] = useState(celebrate)
   const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -205,16 +206,12 @@ export default function Outcome({
           <div className="distribution-heading">
             <h3>
               {game.seed === puzzleDay()
-                ? 'Today’s solves'
+                ? 'Today’s plays'
                 : dateLabel(game.seed)}
             </h3>
             {counts && (
               <span>
-                {counts
-                  .slice(0, 8)
-                  .reduce((a, b) => a + b, 0)
-                  .toLocaleString()}{' '}
-                solved
+                {plays.toLocaleString()} {plays === 1 ? 'play' : 'plays'}
               </span>
             )}
           </div>

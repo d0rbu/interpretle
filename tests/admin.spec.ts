@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { dashboardPage } from '../server/dashboard'
 import type { Insights } from '../server/insights'
+import { profileFixture } from './profile-fixture'
 
 // Synthetic display data only; these requests never reach production analytics.
 const sample: Insights = {
@@ -9,6 +10,48 @@ const sample: Insights = {
   end: '2026-10-18',
   days: 14,
   mode: 'all',
+  profiles: {
+    runtime: 'all',
+    expanded: false,
+    summary: [
+      {
+        backend: 'gpu',
+        count: 3,
+        completed: 2,
+        failed: 1,
+        cancelled: 0,
+        p50Ms: 2000,
+        p95Ms: 4000,
+      },
+    ],
+    phases: [
+      { kind: 'compute', ms: 700, count: 2 },
+      { kind: 'wait', ms: 402, count: 2 },
+      { kind: 'weight_read', ms: 300, count: 2 },
+      { kind: 'weight_decode', ms: 450, count: 2 },
+    ],
+    operations: [
+      { name: 'Q projection', ms: 250, count: 2 },
+      { name: 'Attention', ms: 450, count: 2 },
+    ],
+    layers: [{ layer: 0, ms: 700, count: 2 }],
+    recent: [2000, 4000].map((totalMs, i) => ({
+      id: String(i + 1).repeat(64),
+      at: `2026-10-18T12:0${i}:00.000Z`,
+      player: '11111111-1111-4111-8111-111111111111',
+      mode: 'daily',
+      round: '2026-10-18',
+      feature: 'test',
+      browser: 'Firefox 157',
+      os: 'macOS',
+      backend: 'gpu',
+      status: 'ok',
+      totalMs,
+      tokens: 20,
+      run: i + 1,
+    })),
+    selected: { id: '1'.repeat(64), profile: profileFixture() },
+  },
   people: { browsers: 486, returning: 124 },
   series: Array.from({ length: 14 }, (_, i) => ({
     day: `2026-10-${String(i + 5).padStart(2, '0')}`,
@@ -190,6 +233,26 @@ test('private dashboard charts and errors remain readable in light and dark mode
     path: info.outputPath('dashboard-error.png'),
     fullPage: true,
   })
+  await expect(
+    page.getByRole('img', { name: 'Forward-pass duration over time' }),
+  ).toBeVisible()
+  await page
+    .locator('summary')
+    .filter({ hasText: 'Compare operations and layers' })
+    .click()
+  await page
+    .locator('summary')
+    .filter({ hasText: 'Forward-pass trace' })
+    .click()
+  await expect(
+    page.getByRole('cell', { name: 'Layer 1 · Attention', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('cell', {
+      name: 'Layer 1 · Read & prepare weights',
+      exact: false,
+    }),
+  ).toContainText('FP4 expansion')
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 
@@ -201,6 +264,7 @@ test('private dashboard makes missing historical paths and empty reports explici
     flow: [],
     issues: [],
     devices: [],
+    profiles: { ...sample.profiles, summary: [], recent: [], selected: null },
     coverage: { historySince: null, errorRecords: 0, exceptions: 0 },
     series: sample.series.map((row) => ({ ...row, errors: 0 })),
   }

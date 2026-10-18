@@ -308,11 +308,93 @@ it.each(['QuotaExceededError', 'NS_ERROR_FILE_NO_DEVICE_SPACE'])(
         [{ tensors: {}, chunks: [chunk(data)] }],
         () => {},
       ),
-    ).rejects.toBe(error)
+    ).rejects.toMatchObject({
+      name,
+      report: {
+        name,
+        storageOperation: 'CacheStorage.put',
+        storageAttempts: 1,
+      },
+    })
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(await entries.get(saved)!.text()).toBe('completed model chunk')
   },
 )
+
+it('retries Safari filesystem write failures without downloading the same bytes again', async () => {
+  const data = new Uint8Array([1, 2, 3])
+  const fetch = vi.fn().mockResolvedValue(new Response(data))
+  vi.stubGlobal('fetch', fetch)
+  const put = cache.put
+  let calls = 0
+  cache.put = vi.fn(async (...args: Parameters<Cache['put']>) => {
+    if (++calls <= 2)
+      throw new TypeError(
+        calls === 1
+          ? 'Internal error'
+          : 'Failed writing data to the file system',
+      )
+    return put(...args)
+  })
+  expect(await cachedFile(cache, chunk(data))).toEqual(data)
+  expect(fetch).toHaveBeenCalledOnce()
+  expect(cache.put).toHaveBeenCalledTimes(3)
+  expect(new Uint8Array(await [...entries.values()][0].arrayBuffer())).toEqual(
+    data,
+  )
+})
+
+it('serializes browser writes while downloads run concurrently', async () => {
+  const data = [new Uint8Array([1]), new Uint8Array([2]), new Uint8Array([3])]
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async (url: string) =>
+        new Response(data[Number(url.split('/').at(-1)) - 1]),
+    ),
+  )
+  let active = 0,
+    maximum = 0
+  const put = cache.put
+  cache.put = async (...args) => {
+    active++
+    maximum = Math.max(maximum, active)
+    await Promise.resolve()
+    await put(...args)
+    active--
+  }
+  await Promise.all(
+    data.map((bytes, i) =>
+      cachedFile(cache, { ...chunk(bytes), url: `/model/${i + 1}` }),
+    ),
+  )
+  expect(maximum).toBe(1)
+  expect(entries.size).toBe(3)
+})
+
+it('bounds storage retries and captures original errors, file size and quota', async () => {
+  const data = new Uint8Array([9, 8, 7])
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(data)))
+  vi.stubGlobal('navigator', {
+    storage: {
+      estimate: async () => ({ usage: 2300000000, quota: 10000000000 }),
+    },
+  })
+  cache.put = vi.fn().mockRejectedValue(new TypeError('Internal error'))
+  await expect(cachedFile(cache, chunk(data))).rejects.toMatchObject({
+    name: 'TypeError',
+    report: {
+      message: 'Internal error',
+      stage: 'Saving model download to browser storage',
+      storageOperation: 'CacheStorage.put',
+      storageAttempts: 3,
+      assetBytes: 3,
+      storageUsageBytes: 2300000000,
+      storageQuotaBytes: 10000000000,
+    },
+  })
+  expect(cache.put).toHaveBeenCalledTimes(3)
+})
 
 it('does not retry a Firefox disk-space failure while downloading the tokenizer', async () => {
   const error = new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE')

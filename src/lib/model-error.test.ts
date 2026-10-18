@@ -70,6 +70,26 @@ it('does not invent a cause when the browser provides none', () => {
   )
 })
 
+it('identifies Safari native cache failures as storage errors without claiming disk is full', () => {
+  const cause = Object.assign(new Error('Internal error'), {
+    report: {
+      name: 'TypeError',
+      message: 'Internal error',
+      storageOperation: 'CacheStorage.put',
+    },
+  })
+  expect(
+    modelDiagnostics(cause, 'Saving model download to browser storage', 'gpu'),
+  ).toMatchObject({ code: 'storage_unavailable', phase: 'storage' })
+  expect(modelProblem(cause)).toBe('storage')
+  expect(modelError(cause, 'Saving model download')).toContain(
+    'Retry to resume saved downloads',
+  )
+  expect(modelError(cause, 'Saving model download')).not.toContain(
+    'storage is full',
+  )
+})
+
 it('classifies the original cross-worker failure rather than its recovery wrapper', () => {
   const wrapped = Object.assign(new Error('Preparing model weights failed'), {
     report: {
