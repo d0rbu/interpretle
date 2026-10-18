@@ -136,10 +136,11 @@ function Instructions({ close }: { close: () => void }) {
       <p>
         There is a hidden concept in a language model, such as "refrigerator" or
         "transportation rental". Your job is to figure out what it is and,
-        within six attempts, find a passage so closely related to the concept
-        that it activates at the 99.9th percentile. Highlights reveal how
-        strongly the concept activated in different parts of the passage, and
-        you can also write in your own option up to twice in one game.
+        within <strong>six attempts</strong>, find a passage so closely related
+        to the concept that it activates at the{' '}
+        <strong>99.9th percentile</strong>. Highlights reveal how strongly the
+        concept activated in different parts of the passage, and you can also
+        write in your own option up to twice in one game.
       </p>
       <button className="primary" onClick={close} autoFocus>
         Play
