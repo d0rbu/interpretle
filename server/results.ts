@@ -11,6 +11,7 @@ interface Sql {
   ): Iterable<Record<string, string | number>>
 }
 interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> }
   STATS_PASSWORD?: string
   ANALYTICS?: {
     getByName(name: string): { fetch(request: Request): Promise<Response> }
@@ -102,6 +103,13 @@ export class DailyResults {
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url)
+    // The game uses browser APIs that require a secure context.
+    if (url.protocol === 'http:' && url.hostname === 'interpretle.com') {
+      url.protocol = 'https:'
+      return Response.redirect(url.href, 308)
+    }
+    if (url.pathname === '/' || url.pathname === '/index.html')
+      return env.ASSETS.fetch(request)
     if (url.pathname === '/admin' || url.pathname === '/admin/') {
       if (url.protocol !== 'https:') {
         url.protocol = 'https:'

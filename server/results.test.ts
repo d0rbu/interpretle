@@ -25,6 +25,7 @@ function counter(day: string) {
   })
 }
 const env = {
+  ASSETS: { fetch: async () => new Response('Static game') },
   RESULTS: {
     getByName(day: string) {
       if (!counters.has(day)) counters.set(day, counter(day))
@@ -56,6 +57,41 @@ afterEach(() => {
   for (const db of databases.values()) db.close()
   databases.clear()
   counters.clear()
+})
+
+describe('game entry', () => {
+  it('redirects HTTP to HTTPS before serving the game, preserving the selected day', async () => {
+    const assets = vi.fn(env.ASSETS.fetch)
+    for (const path of ['/', '/?day=2026-10-17', '/index.html']) {
+      const response = await worker.fetch(
+        new Request('http://interpretle.com' + path),
+        { ...env, ASSETS: { fetch: assets } },
+      )
+      expect(response.status).toBe(308)
+      expect(response.headers.get('Location')).toBe(
+        'https://interpretle.com' + path,
+      )
+    }
+    expect(assets).not.toHaveBeenCalled()
+  })
+
+  it('serves the existing static game over HTTPS and in local development', async () => {
+    for (const url of [
+      'https://interpretle.com/?day=2026-10-17',
+      'https://interpretle.com/index.html',
+      'http://localhost:8787/',
+    ]) {
+      const request = new Request(url)
+      const assets = vi.fn(env.ASSETS.fetch)
+      const response = await worker.fetch(request, {
+        ...env,
+        ASSETS: { fetch: assets },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('Static game')
+      expect(assets).toHaveBeenCalledWith(request)
+    }
+  })
 })
 
 describe('daily solve counter', () => {
@@ -168,6 +204,7 @@ describe('daily solve counter', () => {
     const response = await worker.fetch(
       new Request('https://interpretle.com/api/results/2026-10-18'),
       {
+        ...env,
         RESULTS: {
           getByName() {
             throw new Error('storage unavailable')

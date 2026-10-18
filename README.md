@@ -9,6 +9,8 @@ opens the archive. Practice keeps separate progress.
 Games started before the six-attempt update keep their original limit.
 
 The game is served as **static files**, configured in [wrangler.jsonc](wrangler.jsonc).
+The entry page passes through the Worker to redirect HTTP visitors to HTTPS
+before any browser code runs. Model weights and other assets are served directly.
 The backend is [a small daily solve counter](server/results.ts) and
 [first-party game counters](server/analytics.ts). Daily results use one
 Cloudflare Durable Object per puzzle day, with eight solve counts, an X bucket

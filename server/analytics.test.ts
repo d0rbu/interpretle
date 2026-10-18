@@ -49,6 +49,7 @@ function request(body?: unknown, path = '/api/events', init: RequestInit = {}) {
       ...init,
     }),
     {
+      ASSETS: { fetch: async () => new Response('Static game') },
       RESULTS: {
         getByName() {
           throw new Error('Not the daily counter')
@@ -245,6 +246,9 @@ it('redirects HTTP stats visits to HTTPS before requesting credentials or readin
     const response = await worker.fetch(
       new Request('http://interpretle.com' + path),
       {
+        get ASSETS(): never {
+          throw new Error('Must redirect before serving assets')
+        },
         get STATS_PASSWORD(): string {
           throw new Error('Must redirect before checking credentials')
         },
@@ -318,6 +322,7 @@ it('serves stats only on the private authenticated page and disables the old pub
           headers: { Authorization: 'Basic ' + btoa('henry:' + password) },
         }),
         {
+          ASSETS: { fetch: async () => new Response('Static game') },
           RESULTS: {
             getByName() {
               throw new Error(
