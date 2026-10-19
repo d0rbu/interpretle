@@ -20,6 +20,7 @@ from huggingface_hub import hf_hub_download
 from safetensors import safe_open
 
 ENCODING_ERRORS = re.compile(r'[\u0080-\u009f\ufffd]|â€|[ÃÂ][\u0080-\u00bf]|ðŸ')
+NAVIGATION = re.compile(r'^\s*(?:See also|References|External links|Further reading)\s*$', re.MULTILINE)
 
 
 def context_start(doc, first):
@@ -128,6 +129,7 @@ def main():
     parser.add_argument('--targets', type=Path, default=Path('data/features.json'))
     parser.add_argument('--output', type=Path, default=Path('public/puzzles'))
     parser.add_argument('--discover', action='store_true')
+    parser.add_argument('--daily-only', action='store_true', help='Keep existing practice packs unchanged')
     args = parser.parse_args()
     manifest = json.loads((args.cache / 'manifest.json').read_text())
     docs = [json.loads(line) for line in (args.cache / 'documents.jsonl').read_text().splitlines()]
@@ -157,6 +159,8 @@ def main():
                         not ENCODING_ERRORS.search(docs[doc]['text'][context_start(docs[doc], first):end]) and
                         len(re.findall(r'''[.!?]["”’')\]]*\s+(?=\S)''', docs[doc]['text'][start:end].strip())) < 3
                         for doc, first, last, start, end in rows])
+    daily_showable = showable & np.array([not NAVIGATION.search(docs[doc]['text'][start:end])
+                                          for doc, _, _, start, end in rows])
     row_ids = {f"{docs[doc]['id']}:{first}-{last}": i for i, (doc, first, last, _, _) in enumerate(rows)}
     sae_path = hf_hub_download(manifest['sae'], f"{manifest['sae_id']}/sae_weights.safetensors", revision=manifest['sae_revision'])
     args.output.mkdir(parents=True, exist_ok=True)
@@ -166,11 +170,23 @@ def main():
     previous = json.loads(catalog_path.read_text()) if catalog_path.exists() else {}
     published = {day: target for day, target in previous.get('daily', {}).items()
                  if day <= datetime.now(ZoneInfo('America/Los_Angeles')).date().isoformat()}
+    frozen_ids = set(published.values()) | set(previous.get('practice', []))
     ids, daily_ids, reports = [], [], []
     for target in targets:
         target = dict(target)
         clue = target.pop('clue', None)
+        clue_token = target.pop('clueToken', None)
+        wins = target.pop('wins', None)
         mode = target.pop('mode', 'daily' if target['kind'] == 'sae' else 'practice')
+        if args.daily_only and mode == 'practice':
+            identity = f"gemma4-l21-{target['kind']}-{target['index']}-v2"
+            if identity not in previous.get('practice', []) or not (args.output / f'{identity}.json').exists():
+                raise ValueError(f'{identity}: --daily-only requires an existing practice pack')
+            ids.append(identity)
+            continue
+        if mode == 'daily' and (not clue or clue_token is None or not wins):
+            raise ValueError(f"{target['index']}: daily features need a reviewed clue, its strongest token, and winning examples")
+        playable = daily_showable if mode == 'daily' else showable
         if target['kind'] == 'sae':
             column = target['index']
         elif target['kind'] == 'neuron':
@@ -183,18 +199,32 @@ def main():
             raise ValueError(f"{target['index']}: fewer than 10,000 positive passages")
         scores = np.searchsorted(reference, values, side='left') * 100 / len(reference)
         scores[values == 0] = 0
-        starter_index = int(np.argmin(np.where((values > 0) & (scores <= 50) & showable, 50 - scores, np.inf)))
+        starter_index = int(np.argmin(np.where((values > 0) & (scores <= 50) & playable, 50 - scores, np.inf)))
         if clue:
             starter_index = row_ids[clue]
-        if not showable[starter_index] or not 49.9 <= scores[starter_index] <= 50:
-            raise ValueError(f"{target['index']}: clue must be between the 49.9th and 50th percentiles")
+        minimum = 45 if mode == 'daily' else 49.9
+        if not playable[starter_index] or not minimum <= scores[starter_index] <= 50:
+            raise ValueError(f"{target['index']}: clue must be between the {minimum}th and 50th percentiles")
+        starter = passage(rows[starter_index], column, docs, args.cache, manifest, 50)
+        if mode == 'daily':
+            maximum = max(token['activation'] for token in starter['tokens'])
+            encoded = starter['text'].encode('utf-16-le')
+            peaks = {encoded[2 * token['start']:2 * token['end']].decode('utf-16-le').strip()
+                     for token in starter['tokens'] if token['activation'] == maximum}
+            if clue_token.strip() not in peaks:
+                raise ValueError(f"{target['index']}: the reviewed clue token is not its strongest activation")
         rng = np.random.default_rng(target['index'])
         chosen = []
         counts = {}
         bands = {0: (0, 0), 50: (45, 55), 90: (88, 92), 95: (94, 96), 99: (98.5, 99.8), 99.9: (99.9, 101)}
         for band, (low, high) in bands.items():
             eligible = np.flatnonzero(values == 0) if band == 0 else np.flatnonzero((scores >= low) & (scores < high) & (values > 0))
-            eligible = eligible[(eligible != starter_index) & showable[eligible]]
+            eligible = eligible[(eligible != starter_index) & playable[eligible]]
+            if band == 99.9 and wins is not None:
+                reviewed = np.array([row_ids[identity] for identity in wins])
+                if len(set(wins)) != len(wins) or not np.isin(reviewed, eligible).all():
+                    raise ValueError(f"{target['index']}: reviewed wins must be distinct, playable passages scoring at least 99.9")
+                eligible = reviewed
             rng.shuffle(eligible)
             # Different source documents make the options more informative.
             unique, seen = [], set()
@@ -213,10 +243,11 @@ def main():
                 raise ValueError(f"{target['index']}: band {band} has only {len(unique)} distinct documents")
             counts[str(band)] = len(unique)
             chosen.extend(passage(rows[index], column, docs, args.cache, manifest, band) for index in unique)
-        identity = f"gemma4-l21-{target['kind']}-{target['index']}-v2"
+        version = 3 if mode == 'daily' else 2
+        identity = f"gemma4-l21-{target['kind']}-{target['index']}-v{version}"
         pack = dict(id=identity, **target, reference=reference.tolist(),
                     displayScale=float(reference[min(len(reference) - 1, int(np.ceil(.999 * len(reference))))]),
-                    starter=passage(rows[starter_index], column, docs, args.cache, manifest, 50), passages=chosen)
+                    starter=starter, passages=chosen)
         if target['kind'] == 'sae':
             with safe_open(sae_path, framework='np') as file:
                 pack['encoder'] = dict(weight=file.get_slice('W_enc')[:, column:column + 1].reshape(-1).tolist(),
@@ -224,7 +255,7 @@ def main():
                                        threshold=float(file.get_tensor('threshold')[column]))
         content = json.dumps(pack, ensure_ascii=False, separators=(',', ':')) + '\n'
         path = args.output / f'{identity}.json'
-        if identity in published.values() and path.read_text() != content:
+        if identity in frozen_ids and path.read_text() != content:
             raise ValueError(f'{identity}: already published; use a new pack version to change its measurements.')
         path.write_text(content)
         if mode == 'practice':
@@ -258,9 +289,9 @@ def main():
                       scoring='strict lower rank among positive passage maxima in this fixed corpus',
                       reference_population='all non-overlapping displayed passages in the selected corpus',
                       targets=reports)
-    # Keep the original measurements and hashes for already published days.
+    # Keep original measurements and hashes for retained packs.
     # Flatten archives so repeated builds do not nest or duplicate old reports.
-    archived_ids = set(schedule.values()) - {report['id'] for report in reports}
+    archived_ids = (set(schedule.values()) | set(ids)) - {report['id'] for report in reports}
     archives = []
     if previous_provenance:
         for source in [previous_provenance, *previous_provenance.get('archives', [])]:

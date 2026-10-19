@@ -16,6 +16,18 @@ import type { Catalog, Feature } from '../lib/types'
 const catalog: Catalog = JSON.parse(
   readFileSync('public/puzzles/index.json', 'utf8'),
 )
+const curated: {
+  index: number
+  mode: string
+  clue: string
+  clueToken: string
+  wins: string[]
+}[] = JSON.parse(readFileSync('data/features.json', 'utf8')).filter(
+  (target: { mode: string }) => target.mode === 'daily',
+)
+const curatedIds = new Set(
+  curated.map((target) => `gemma4-l21-sae-${target.index}-v3`),
+)
 const ids = [...new Set([...Object.values(catalog.daily), ...catalog.practice])]
 const limits = new Map([
   [50, [45, 55]],
@@ -42,7 +54,8 @@ describe('published measurements', () => {
         return feature.index
       }),
     )
-    expect(daily.size).toBe(30)
+    expect(curated).toHaveLength(30)
+    expect(daily.size).toBeGreaterThanOrEqual(curated.length)
     const practice = catalog.practice.map(read)
     expect(practice.filter((f) => f.kind === 'sae')).toHaveLength(48)
     expect(practice.filter((f) => f.kind === 'mlp')).toHaveLength(8)
@@ -51,6 +64,38 @@ describe('published measurements', () => {
         .filter((f) => f.kind === 'sae')
         .every((f) => !daily.has(f.index)),
     ).toBe(true)
+  })
+
+  it('pins reviewed clues and winning examples', () => {
+    const scheduled = new Set(Object.values(catalog.daily))
+    for (const target of curated) {
+      const id = `gemma4-l21-sae-${target.index}-v3`
+      expect(scheduled.has(id)).toBe(true)
+      const feature: Feature = JSON.parse(
+        readFileSync(`public/puzzles/${id}.json`, 'utf8'),
+      )
+      expect(feature.starter.id).toBe(target.clue)
+      expect(typeof target.clueToken).toBe('string')
+      const maximum = Math.max(
+        ...feature.starter.tokens.map((token) => token.activation),
+      )
+      const peaks = feature.starter.tokens
+        .filter((token) => token.activation === maximum)
+        .map((token) =>
+          feature.starter.text.slice(token.start, token.end).trim(),
+        )
+      expect(peaks).toContain(target.clueToken.trim())
+      const wins = feature.passages.filter((passage) => passage.band === 99.9)
+      expect(target.wins.length).toBeGreaterThanOrEqual(4)
+      expect(new Set(wins.map((passage) => passage.id))).toEqual(
+        new Set(target.wins),
+      )
+      expect(
+        new Set(wins.map((passage) => passage.id.replace(/:\d+-\d+$/, '')))
+          .size,
+      ).toBe(wins.length)
+    }
+    expect(curated.some((target) => target.index === 9475)).toBe(false)
   })
 
   for (const id of ids) {
@@ -71,6 +116,10 @@ describe('published measurements', () => {
       const reference = calibration(feature.reference)
       const scores = new Map<string, number>()
       for (const passage of [feature.starter, ...feature.passages]) {
+        if (curatedIds.has(id))
+          expect(passage.text).not.toMatch(
+            /^\s*(?:See also|References|External links|Further reading)\s*$/m,
+          )
         expect(scores.has(passage.id)).toBe(false)
         expect(passage.tokens.length).toBeGreaterThan(0)
         expect(passage.tokens.length).toBeLessThanOrEqual(80)
@@ -112,7 +161,9 @@ describe('published measurements', () => {
       expect(
         hasEncodingErrors(feature.starter.before + feature.starter.text),
       ).toBe(false)
-      expect(starter.score).toBeGreaterThanOrEqual(49.9)
+      expect(starter.score).toBeGreaterThanOrEqual(
+        curatedIds.has(id) ? 45 : 49.9,
+      )
       expect(starter.score).toBeLessThanOrEqual(50)
       expect(
         feature.passages.filter((p) => scores.get(p.id)! >= 99.9).length,

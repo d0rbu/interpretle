@@ -89,7 +89,11 @@ revealed when the game ends, with optional model and SAE details after a solve.
 Data and answers are inspectable in this static
 game; it does not attempt to prevent cheating.
 
-The library has **30 curated daily concepts**. Its separate practice pool has
+The current rotation has **30 curated daily concepts**. Starting clues are
+reviewed against the token that actually activates, using measured passages in
+the 45th–50th percentile window so relevance can take priority over an exact
+median. [Curation notes](data/CURATION.md) describe the review criteria.
+Its separate practice pool has
 48 experimental SAE features spread across all four quarters of the 65,536-feature
 dictionary, eight MLP neurons, and one residual coordinate. No daily SAE feature
 is used in that practice pool. Published daily assignments and their original
@@ -316,6 +320,9 @@ python scripts/build_puzzles.py --cache artifacts/activations-full --discover
 python scripts/build_puzzles.py --cache artifacts/activations-full
 python scripts/export_browser.py --fp4
 ```
+
+For a later daily curation pass, add `--daily-only` to the puzzle build command
+to retain existing practice packs and their original provenance.
 
 The corpus mixes complete OpenAssistant conversations, TinyStories, MBPP Python
 problems, and Wikipedia articles. Documents longer than 1,024 tokens are skipped,

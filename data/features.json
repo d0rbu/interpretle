@@ -2,33 +2,73 @@
   {
     "kind": "sae",
     "index": 678,
-    "clue": "reference:4050128:1-45",
     "title": "Colors",
     "description": "Many strong examples highlight color words such as yellow, orange, and purple, often describing an object in a story.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "prose:766:334-346",
+    "clueToken": " color",
+    "wins": [
+      "prose:3510:47-105",
+      "prose:3358:51-94",
+      "prose:1882:1-43",
+      "prose:2336:1-49",
+      "prose:2537:1-48",
+      "prose:706:1-51",
+      "prose:1806:1-49",
+      "prose:2552:51-95"
+    ]
   },
   {
     "kind": "sae",
     "index": 14834,
-    "title": "Bowls",
-    "description": "Strong examples often highlight bowls used for mixing, eating, or washing.",
-    "mode": "daily"
+    "title": "Bowls and containers",
+    "description": "Bowls stand out in mixing, serving, eating, and washing. Related containers such as baskets, jars, cups, and pans also activate.",
+    "mode": "daily",
+    "clue": "chat:4e6f7b75-70cd-4f36-80b4-5d868fed3653:264-298",
+    "clueToken": " cup",
+    "wins": [
+      "prose:3290:98-144",
+      "prose:2960:1-40",
+      "chat:1ec29b81-3e8f-432b-9fd0-9c5e55ae80ef:197-244",
+      "prose:3412:89-137",
+      "prose:2971:1-52",
+      "prose:2649:137-190"
+    ]
   },
   {
     "kind": "sae",
     "index": 58,
-    "clue": "chat:c6a73c2b-8065-423a-a4d6-71282f2793be:192-205",
-    "title": "Stronger comparisons",
-    "description": "Comparative words such as better, greater, higher, and bigger stand out, especially after intensifiers such as much.",
-    "mode": "daily"
+    "title": "Comparisons of degree",
+    "description": "Comparative words such as more, less, better, greater, and bigger stand out, especially after intensifiers such as much or far.",
+    "mode": "daily",
+    "clue": "prose:281:233-258",
+    "clueToken": " better",
+    "wins": [
+      "chat:29d376f3-328f-489c-ab30-8c47cc9333e9:241-276",
+      "reference:4084511:273-301",
+      "reference:580:440-501",
+      "chat:0456dd34-6616-4e97-bd81-cbec0691cce1:1-59",
+      "chat:d770cfa5-939e-45f0-8ddb-5b2899cb95d5:69-121",
+      "reference:4049713:572-620",
+      "reference:1074:114-159",
+      "prose:81:146-201"
+    ]
   },
   {
     "kind": "sae",
-    "index": 9475,
-    "title": "Pain",
-    "description": "Pain and related word forms stand out, especially in descriptions of physical discomfort.",
+    "index": 14564,
+    "title": "Many and several",
+    "description": "Quantity words such as many, numerous, several, and various stand out when describing a collection or a range of things.",
     "mode": "daily",
-    "clue": "reference:4074967:1-49"
+    "clue": "prose:2148:1-47",
+    "clueToken": " many",
+    "wins": [
+      "reference:4062778:272-324",
+      "chat:c8080597-236a-43e4-8bde-94cf6448fe1b:519-563",
+      "reference:4049677:452-500",
+      "reference:4050654:135-198",
+      "chat:94050346-0bf4-4705-a790-60c9467a0337:255-298"
+    ]
   },
   {
     "kind": "sae",
@@ -36,7 +76,18 @@
     "title": "Months in dates",
     "description": "Month names activate strongly in descriptions of when an event happened.",
     "mode": "daily",
-    "clue": "reference:4053652:238-290"
+    "clue": "reference:4049045:99-153",
+    "clueToken": " August",
+    "wins": [
+      "reference:4045607:156-212",
+      "reference:4058470:133-188",
+      "reference:4075361:39-95",
+      "reference:4072611:384-446",
+      "reference:4059241:209-250",
+      "reference:4084752:227-288",
+      "reference:4081474:184-235",
+      "reference:4048564:622-682"
+    ]
   },
   {
     "kind": "sae",
@@ -44,15 +95,34 @@
     "title": "Heavy",
     "description": "The word heavy often activates in descriptions of weight, equipment, and heavy metal music.",
     "mode": "daily",
-    "clue": "reference:4078351:1-60"
+    "clue": "chat:5c1c2728-e5d6-428f-8923-12c6df291ba5:42-94",
+    "clueToken": " heavier",
+    "wins": [
+      "chat:0a5eeda7-dcf9-4f6d-8169-fe2c1e906c89:51-114",
+      "prose:3584:1-43",
+      "chat:4611dbca-fefa-4894-94be-0d184ddf94b0:184-235",
+      "reference:4057028:1-25",
+      "reference:4065310:1-56"
+    ]
   },
   {
     "kind": "sae",
     "index": 671,
-    "clue": "reference:4053129:461-509",
     "title": "U.S. states",
     "description": "State names such as Wisconsin, Arkansas, Missouri, and Illinois stand out in place descriptions.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "reference:4064905:138-185",
+    "clueToken": " Utah",
+    "wins": [
+      "reference:4065456:1-46",
+      "reference:4058598:1-58",
+      "reference:4068038:1-35",
+      "reference:4051408:1-44",
+      "reference:4085236:1-39",
+      "reference:4075101:1-43",
+      "reference:4080346:1-58",
+      "reference:4082611:1-28"
+    ]
   },
   {
     "kind": "sae",
@@ -60,38 +130,85 @@
     "title": "Hearing something",
     "description": "Strong examples often highlight heard when someone notices a sound, voice, or piece of news.",
     "mode": "daily",
-    "clue": "prose:59:135-176"
+    "clue": "prose:2656:54-92",
+    "clueToken": " hear",
+    "wins": [
+      "prose:2742:1-48",
+      "prose:302:46-95",
+      "chat:c754f3d9-8ffd-4525-8ccc-3e5cf1834ff2:51-110",
+      "prose:2790:51-98",
+      "prose:1653:1-51"
+    ]
   },
   {
     "kind": "sae",
     "index": 327,
-    "clue": "reference:4052996:1-62",
     "title": "Pleasure and enthusiasm",
     "description": "Words such as pleased, excited, loved, and love frequently receive strong activations.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "chat:47b668f9-53c6-4a94-b31c-13735b26e10d:1-42",
+    "clueToken": " happy",
+    "wins": [
+      "chat:bab547bd-9d16-477e-8171-ac2f9668bc4d:125-173",
+      "prose:414:96-140",
+      "prose:2246:1-56",
+      "prose:3422:48-100",
+      "prose:1174:140-164",
+      "prose:1562:99-144",
+      "prose:1748:99-141",
+      "reference:4083761:279-329"
+    ]
   },
   {
     "kind": "sae",
     "index": 4103,
     "title": "Marriage",
     "description": "Married stands out in accounts of spouses and relationships, including biographical passages.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "reference:4073844:452-511",
+    "clueToken": " husband",
+    "wins": [
+      "reference:4064910:77-117",
+      "reference:4065018:142-169",
+      "reference:4076592:351-383",
+      "reference:4072611:384-446",
+      "reference:4064734:348-397",
+      "reference:4052643:101-154",
+      "reference:4076590:83-116",
+      "reference:2490:187-228"
+    ]
   },
   {
     "kind": "sae",
-    "index": 196,
-    "title": "Object references in code",
-    "description": "Strong examples often highlight self in Python classes and instance attributes. Other programming constructs can activate it too.",
+    "index": 11071,
+    "title": "Going home",
+    "description": "Home stands out when someone returns, walks, or is carried back to where they live.",
     "mode": "daily",
-    "clue": "chat:b5de9e83-d570-42b3-a6cd-ca731fb2e4de:44-102"
+    "clue": "prose:3401:148-196",
+    "clueToken": " house",
+    "wins": [
+      "prose:3253:102-138",
+      "prose:3236:167-219",
+      "prose:1975:140-168",
+      "prose:2223:97-142",
+      "prose:1093:143-164",
+      "prose:3339:147-177"
+    ]
   },
   {
     "kind": "sae",
-    "index": 2549,
-    "title": "Dating historical objects",
-    "description": "The word dated often activates when an object or building is assigned a historical date.",
+    "index": 7116,
+    "title": "Rooms and bedrooms",
+    "description": "Room and bedroom stand out when characters are inside, enter, or return to a room.",
     "mode": "daily",
-    "clue": "reference:4071483:58-103"
+    "clue": "prose:276:1-59",
+    "clueToken": " room",
+    "wins": [
+      "prose:3407:43-88",
+      "prose:3704:47-93",
+      "prose:3292:49-91",
+      "prose:411:54-100"
+    ]
   },
   {
     "kind": "sae",
@@ -99,7 +216,18 @@
     "title": "Chemical substances",
     "description": "Names of elements and compounds, including lead, titanium, chromium, and boric acid, are prominent in strong examples.",
     "mode": "daily",
-    "clue": "reference:4046303:246-300"
+    "clue": "chat:25af6b30-8a6c-42cb-a059-5bbbc5ae8796:1-55",
+    "clueToken": " carbohydrates",
+    "wins": [
+      "reference:4079234:1-51",
+      "reference:2487:602-647",
+      "chat:f21f1195-5014-4127-9467-9cf8b7801af0:118-180",
+      "reference:4079025:1-58",
+      "chat:261f2bf2-03f5-413f-8f1d-813ea1da909c:1-45",
+      "reference:3251:1-47",
+      "chat:f7fff7f6-baf8-4140-af34-b45c4a457c33:49-105",
+      "reference:3093:393-437"
+    ]
   },
   {
     "kind": "sae",
@@ -107,14 +235,30 @@
     "title": "The Olympics",
     "description": "Strong examples discuss the Summer or Winter Olympics and Olympic competition.",
     "mode": "daily",
-    "clue": "reference:3805:1-58"
+    "clue": "reference:4076180:1-52",
+    "clueToken": " Games",
+    "wins": [
+      "reference:4063717:152-182",
+      "reference:4067005:72-123",
+      "reference:4051864:493-533",
+      "reference:4055023:478-518",
+      "reference:4067496:254-313"
+    ]
   },
   {
     "kind": "sae",
-    "index": 114,
-    "title": "Parties and meetings",
-    "description": "Gatherings that people attend, especially parties and meetings, appear repeatedly among the strongest examples.",
-    "mode": "daily"
+    "index": 6084,
+    "title": "Mom",
+    "description": "Mom and mommy stand out in children talking to or about their mother.",
+    "mode": "daily",
+    "clue": "prose:3399:200-231",
+    "clueToken": " mom",
+    "wins": [
+      "prose:2684:187-230",
+      "prose:3045:97-141",
+      "prose:2387:58-101",
+      "prose:1876:1-35"
+    ]
   },
   {
     "kind": "sae",
@@ -122,29 +266,70 @@
     "title": "Surprise and shock",
     "description": "Surprised and shocked often stand out in reactions to an unexpected event.",
     "mode": "daily",
-    "clue": "chat:b13f4004-3b84-4f92-8b0b-f54c49738815:380-419"
+    "clue": "prose:3475:51-97",
+    "clueToken": " surprise",
+    "wins": [
+      "prose:2719:43-91",
+      "prose:3850:44-90",
+      "prose:847:80-93",
+      "prose:286:148-197",
+      "prose:3712:41-95",
+      "prose:462:52-99"
+    ]
   },
   {
     "kind": "sae",
     "index": 900,
     "title": "Parts of the body",
     "description": "Words for body parts and organs, such as eyes, hands, stomach, heart, and brain, often light up.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "chat:a73dc9d7-c438-4dd2-97b4-b0ad88b036f2:240-286",
+    "clueToken": " Body",
+    "wins": [
+      "prose:1178:92-102",
+      "chat:b5bed7a7-8c0d-4813-a0da-8327682222b1:50-108",
+      "prose:1304:166-196",
+      "prose:2443:1-52",
+      "chat:80f942c5-bdcd-40a6-8e27-7538913b3161:42-72",
+      "prose:835:53-106",
+      "chat:14a18226-061a-43d8-9176-af4e447a2b78:35-80",
+      "reference:4049718:246-308",
+      "prose:3800:42-88"
+    ]
   },
   {
     "kind": "sae",
-    "index": 8168,
-    "title": "Synthesizers",
-    "description": "Strong examples often highlight synthesizer-related word parts in music descriptions and instrument credits.",
+    "index": 7768,
+    "title": "Snacks and refreshments",
+    "description": "Having a snack or drink stands out, including examples involving coffee, lunch, cookies, and milk.",
     "mode": "daily",
-    "clue": "chat:f1854edb-bf17-4a32-ab9b-b56bee38de40:1-53"
+    "clue": "prose:2314:370-399",
+    "clueToken": " snacks",
+    "wins": [
+      "chat:53067607-0542-42e3-b6af-d671e2411c91:151-200",
+      "prose:1033:45-90",
+      "prose:3195:145-162",
+      "prose:721:549-574"
+    ]
   },
   {
     "kind": "sae",
     "index": 545,
     "title": "Choices and decisions",
     "description": "The feature often highlights choice and decision when describing options or actions people decide to take.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "prose:1879:1-58",
+    "clueToken": " decided",
+    "wins": [
+      "chat:83d1152a-a533-4e90-9856-0f6ac1896c60:241-263",
+      "chat:885793c3-fda0-4e68-970a-f84ae9814be9:352-389",
+      "chat:f747d7f9-2ba2-4c56-9898-8fe243623332:164-210",
+      "chat:dd0b3978-b912-4a36-9a4e-8eb7be5c4d04:313-343",
+      "chat:78eb0fea-17af-43b6-bd83-7af4ad4fbccc:331-357",
+      "reference:4062914:245-292",
+      "chat:8a1fe26c-9bfd-4523-b5ea-56d2ca023866:323-346",
+      "chat:32409857-5ad8-4c13-b10c-2c0e0b5d6435:449-494"
+    ]
   },
   {
     "kind": "sae",
@@ -152,28 +337,69 @@
     "title": "Accidents and mistakes",
     "description": "Accidentally and mistake often light up when someone knocks over, breaks, or does something unintentionally.",
     "mode": "daily",
-    "clue": "reference:4049235:383-443"
+    "clue": "prose:605:212-230",
+    "clueToken": " wrong",
+    "wins": [
+      "prose:688:150-194",
+      "prose:2353:51-103",
+      "prose:1306:110-151",
+      "prose:1701:49-100"
+    ]
   },
   {
     "kind": "sae",
     "index": 200,
     "title": "Code indentation",
     "description": "Runs of spaces used to indent code are especially strong examples. Whitespace is a model token too.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "code:32:105-149",
+    "clueToken": "    ",
+    "wins": [
+      "chat:ef78f6b6-f763-4f94-8070-2f435791c226:254-307",
+      "chat:62abc52f-16b7-48b3-a118-9f49c9dbe73e:95-143",
+      "chat:bcee7eac-a82a-4636-8929-61a74425ff2e:156-199",
+      "chat:83974640-3d3f-4e9e-9082-8b243f704441:243-293",
+      "chat:abc1fbe7-08e6-462f-a454-429e899304e1:45-93",
+      "chat:7aabb4ab-6ff2-43ac-81e5-50bb383aabaa:148-195",
+      "chat:c90ea391-0d96-41cc-a1da-9e2d47b87c21:48-96",
+      "chat:2ca9b123-ad7d-4dc4-9dca-206cd80c01b0:159-205"
+    ]
   },
   {
     "kind": "sae",
     "index": 11995,
-    "title": "Being called for a meal",
-    "description": "Dinner and lunch often stand out when a parent calls children to eat.",
-    "mode": "daily"
+    "title": "Meal time",
+    "description": "Dinner and lunch stand out when someone is called to eat, with weaker related examples about food and meals.",
+    "mode": "daily",
+    "clue": "prose:2559:86-128",
+    "clueToken": " food",
+    "wins": [
+      "prose:868:54-93",
+      "prose:895:48-91",
+      "prose:3967:1-46",
+      "prose:3546:97-141",
+      "prose:2430:95-139"
+    ]
   },
   {
     "kind": "sae",
     "index": 480,
     "title": "Measurable quantities",
     "description": "Words naming quantities, such as concentration, frequency, temperature, height, and length, stand out.",
-    "mode": "daily"
+    "mode": "daily",
+    "clue": "chat:1b021a33-4529-41ed-bc97-9fb085d5b01e:226-249",
+    "clueToken": " length",
+    "wins": [
+      "reference:4066199:206-258",
+      "reference:4073095:358-406",
+      "chat:809b9548-00f5-4aae-90fd-5e2504281bbc:177-232",
+      "chat:b140ab75-f159-4456-8c3a-15fecc66b892:90-132",
+      "chat:db834475-977d-4c38-b2e7-a202311c0cfd:36-99",
+      "chat:7c588a62-575a-4581-b374-39bfd843d5b5:185-231",
+      "code:262:1-52",
+      "chat:f4be5bd7-3b3e-4444-a113-e306ac3d960f:99-138",
+      "chat:42fb9286-5ec3-42cf-8b1d-676e2154a196:55-99"
+    ]
   },
   {
     "kind": "sae",
@@ -181,15 +407,36 @@
     "title": "Programming languages",
     "description": "Language and languages often activate in discussions of programming and computer science.",
     "mode": "daily",
-    "clue": "chat:65a4bba9-19f7-482e-b439-86460ba6cc5e:164-221"
+    "clue": "reference:4063251:261-314",
+    "clueToken": " programming",
+    "wins": [
+      "chat:707f4ba0-1678-4de0-807b-d204e21461ec:107-163",
+      "chat:d76ec373-b03d-4a96-85a7-e2204367ee42:1-51",
+      "chat:bcbf50a6-199f-472b-ba60-430feb759cae:422-458",
+      "chat:116584f3-efd8-415a-8414-593e35796773:43-92",
+      "chat:1e60b04a-e8d0-4f46-a8d8-a29558d98a08:54-88",
+      "chat:6e336ce7-0def-4d76-931d-055d3bfbe746:105-156"
+    ]
   },
   {
     "kind": "sae",
-    "index": 130,
-    "title": "Organisms in biology",
-    "description": "Strong examples discuss organisms and their biology, often highlighting animal, plant, humans, or parts of biological classification words.",
+    "index": 1877,
+    "title": "A little bit",
+    "description": "Little and a bit stand out when describing a small amount or degree, such as a little easier, worried, or closer.",
     "mode": "daily",
-    "clue": "prose:3603:1-44"
+    "clue": "reference:4084326:516-561",
+    "clueToken": " little",
+    "wins": [
+      "chat:34fec068-b7e9-463c-b632-3b926396a298:24-40",
+      "reference:4057446:677-715",
+      "prose:1052:1-49",
+      "prose:1223:151-183",
+      "prose:2254:232-275",
+      "prose:634:44-97",
+      "chat:1fd36b36-027c-4f14-b5a6-af4aa44aca6d:28-49",
+      "prose:554:144-189",
+      "chat:63b4df13-cdf3-4333-97ee-3cc75e16ceb3:102-157"
+    ]
   },
   {
     "kind": "sae",
@@ -197,15 +444,37 @@
     "title": "Where something is located",
     "description": "Located and situated stand out in descriptions of where a place or building can be found.",
     "mode": "daily",
-    "clue": "reference:4053428:295-357"
+    "clue": "prose:3669:145-182",
+    "clueToken": " stood",
+    "wins": [
+      "reference:4072575:439-498",
+      "reference:4082279:49-96",
+      "reference:4045953:50-107",
+      "reference:4057640:334-387",
+      "reference:4050858:477-521",
+      "reference:4069037:295-343",
+      "reference:4068941:195-246",
+      "reference:4079075:645-705"
+    ]
   },
   {
     "kind": "sae",
     "index": 127,
-    "clue": "chat:8b77ea67-ad53-4822-883d-27ccd81825ad:1-51",
-    "title": "Contributing and helping",
-    "description": "Words such as contribute, help, and aid often activate when something has an effect on a larger outcome.",
-    "mode": "daily"
+    "title": "Effects and contributions",
+    "description": "Words such as contribute, help, impact, and affect stand out when something changes an outcome. The effect can be helpful or harmful.",
+    "mode": "daily",
+    "clue": "prose:407:158-205",
+    "clueToken": " helping",
+    "wins": [
+      "reference:4061360:459-511",
+      "chat:34d8caf5-d3a9-4680-8a6a-ef6ffc55e8cb:141-204",
+      "prose:1111:144-175",
+      "chat:b74a7009-3742-4861-af29-1477cea71d85:505-527",
+      "chat:ed5dbe6a-a40e-43e8-b4ca-9e7eecc28002:1-49",
+      "chat:81045447-dfca-4777-a67c-876155f46575:1-50",
+      "chat:44c2e2ba-712b-4f82-bcff-229eb4ec97e1:190-213",
+      "chat:77e8fada-ae99-4b80-a101-710c746c622d:69-122"
+    ]
   },
   {
     "kind": "sae",
@@ -213,15 +482,35 @@
     "title": "Trains and rail travel",
     "description": "Train and trains often activate in descriptions of journeys and rail transport.",
     "mode": "daily",
-    "clue": "reference:4062433:414-471"
+    "clue": "reference:4069090:178-229",
+    "clueToken": " Railway",
+    "wins": [
+      "reference:4082516:23-68",
+      "reference:4082368:1-62",
+      "reference:4082622:1-57",
+      "reference:4051843:137-172",
+      "reference:4068856:487-525",
+      "reference:4052783:387-450",
+      "reference:4053617:100-145",
+      "reference:4083705:208-260"
+    ]
   },
   {
     "kind": "sae",
     "index": 5858,
-    "title": "Hand tools",
-    "description": "Strong examples often highlight tools such as a shovel or axe, with some everyday utensils activating too.",
+    "title": "Tools and implements",
+    "description": "Strong examples highlight tools such as shovels, axes, spades, scissors, and measuring tape. Other implements, including looms, can activate too.",
     "mode": "daily",
-    "clue": "reference:3403:253-299"
+    "clue": "reference:3403:253-299",
+    "clueToken": " looms",
+    "wins": [
+      "prose:886:209-236",
+      "prose:1561:1-42",
+      "prose:2115:53-96",
+      "prose:357:46-98",
+      "prose:2050:1-46",
+      "prose:2203:1-45"
+    ]
   },
   {
     "kind": "sae",
@@ -229,7 +518,18 @@
     "title": "Historical wars",
     "description": "Strong examples mention wars in military history, especially the Civil War and the World Wars.",
     "mode": "daily",
-    "clue": "reference:4073803:62-115"
+    "clue": "reference:5482:296-336",
+    "clueToken": " Civil",
+    "wins": [
+      "reference:4049366:137-193",
+      "reference:4073139:325-388",
+      "reference:4077333:116-171",
+      "reference:4072894:80-133",
+      "reference:4069107:336-393",
+      "reference:4055079:318-360",
+      "reference:4046770:273-308",
+      "reference:4050297:461-501"
+    ]
   },
   {
     "kind": "sae",

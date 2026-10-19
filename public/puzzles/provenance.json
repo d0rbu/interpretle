@@ -206,25 +206,10 @@
   "reference_population": "all non-overlapping displayed passages in the selected corpus",
   "targets": [
     {
-      "id": "gemma4-l21-sae-678-v2",
+      "id": "gemma4-l21-sae-678-v3",
       "positive_passages": 59942,
       "inactive_passages": 26252,
-      "starter_percentile": 49.96162957525608,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 22
-      },
-      "sha256": "37a05b3eeb6bffa8181bf254266ca29bbc909679f3b4746db76fabd41fe76314"
-    },
-    {
-      "id": "gemma4-l21-sae-14834-v2",
-      "positive_passages": 12540,
-      "inactive_passages": 73654,
-      "starter_percentile": 49.99202551834131,
+      "starter_percentile": 49.57125221047012,
       "bands": {
         "0": 40,
         "50": 24,
@@ -233,88 +218,13 @@
         "99": 24,
         "99.9": 8
       },
-      "sha256": "10b090922557dbd0e2831e30ef0337f4ea415977941d3344eb6344499ad277d0"
+      "sha256": "49bdc254cb0cc8ebf1f1807bebae100fe0a1aba4b7d149b77a0332cff530732d"
     },
     {
-      "id": "gemma4-l21-sae-58-v2",
-      "positive_passages": 41594,
-      "inactive_passages": 44600,
-      "starter_percentile": 49.9206616338895,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "b2825a3a5dc82f967980beecf8854f10812b587164d53a95db86750716ba1db3"
-    },
-    {
-      "id": "gemma4-l21-sae-9475-v2",
-      "positive_passages": 10865,
-      "inactive_passages": 75329,
-      "starter_percentile": 49.976990335941096,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 7
-      },
-      "sha256": "c700e819162fc862b406a12b8f2edcb2f64c4cf20b532c46bf66239155820447"
-    },
-    {
-      "id": "gemma4-l21-sae-959-v2",
-      "positive_passages": 13497,
-      "inactive_passages": 72697,
-      "starter_percentile": 49.94443209602134,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 13
-      },
-      "sha256": "a9e526b9c874ac9d339db2344939721355b13b69671e25eee12a07350b322894"
-    },
-    {
-      "id": "gemma4-l21-sae-7790-v2",
-      "positive_passages": 10904,
-      "inactive_passages": 75290,
-      "starter_percentile": 49.98165810711665,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 9
-      },
-      "sha256": "b8135621f32fe50b9f70478abfdada3abebcfb3aa2311c3e5ffc8aaf8373f5de"
-    },
-    {
-      "id": "gemma4-l21-sae-671-v2",
-      "positive_passages": 17804,
-      "inactive_passages": 68390,
-      "starter_percentile": 49.921365985171875,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 16
-      },
-      "sha256": "9a09994fbf537e2ec0a384f973b27edb619a36361ea84b7b3db76c025dd6bddc"
-    },
-    {
-      "id": "gemma4-l21-sae-6814-v2",
-      "positive_passages": 10539,
-      "inactive_passages": 75655,
-      "starter_percentile": 49.98576715058355,
+      "id": "gemma4-l21-sae-14834-v3",
+      "positive_passages": 12540,
+      "inactive_passages": 73654,
+      "starter_percentile": 46.515151515151516,
       "bands": {
         "0": 40,
         "50": 24,
@@ -323,238 +233,13 @@
         "99": 24,
         "99.9": 6
       },
-      "sha256": "5e9b58c4389963d6e517129ba8dc3fdb3415d4162a0fe643e5f41d90cd0e22b9"
+      "sha256": "d8e19c44a36061524e846b59e130fe002c555ab363d17ee47f7f1f57768d2f45"
     },
     {
-      "id": "gemma4-l21-sae-327-v2",
-      "positive_passages": 34312,
-      "inactive_passages": 51882,
-      "starter_percentile": 49.9533690837025,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 20
-      },
-      "sha256": "6ed4e9fb98908c54b655265325dd4c4793a69a9155b534442b3c8e7bde28ef47"
-    },
-    {
-      "id": "gemma4-l21-sae-4103-v2",
-      "positive_passages": 23412,
-      "inactive_passages": 62782,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 22
-      },
-      "sha256": "41af779db563383230fbbace7148f5269589dbcba3445c68912109ac02df91bd"
-    },
-    {
-      "id": "gemma4-l21-sae-196-v2",
-      "positive_passages": 40006,
-      "inactive_passages": 46188,
-      "starter_percentile": 49.972504124381345,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "33f29469e5b9a4542a8400f4f9eb15bb5e0304630559338977762132690d37c2"
-    },
-    {
-      "id": "gemma4-l21-sae-2549-v2",
-      "positive_passages": 11426,
-      "inactive_passages": 74768,
-      "starter_percentile": 49.91248030806931,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "7e864b167e665f6d86a065cdaf9f64c21c66a33354034070596cac5f6a625228"
-    },
-    {
-      "id": "gemma4-l21-sae-859-v2",
-      "positive_passages": 16986,
-      "inactive_passages": 69208,
-      "starter_percentile": 49.958789591428236,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 12
-      },
-      "sha256": "347c8647f5d52584539fb708927f9b86647ae20d77daedf42f72196b0794b006"
-    },
-    {
-      "id": "gemma4-l21-sae-13635-v2",
-      "positive_passages": 17634,
-      "inactive_passages": 68560,
-      "starter_percentile": 49.982987410683904,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 17
-      },
-      "sha256": "65797dffd38906f5ed4ac240da3093a13da489118b91df4ad5dad06306efc477"
-    },
-    {
-      "id": "gemma4-l21-sae-114-v2",
-      "positive_passages": 41979,
-      "inactive_passages": 44215,
-      "starter_percentile": 49.99880892827366,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 23
-      },
-      "sha256": "4f3552362a965d31f57e30f2d502f65c6d4ec1e6fa1705bed960f0bbd020e05e"
-    },
-    {
-      "id": "gemma4-l21-sae-9222-v2",
-      "positive_passages": 12136,
-      "inactive_passages": 74058,
-      "starter_percentile": 49.95056031641398,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 7
-      },
-      "sha256": "fbd362ebf4bd98e2d14e3394dceca0d9526d7e491efe5011c84bc2020685aca6"
-    },
-    {
-      "id": "gemma4-l21-sae-900-v2",
-      "positive_passages": 49242,
-      "inactive_passages": 36952,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "522299eed79bdfd3c79ea6c3bf7ba57b6fb1fd41386d64038465e2f4d3fc0e9d"
-    },
-    {
-      "id": "gemma4-l21-sae-8168-v2",
-      "positive_passages": 17886,
-      "inactive_passages": 68308,
-      "starter_percentile": 49.98322710499832,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 14
-      },
-      "sha256": "2f9dbd76740e9eb43e9cfba63e784905ddfdc0823db1c6bdb6b7ffa8af7e6aa4"
-    },
-    {
-      "id": "gemma4-l21-sae-545-v2",
-      "positive_passages": 51373,
-      "inactive_passages": 34821,
-      "starter_percentile": 49.999026726101256,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "216eb029c9d196490c4dd98c54f9a73c099f5a239e9de06a1a6be945c726bfd5"
-    },
-    {
-      "id": "gemma4-l21-sae-41907-v2",
-      "positive_passages": 11310,
-      "inactive_passages": 74884,
-      "starter_percentile": 49.9027409372237,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 4
-      },
-      "sha256": "d3683823f2eb51f3b0779adf99228fec55e99f7172cdfd2b524fe998e76e31ab"
-    },
-    {
-      "id": "gemma4-l21-sae-200-v2",
-      "positive_passages": 20485,
-      "inactive_passages": 65709,
-      "starter_percentile": 49.98779594825482,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 17
-      },
-      "sha256": "5fa9258b7817bec69cdb9f52b1f97a6d5ba67203e262225753d5e15e56f7a310"
-    },
-    {
-      "id": "gemma4-l21-sae-11995-v2",
-      "positive_passages": 15826,
-      "inactive_passages": 70368,
-      "starter_percentile": 49.9936812839631,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 7
-      },
-      "sha256": "0f6f2d753fc26e2db38f222b96182bd0684580d66d05da69ef58b5f2ab3cbcc2"
-    },
-    {
-      "id": "gemma4-l21-sae-480-v2",
-      "positive_passages": 31456,
-      "inactive_passages": 54738,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "737f1d39db052c4b00b667c5ec840b30d2c02e6dc4701344600fd82245c30400"
-    },
-    {
-      "id": "gemma4-l21-sae-8552-v2",
-      "positive_passages": 10561,
-      "inactive_passages": 75633,
-      "starter_percentile": 49.947921598333494,
+      "id": "gemma4-l21-sae-58-v3",
+      "positive_passages": 41594,
+      "inactive_passages": 44600,
+      "starter_percentile": 49.45905659470116,
       "bands": {
         "0": 40,
         "50": 24,
@@ -563,70 +248,385 @@
         "99": 24,
         "99.9": 8
       },
-      "sha256": "9c83308dd928b93508bdea3dc36a6baf89315593e9d47bc98c5239f51ecfff29"
+      "sha256": "2e1304b9f46afa4d11153f1f9170d3fe335bdd7300f173a9e12c6df029860f4a"
     },
     {
-      "id": "gemma4-l21-sae-130-v2",
-      "positive_passages": 50320,
-      "inactive_passages": 35874,
-      "starter_percentile": 49.99006359300477,
+      "id": "gemma4-l21-sae-14564-v3",
+      "positive_passages": 17507,
+      "inactive_passages": 68687,
+      "starter_percentile": 49.74010395841663,
       "bands": {
         "0": 40,
         "50": 24,
         "90": 24,
         "95": 24,
         "99": 24,
-        "99.9": 24
+        "99.9": 5
       },
-      "sha256": "c044c153bcb8b313c5844aab9c37de531947ffb237836a8b1ce285ce44a2176f"
+      "sha256": "dd1ac09a5c065fb9e1c1d626c0c639d628d16b2da6799f4f5356aafed015d697"
     },
     {
-      "id": "gemma4-l21-sae-5398-v2",
+      "id": "gemma4-l21-sae-959-v3",
+      "positive_passages": 13497,
+      "inactive_passages": 72697,
+      "starter_percentile": 49.462843594872936,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "2da8b96a001c418f446765e22e10d500f37aed4a343227f50cf525d1e9c2a483"
+    },
+    {
+      "id": "gemma4-l21-sae-7790-v3",
+      "positive_passages": 10904,
+      "inactive_passages": 75290,
+      "starter_percentile": 45.4512105649303,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 5
+      },
+      "sha256": "fe4170db7e596abd96d2671963499af2f46e090014acc86099e4196d65815155"
+    },
+    {
+      "id": "gemma4-l21-sae-671-v3",
+      "positive_passages": 17804,
+      "inactive_passages": 68390,
+      "starter_percentile": 47.663446416535606,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "3be9cd9ec0c998613ce32e192ceda8da798aea91f9d6a8217579e9850d5fa928"
+    },
+    {
+      "id": "gemma4-l21-sae-6814-v3",
+      "positive_passages": 10539,
+      "inactive_passages": 75655,
+      "starter_percentile": 45.55460669892779,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 5
+      },
+      "sha256": "6e99abba8b0ce0af0834bba713de6a8d04e5a406c6cd9e5fb698e745a422ba68"
+    },
+    {
+      "id": "gemma4-l21-sae-327-v3",
+      "positive_passages": 34312,
+      "inactive_passages": 51882,
+      "starter_percentile": 49.5599207274423,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "c33b88646cbf8b002a7f3c122ece74c3dc3f2e6c230a658c97541dd839f14744"
+    },
+    {
+      "id": "gemma4-l21-sae-4103-v3",
+      "positive_passages": 23412,
+      "inactive_passages": 62782,
+      "starter_percentile": 49.67110883307706,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "cdf3651abdd7fd025f3facde06361b5908a7f02379af7c0aa371d270cfd82505"
+    },
+    {
+      "id": "gemma4-l21-sae-11071-v3",
+      "positive_passages": 11563,
+      "inactive_passages": 74631,
+      "starter_percentile": 49.0184208250454,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 6
+      },
+      "sha256": "2528d5ccb3825703e0a0faae10deb71f01ceea1674331a6e669cad04f1f468e3"
+    },
+    {
+      "id": "gemma4-l21-sae-7116-v3",
+      "positive_passages": 13148,
+      "inactive_passages": 73046,
+      "starter_percentile": 46.425311834499546,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 4
+      },
+      "sha256": "53cda08f3d89694249fa148b28c6c0311a0ff01737f0b120115b24eebd71a2f5"
+    },
+    {
+      "id": "gemma4-l21-sae-859-v3",
+      "positive_passages": 16986,
+      "inactive_passages": 69208,
+      "starter_percentile": 49.94701518897916,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "07dbaeadd85274a9e2c03058bc31c92c774adc8acf6b11d749ad1755cdb0e9bb"
+    },
+    {
+      "id": "gemma4-l21-sae-13635-v3",
+      "positive_passages": 17634,
+      "inactive_passages": 68560,
+      "starter_percentile": 45.429284337076105,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 5
+      },
+      "sha256": "5a8085119740119b32c514bc9624856c0bd24a20831719bc71f6dff82e280b7a"
+    },
+    {
+      "id": "gemma4-l21-sae-6084-v3",
+      "positive_passages": 11527,
+      "inactive_passages": 74667,
+      "starter_percentile": 49.735403834475576,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 4
+      },
+      "sha256": "3b6a87809f407b6c20a6a660c3c68f766a6fa91bee98950392480d31fa937233"
+    },
+    {
+      "id": "gemma4-l21-sae-9222-v3",
+      "positive_passages": 12136,
+      "inactive_passages": 74058,
+      "starter_percentile": 49.48912326961108,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 6
+      },
+      "sha256": "fae7f8b5b063d173f240369df0b5d0aead38835b80ff87b3c45bff073d56f745"
+    },
+    {
+      "id": "gemma4-l21-sae-900-v3",
+      "positive_passages": 49242,
+      "inactive_passages": 36952,
+      "starter_percentile": 45.78002518175541,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 9
+      },
+      "sha256": "3911d21a389d7a577807e6c297e30d534af2841fb3a74b1b09a8b288d07f6e2e"
+    },
+    {
+      "id": "gemma4-l21-sae-7768-v3",
+      "positive_passages": 15810,
+      "inactive_passages": 70384,
+      "starter_percentile": 47.7988614800759,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 4
+      },
+      "sha256": "f5e2e865b027aac59e8ed20cca4bb15c681b203295b032b00fc43b8f85c22a23"
+    },
+    {
+      "id": "gemma4-l21-sae-545-v3",
+      "positive_passages": 51373,
+      "inactive_passages": 34821,
+      "starter_percentile": 49.794639207365734,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "3c8fd3933ff76a96c7610b7deb06c15588cc2d08b5bcc061966dee591c557a7e"
+    },
+    {
+      "id": "gemma4-l21-sae-41907-v3",
+      "positive_passages": 11310,
+      "inactive_passages": 74884,
+      "starter_percentile": 46.136162687886824,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 4
+      },
+      "sha256": "5f7b29b19335b394a990e9450009ecad7a74a6af630f56a275164e8be9852a2f"
+    },
+    {
+      "id": "gemma4-l21-sae-200-v3",
+      "positive_passages": 20485,
+      "inactive_passages": 65709,
+      "starter_percentile": 46.71222845984867,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 8
+      },
+      "sha256": "2bb35276267f0fe0c502f2391b8d007e8fb92c39850e839d9dcbd3aa94631628"
+    },
+    {
+      "id": "gemma4-l21-sae-11995-v3",
+      "positive_passages": 15826,
+      "inactive_passages": 70368,
+      "starter_percentile": 47.05547832680399,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 5
+      },
+      "sha256": "3543e4ae28f673badcd5206c57e2de7d9077198c2c876c3eda79aca4e4460292"
+    },
+    {
+      "id": "gemma4-l21-sae-480-v3",
+      "positive_passages": 31456,
+      "inactive_passages": 54738,
+      "starter_percentile": 48.391403865717194,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 9
+      },
+      "sha256": "25064d6598f10ea37d7d029feb07c394e58e2603a56792b5e7b7b29c4ced7c38"
+    },
+    {
+      "id": "gemma4-l21-sae-8552-v3",
+      "positive_passages": 10561,
+      "inactive_passages": 75633,
+      "starter_percentile": 49.31351197803238,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 6
+      },
+      "sha256": "69de2c3351223963f30447d31d2ea9201519e68c78b9fe66b3e5afdc7f535422"
+    },
+    {
+      "id": "gemma4-l21-sae-1877-v3",
+      "positive_passages": 20234,
+      "inactive_passages": 65960,
+      "starter_percentile": 49.87644558663636,
+      "bands": {
+        "0": 40,
+        "50": 24,
+        "90": 24,
+        "95": 24,
+        "99": 24,
+        "99.9": 9
+      },
+      "sha256": "c120e54ded1e9be7c9ae6ca6ac7ed38b5ea2a8ec795cdaad31ba90dd801e2d86"
+    },
+    {
+      "id": "gemma4-l21-sae-5398-v3",
       "positive_passages": 13738,
       "inactive_passages": 72456,
-      "starter_percentile": 49.97088368030281,
+      "starter_percentile": 49.94176736060562,
       "bands": {
         "0": 40,
         "50": 24,
         "90": 24,
         "95": 24,
         "99": 24,
-        "99.9": 11
+        "99.9": 8
       },
-      "sha256": "4b9c2bfc6cf8aeda6ec99c6e29679bc6670aa94ddc8c0a8bdf002b349216905e"
+      "sha256": "98294e27a6da02f34b5f21d14fab8efa4d0947c01ba0dc4ff460cf8cee1b86a6"
     },
     {
-      "id": "gemma4-l21-sae-127-v2",
+      "id": "gemma4-l21-sae-127-v3",
       "positive_passages": 36749,
       "inactive_passages": 49445,
-      "starter_percentile": 49.982312443876026,
+      "starter_percentile": 49.955100819069905,
       "bands": {
         "0": 40,
         "50": 24,
         "90": 24,
         "95": 24,
         "99": 24,
-        "99.9": 24
+        "99.9": 8
       },
-      "sha256": "2fe4101cf10efbc813a6f3108112179e8f79fd10384275021618f670a9bcab59"
+      "sha256": "8b9d02c9ae7f5bd8f0668e0e473cfbf69d201414050ddd4d048827aa5934bded"
     },
     {
-      "id": "gemma4-l21-sae-4302-v2",
+      "id": "gemma4-l21-sae-4302-v3",
       "positive_passages": 14951,
       "inactive_passages": 71243,
-      "starter_percentile": 49.95652464718079,
+      "starter_percentile": 49.94983613136245,
       "bands": {
         "0": 40,
         "50": 24,
         "90": 24,
         "95": 24,
         "99": 24,
-        "99.9": 14
+        "99.9": 8
       },
-      "sha256": "2d87290d9ac50834d1c15a42f71bfbc39eef03c3563264f931b25206bbeef3dd"
+      "sha256": "cceee35d760c2f0cfd2c0509a2dcff69495b0c4fa090e52e394e5a50920c1724"
     },
     {
-      "id": "gemma4-l21-sae-5858-v2",
+      "id": "gemma4-l21-sae-5858-v3",
       "positive_passages": 13197,
       "inactive_passages": 72997,
       "starter_percentile": 49.95832386148367,
@@ -636,270 +636,15 @@
         "90": 24,
         "95": 24,
         "99": 24,
-        "99.9": 7
+        "99.9": 6
       },
-      "sha256": "8b56133e79896244b1ea344131b3e47c6b8d5c7a6fa2eca635d729c2e60f66cb"
+      "sha256": "10120b9dc146cf3873f17450c6a4db60dd97cffe030105bc03a3c27dc4def59f"
     },
     {
-      "id": "gemma4-l21-sae-6741-v2",
+      "id": "gemma4-l21-sae-6741-v3",
       "positive_passages": 11441,
       "inactive_passages": 74753,
-      "starter_percentile": 49.986889257932,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "a1646f955f3e9f860a51d20351bea861b0fa78aa1d6f57605015a8854a860bb8"
-    },
-    {
-      "id": "gemma4-l21-sae-6466-v2",
-      "positive_passages": 13362,
-      "inactive_passages": 72832,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "94129d229e037caf59fb3a99e352edcff6417f7378761a4ea90df4fe0023ff3d"
-    },
-    {
-      "id": "gemma4-l21-sae-15976-v2",
-      "positive_passages": 12606,
-      "inactive_passages": 73588,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 12
-      },
-      "sha256": "d2ec29896e6f6db82139b520481a197c3e2b2aa78435be7b4d281f22cb14e766"
-    },
-    {
-      "id": "gemma4-l21-sae-9947-v2",
-      "positive_passages": 13353,
-      "inactive_passages": 72841,
-      "starter_percentile": 49.99625552310342,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "0ccd7db9ce8199beb3055ca2a6b54dedd6109bf678c66fe60d508bbef42e63b9"
-    },
-    {
-      "id": "gemma4-l21-sae-11189-v2",
-      "positive_passages": 16182,
-      "inactive_passages": 70012,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 14
-      },
-      "sha256": "7e938b2b76058566f4974b87f6ea33d71c8a070e1cf5d90b79e3528326282ca7"
-    },
-    {
-      "id": "gemma4-l21-sae-12268-v2",
-      "positive_passages": 20286,
-      "inactive_passages": 65908,
-      "starter_percentile": 49.9950704919649,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 12
-      },
-      "sha256": "eaa4fe80005e1bd4758e33b39f69d985d55ecbef848cd5e2a504117b3d56734d"
-    },
-    {
-      "id": "gemma4-l21-sae-1449-v2",
-      "positive_passages": 63264,
-      "inactive_passages": 22930,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "358ad2a5a84144e9955352700c20b50e45b23b10b2abebd5ded0167735926b72"
-    },
-    {
-      "id": "gemma4-l21-sae-10482-v2",
-      "positive_passages": 23063,
-      "inactive_passages": 63131,
-      "starter_percentile": 49.99783202532194,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 19
-      },
-      "sha256": "d34f2afd987d11391981e30576ec3024fdd6449382b4d591a43c19ff7b64122a"
-    },
-    {
-      "id": "gemma4-l21-sae-8593-v2",
-      "positive_passages": 23882,
-      "inactive_passages": 62312,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 17
-      },
-      "sha256": "e9ba21352ce9341237144a21b1569c1b9e0afcc571c779835cbcb2a6de5be529"
-    },
-    {
-      "id": "gemma4-l21-sae-8-v2",
-      "positive_passages": 18711,
-      "inactive_passages": 67483,
-      "starter_percentile": 49.99198332531666,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 17
-      },
-      "sha256": "b4e55a3ba8cf8fdac675efe5fbb8b71dbcecb1bf45157753136d0c3c1b3b806d"
-    },
-    {
-      "id": "gemma4-l21-sae-2016-v2",
-      "positive_passages": 44666,
-      "inactive_passages": 41528,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "a4b7e85602c8c4b655d88fa28fed7cccb254e0e874aceadde0fefac454aae3b8"
-    },
-    {
-      "id": "gemma4-l21-sae-4946-v2",
-      "positive_passages": 10145,
-      "inactive_passages": 76049,
-      "starter_percentile": 49.99507146377526,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "9c810329e906a9b80eaaa394abfd693027d0df992590cdb906cbc4ff564d9ee9"
-    },
-    {
-      "id": "gemma4-l21-sae-65-v2",
-      "positive_passages": 54308,
-      "inactive_passages": 31886,
-      "starter_percentile": 49.996317301318406,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "0803002f47c48133de976a1c0a9bad5b437da4ed8fd6b8dc8078e50b41ebf8c2"
-    },
-    {
-      "id": "gemma4-l21-sae-19894-v2",
-      "positive_passages": 16670,
-      "inactive_passages": 69524,
-      "starter_percentile": 49.99400119976005,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 15
-      },
-      "sha256": "4d5bce41982c7616c5faa8bd87fd19a6a9f96c0bf7e3b06a2067771b1cf90ac8"
-    },
-    {
-      "id": "gemma4-l21-sae-31738-v2",
-      "positive_passages": 14599,
-      "inactive_passages": 71595,
-      "starter_percentile": 49.98972532365231,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 9
-      },
-      "sha256": "4dc7432a3f2c81f38c6dd72ce773b193802762b973a3afd27fda3d5517a3ab57"
-    },
-    {
-      "id": "gemma4-l21-sae-17132-v2",
-      "positive_passages": 10013,
-      "inactive_passages": 76181,
-      "starter_percentile": 49.99500649156097,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "498fb66411e0c9f0f348c82618b3f419302a51d477647618be80be22cb1b1ca9"
-    },
-    {
-      "id": "gemma4-l21-sae-17165-v2",
-      "positive_passages": 28246,
-      "inactive_passages": 57948,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 19
-      },
-      "sha256": "ea02b6f4bcac5e39729c45f012604157a37656501738a5fba486235d9a6e7ad8"
-    },
-    {
-      "id": "gemma4-l21-sae-32073-v2",
-      "positive_passages": 11778,
-      "inactive_passages": 74416,
-      "starter_percentile": 49.9660383766344,
+      "starter_percentile": 46.857792151035746,
       "bands": {
         "0": 40,
         "50": 24,
@@ -908,610 +653,1119 @@
         "99": 24,
         "99.9": 8
       },
-      "sha256": "21a5ec80734326ea0c064b51d1e86f55b0a4c5959da0889329e9f32a292fed3a"
-    },
-    {
-      "id": "gemma4-l21-sae-29784-v2",
-      "positive_passages": 27780,
-      "inactive_passages": 58414,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 14
-      },
-      "sha256": "8c43cd58c24cad96ba9a15827b002e054c81348ae5d80a0c874a0d26dad18f6b"
-    },
-    {
-      "id": "gemma4-l21-sae-32392-v2",
-      "positive_passages": 13528,
-      "inactive_passages": 72666,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 13
-      },
-      "sha256": "b6ea349ce89d668ee86c1d46d82d6a34c8552b2aa44ac1323bab494c0b28533f"
-    },
-    {
-      "id": "gemma4-l21-sae-26886-v2",
-      "positive_passages": 12615,
-      "inactive_passages": 73579,
-      "starter_percentile": 49.996036464526355,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "a77c95d397f9ea946ea4819b11ecf8aaa9527a335cbd2aa839f3e52b187923d4"
-    },
-    {
-      "id": "gemma4-l21-sae-20591-v2",
-      "positive_passages": 13292,
-      "inactive_passages": 72902,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "e55aac720fb5f8a4e00113925878d2dd6fc43660adbf93b8a2cf2021d9923f92"
-    },
-    {
-      "id": "gemma4-l21-sae-31876-v2",
-      "positive_passages": 14160,
-      "inactive_passages": 72034,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 14
-      },
-      "sha256": "f32ccaa99883cbdfc3d84212abd4f238151f489d8d7352477ef8d71a1fd9a5a2"
-    },
-    {
-      "id": "gemma4-l21-sae-21063-v2",
-      "positive_passages": 14621,
-      "inactive_passages": 71573,
-      "starter_percentile": 49.989740783804116,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 7
-      },
-      "sha256": "84d9ab637088a0727f632f0919580f5e230a45fac2462c90f96381bf99ce9c89"
-    },
-    {
-      "id": "gemma4-l21-sae-27719-v2",
-      "positive_passages": 35806,
-      "inactive_passages": 50388,
-      "starter_percentile": 49.9888286879294,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "ccf89fb05fec213d1651bdd7077e2a7b14e504a141f420db4213e778676e40c9"
-    },
-    {
-      "id": "gemma4-l21-sae-46049-v2",
-      "positive_passages": 21108,
-      "inactive_passages": 65086,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 17
-      },
-      "sha256": "d933e02397e0c98b59c50e248fea209ccc9742f7fa2a8a95ede1eced5b14823a"
-    },
-    {
-      "id": "gemma4-l21-sae-39381-v2",
-      "positive_passages": 26548,
-      "inactive_passages": 59646,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 12
-      },
-      "sha256": "e905f9352114cad209640e9a55a08cd3f4ebae141faf85ca260df5d08d512d20"
-    },
-    {
-      "id": "gemma4-l21-sae-35670-v2",
-      "positive_passages": 14430,
-      "inactive_passages": 71764,
-      "starter_percentile": 49.993069993069994,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 7
-      },
-      "sha256": "895a6b94211b5cc6c041820f3176441bf71629610c97b3447b42427629702821"
-    },
-    {
-      "id": "gemma4-l21-sae-39056-v2",
-      "positive_passages": 31929,
-      "inactive_passages": 54265,
-      "starter_percentile": 49.9953020764822,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "7c0754c41228bd70e2ad95b9f7836858fb4d9dc971193eba82ca0be116fd3281"
-    },
-    {
-      "id": "gemma4-l21-sae-47251-v2",
-      "positive_passages": 18036,
-      "inactive_passages": 68158,
-      "starter_percentile": 49.99445553337769,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 13
-      },
-      "sha256": "4f48626c039bc764f83cf67c43ed4287732ea7f680f28e0e06668bdc694c09dd"
-    },
-    {
-      "id": "gemma4-l21-sae-37292-v2",
-      "positive_passages": 18539,
-      "inactive_passages": 67655,
-      "starter_percentile": 49.99730298290091,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 15
-      },
-      "sha256": "9f5a6e5ed9d98d671da872a0fc61d3418d60e274538ce8fb6bf8592b1187146e"
-    },
-    {
-      "id": "gemma4-l21-sae-36005-v2",
-      "positive_passages": 18638,
-      "inactive_passages": 67556,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "09c112a3179443fad1a649fe35e39f97a56e933a69ada1c76b36017fc34e04bf"
-    },
-    {
-      "id": "gemma4-l21-sae-42919-v2",
-      "positive_passages": 15954,
-      "inactive_passages": 70240,
-      "starter_percentile": 49.98746395888178,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "5552ca6d12d19dbd976b9b5dbef8001a73a8448fd828763fa55801dbda3a8270"
-    },
-    {
-      "id": "gemma4-l21-sae-43146-v2",
-      "positive_passages": 10533,
-      "inactive_passages": 75661,
-      "starter_percentile": 49.995253014335894,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "2c981c9d761ad5c91d33b617efc07173772d37c4b225f9ce31e8b6ca8ddfbb20"
-    },
-    {
-      "id": "gemma4-l21-sae-44149-v2",
-      "positive_passages": 11079,
-      "inactive_passages": 75115,
-      "starter_percentile": 49.986460871919846,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 4
-      },
-      "sha256": "a2dfdbbfe6ca27fd6abaa4347b98ddee1064e43c53b7b20b781989502b31d2a6"
-    },
-    {
-      "id": "gemma4-l21-sae-45175-v2",
-      "positive_passages": 18040,
-      "inactive_passages": 68154,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 14
-      },
-      "sha256": "bea8af2db4ca01ea0266aa50d4069fe48da69f1cc42ac451fe9218d95b95edc0"
-    },
-    {
-      "id": "gemma4-l21-sae-43263-v2",
-      "positive_passages": 13195,
-      "inactive_passages": 72999,
-      "starter_percentile": 49.99621068586586,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "b6fdf9151e060542be79f296c11b0092872196f98765ad665f06fcfc6b7c1728"
-    },
-    {
-      "id": "gemma4-l21-sae-58101-v2",
-      "positive_passages": 12089,
-      "inactive_passages": 74105,
-      "starter_percentile": 49.98759202580859,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "6827274032572dc71b32e0680e057bd36be25e719dbe5b338379a0f517988f3f"
-    },
-    {
-      "id": "gemma4-l21-sae-59639-v2",
-      "positive_passages": 33013,
-      "inactive_passages": 53181,
-      "starter_percentile": 49.99848544512768,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "eb03ad6d14b16e50ac16d5b859df488bd1f6610c27b8adfc568e1455f8ba496c"
-    },
-    {
-      "id": "gemma4-l21-sae-62637-v2",
-      "positive_passages": 18846,
-      "inactive_passages": 67348,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 12
-      },
-      "sha256": "a636cad0df74341a5548b27c45824d49c543736b7e9d9de731378cd334413fca"
-    },
-    {
-      "id": "gemma4-l21-sae-58777-v2",
-      "positive_passages": 12027,
-      "inactive_passages": 74167,
-      "starter_percentile": 49.99584268728694,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "e4d4870647cd53de9fe42dd118e58c9fafaf42345f21bd18d216430ded799261"
-    },
-    {
-      "id": "gemma4-l21-sae-51300-v2",
-      "positive_passages": 12608,
-      "inactive_passages": 73586,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 8
-      },
-      "sha256": "635c28781bc36423af3da15c71826303aa637ad680aac39523f40558a5223476"
-    },
-    {
-      "id": "gemma4-l21-sae-54099-v2",
-      "positive_passages": 10203,
-      "inactive_passages": 75991,
-      "starter_percentile": 49.99509948054494,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 5
-      },
-      "sha256": "832e0a998f3c9880ea5ce30164332546bd216f3397a57065e4f52751bd3fe36b"
-    },
-    {
-      "id": "gemma4-l21-sae-49482-v2",
-      "positive_passages": 11077,
-      "inactive_passages": 75117,
-      "starter_percentile": 49.986458427372035,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 8
-      },
-      "sha256": "cda349e9e1888d1d44f8d3c1927e9a26295457e8fc426043b4094b8222df3ad1"
-    },
-    {
-      "id": "gemma4-l21-sae-52482-v2",
-      "positive_passages": 29831,
-      "inactive_passages": 56363,
-      "starter_percentile": 49.994971673762194,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "f275eb9d668b04a793106c933487f8e61233a4828824a9ec7fcbeadb59ba6f7c"
-    },
-    {
-      "id": "gemma4-l21-sae-65191-v2",
-      "positive_passages": 10234,
-      "inactive_passages": 75960,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "5f5c27c631f972fa04eeae46ab4aea326894a786a978ce12523b8479cdb94337"
-    },
-    {
-      "id": "gemma4-l21-sae-60469-v2",
-      "positive_passages": 11964,
-      "inactive_passages": 74230,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 11
-      },
-      "sha256": "1da132abcbb125067044a78c1b9ca8a9f7fe5471d1e5c89baa4faf61e74ad3e1"
-    },
-    {
-      "id": "gemma4-l21-sae-54304-v2",
-      "positive_passages": 13088,
-      "inactive_passages": 73106,
-      "starter_percentile": 50.0,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 10
-      },
-      "sha256": "31ddcad949c5dc4f510a79b654788fa693eb262565d6fedf3657bafc3d23f35b"
-    },
-    {
-      "id": "gemma4-l21-sae-57055-v2",
-      "positive_passages": 10269,
-      "inactive_passages": 75925,
-      "starter_percentile": 49.98539293017821,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 8
-      },
-      "sha256": "1a840334bd9ea3710f0d64322adbfee99de57e22421a06492926a88ca0275405"
-    },
-    {
-      "id": "gemma4-l21-mlp-3520-v2",
-      "positive_passages": 67593,
-      "inactive_passages": 18601,
-      "starter_percentile": 49.98446584705517,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "ba2d80af33ad60354dddf227c1e23937e636951adac94942da1771d7a942790a"
-    },
-    {
-      "id": "gemma4-l21-mlp-4880-v2",
-      "positive_passages": 75750,
-      "inactive_passages": 10444,
-      "starter_percentile": 49.984158415841584,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "107563c1763cb5d787628bcec724b1dcf952d8fe54fc818985b5079032e51494"
-    },
-    {
-      "id": "gemma4-l21-mlp-6720-v2",
-      "positive_passages": 79792,
-      "inactive_passages": 6402,
-      "starter_percentile": 49.99624022458392,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "47cd363b350dcf9909fcfe2a3408c383f528e3f5bac7aef444f7b12e9ab635ae"
-    },
-    {
-      "id": "gemma4-l21-mlp-8880-v2",
-      "positive_passages": 80015,
-      "inactive_passages": 6179,
-      "starter_percentile": 49.95688308442167,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "b653aba042afdf3bf2cb90611f0033fa7c60684dd6a00dd4cb8e7d1bbbcb55ee"
-    },
-    {
-      "id": "gemma4-l21-mlp-2080-v2",
-      "positive_passages": 81900,
-      "inactive_passages": 4294,
-      "starter_percentile": 49.975579975579976,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "56135e9516c523682358b2a3a3ce96d0fb4d9dae680107f0dedd030d308bdc40"
-    },
-    {
-      "id": "gemma4-l21-mlp-6560-v2",
-      "positive_passages": 82923,
-      "inactive_passages": 3271,
-      "starter_percentile": 49.971660456085765,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "9d0b8c7c3e83075e113cd48c22cdb0d7149d8ab6f344455c4adce6b2f1ae8339"
-    },
-    {
-      "id": "gemma4-l21-mlp-2640-v2",
-      "positive_passages": 83641,
-      "inactive_passages": 2553,
-      "starter_percentile": 49.9444052557956,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "5a20d2b549065ee8e9e01aa24f1f966f70535f43f6b69bd32df88959ba33a722"
-    },
-    {
-      "id": "gemma4-l21-mlp-3200-v2",
-      "positive_passages": 83530,
-      "inactive_passages": 2664,
-      "starter_percentile": 49.94133844127858,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "bbcc5f0ce74847234010d21c9ba6e903b02a58d1e5878b00d5b205928d744a1f"
-    },
-    {
-      "id": "gemma4-l21-neuron-320-v2",
-      "positive_passages": 74507,
-      "inactive_passages": 11687,
-      "starter_percentile": 49.996644610573505,
-      "bands": {
-        "0": 40,
-        "50": 24,
-        "90": 24,
-        "95": 24,
-        "99": 24,
-        "99.9": 24
-      },
-      "sha256": "0075271f4e91bef31f0141a225817c683c2f87a3a6a387aff792360c4f86079f"
+      "sha256": "5191bd57cd8856321a86269f62c7187f0962e84ce9e52968112aa0a591c64900"
     }
   ],
   "archives": [
+    {
+      "extraction": {
+        "model": "google/gemma-4-E4B",
+        "model_revision": "411aa17b749aa952df1359d2dcea73917a544d9a",
+        "sae": "decoderesearch/gemma-4-saes",
+        "sae_revision": "bb8e6b333def5cf2667f2cd4b9e67258dae7029b",
+        "sae_id": "gemma-4-e4b/btk-mat-layer-21-k-100",
+        "hook": "model.language_model.layers.21",
+        "dtype": "float16",
+        "sae_dtype": "float32",
+        "features": 65536,
+        "neurons": [
+          100,
+          500,
+          1000,
+          0,
+          160,
+          320,
+          480,
+          640,
+          800,
+          960,
+          1120,
+          1280,
+          1440,
+          1600,
+          1760,
+          1920,
+          2080,
+          2240,
+          2400
+        ],
+        "documents": 12504,
+        "mlp": [
+          0,
+          80,
+          160,
+          240,
+          320,
+          400,
+          480,
+          560,
+          640,
+          720,
+          800,
+          880,
+          960,
+          1040,
+          1120,
+          1200,
+          1280,
+          1360,
+          1440,
+          1520,
+          1600,
+          1680,
+          1760,
+          1840,
+          1920,
+          2000,
+          2080,
+          2160,
+          2240,
+          2320,
+          2400,
+          2480,
+          2560,
+          2640,
+          2720,
+          2800,
+          2880,
+          2960,
+          3040,
+          3120,
+          3200,
+          3280,
+          3360,
+          3440,
+          3520,
+          3600,
+          3680,
+          3760,
+          3840,
+          3920,
+          4000,
+          4080,
+          4160,
+          4240,
+          4320,
+          4400,
+          4480,
+          4560,
+          4640,
+          4720,
+          4800,
+          4880,
+          4960,
+          5040,
+          5120,
+          5200,
+          5280,
+          5360,
+          5440,
+          5520,
+          5600,
+          5680,
+          5760,
+          5840,
+          5920,
+          6000,
+          6080,
+          6160,
+          6240,
+          6320,
+          6400,
+          6480,
+          6560,
+          6640,
+          6720,
+          6800,
+          6880,
+          6960,
+          7040,
+          7120,
+          7200,
+          7280,
+          7360,
+          7440,
+          7520,
+          7600,
+          7680,
+          7760,
+          7840,
+          7920,
+          8000,
+          8080,
+          8160,
+          8240,
+          8320,
+          8400,
+          8480,
+          8560,
+          8640,
+          8720,
+          8800,
+          8880,
+          8960,
+          9040,
+          9120,
+          9200,
+          9280,
+          9360,
+          9440,
+          9520,
+          9600,
+          9680,
+          9760,
+          9840,
+          9920,
+          10000,
+          10080,
+          10160
+        ],
+        "mlp_hook": "model.language_model.layers.21.mlp.down_proj.input",
+        "mlp_scoring": "max(0, gelu(gate_proj(x)) * up_proj(x)) per coordinate",
+        "context": "complete-source-document",
+        "bos": 2,
+        "corpus_sha256": "c093b3681f2f0b1e0ef2925f9c6d66ff21b2c5db49edcfceb0f97f2a020ea965",
+        "prefix_parity": "exact against full-model layer-21 hook",
+        "mlp_prefix_parity": "exact against full-model layer-21 MLP down_proj input",
+        "versions": {
+          "torch": "2.13.0+cu130",
+          "transformers": "5.14.1"
+        }
+      },
+      "passages": 86194,
+      "documents_by_source": {
+        "chat": 3531,
+        "reference": 4000,
+        "prose": 4000,
+        "code": 973
+      },
+      "sources": {
+        "chat": {
+          "dataset": "OpenAssistant/oasst1",
+          "revision": "fdf72ae0827c1cda404aff25b6603abec9e3399b",
+          "license": "Apache-2.0"
+        },
+        "reference": {
+          "dataset": "wikimedia/wikipedia",
+          "revision": "b04c8d1ceb2f5cd4588862100d08de323dccfbaa",
+          "license": "CC-BY-SA-3.0"
+        },
+        "prose": {
+          "dataset": "roneneldan/TinyStories",
+          "revision": "f54c09fd23315a6f9c86f9dc80f725de7d8f9c64",
+          "license": "CDLA-Sharing-1.0"
+        },
+        "code": {
+          "dataset": "google-research-datasets/mbpp",
+          "revision": "4bb6404fdc6cacfda99d4ac4205087b89d32030c",
+          "license": "CC-BY-4.0"
+        }
+      },
+      "scoring": "strict lower rank among positive passage maxima in this fixed corpus",
+      "reference_population": "all non-overlapping displayed passages in the selected corpus",
+      "targets": [
+        {
+          "id": "gemma4-l21-sae-14834-v2",
+          "positive_passages": 12540,
+          "inactive_passages": 73654,
+          "starter_percentile": 49.99202551834131,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 8
+          },
+          "sha256": "10b090922557dbd0e2831e30ef0337f4ea415977941d3344eb6344499ad277d0"
+        },
+        {
+          "id": "gemma4-l21-sae-58-v2",
+          "positive_passages": 41594,
+          "inactive_passages": 44600,
+          "starter_percentile": 49.9206616338895,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "b2825a3a5dc82f967980beecf8854f10812b587164d53a95db86750716ba1db3"
+        },
+        {
+          "id": "gemma4-l21-sae-9475-v2",
+          "positive_passages": 10865,
+          "inactive_passages": 75329,
+          "starter_percentile": 49.976990335941096,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 7
+          },
+          "sha256": "c700e819162fc862b406a12b8f2edcb2f64c4cf20b532c46bf66239155820447"
+        },
+        {
+          "id": "gemma4-l21-sae-6466-v2",
+          "positive_passages": 13362,
+          "inactive_passages": 72832,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 11
+          },
+          "sha256": "94129d229e037caf59fb3a99e352edcff6417f7378761a4ea90df4fe0023ff3d"
+        },
+        {
+          "id": "gemma4-l21-sae-15976-v2",
+          "positive_passages": 12606,
+          "inactive_passages": 73588,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 12
+          },
+          "sha256": "d2ec29896e6f6db82139b520481a197c3e2b2aa78435be7b4d281f22cb14e766"
+        },
+        {
+          "id": "gemma4-l21-sae-9947-v2",
+          "positive_passages": 13353,
+          "inactive_passages": 72841,
+          "starter_percentile": 49.99625552310342,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "0ccd7db9ce8199beb3055ca2a6b54dedd6109bf678c66fe60d508bbef42e63b9"
+        },
+        {
+          "id": "gemma4-l21-sae-11189-v2",
+          "positive_passages": 16182,
+          "inactive_passages": 70012,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 14
+          },
+          "sha256": "7e938b2b76058566f4974b87f6ea33d71c8a070e1cf5d90b79e3528326282ca7"
+        },
+        {
+          "id": "gemma4-l21-sae-12268-v2",
+          "positive_passages": 20286,
+          "inactive_passages": 65908,
+          "starter_percentile": 49.9950704919649,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 12
+          },
+          "sha256": "eaa4fe80005e1bd4758e33b39f69d985d55ecbef848cd5e2a504117b3d56734d"
+        },
+        {
+          "id": "gemma4-l21-sae-1449-v2",
+          "positive_passages": 63264,
+          "inactive_passages": 22930,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "358ad2a5a84144e9955352700c20b50e45b23b10b2abebd5ded0167735926b72"
+        },
+        {
+          "id": "gemma4-l21-sae-10482-v2",
+          "positive_passages": 23063,
+          "inactive_passages": 63131,
+          "starter_percentile": 49.99783202532194,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 19
+          },
+          "sha256": "d34f2afd987d11391981e30576ec3024fdd6449382b4d591a43c19ff7b64122a"
+        },
+        {
+          "id": "gemma4-l21-sae-8593-v2",
+          "positive_passages": 23882,
+          "inactive_passages": 62312,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 17
+          },
+          "sha256": "e9ba21352ce9341237144a21b1569c1b9e0afcc571c779835cbcb2a6de5be529"
+        },
+        {
+          "id": "gemma4-l21-sae-8-v2",
+          "positive_passages": 18711,
+          "inactive_passages": 67483,
+          "starter_percentile": 49.99198332531666,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 17
+          },
+          "sha256": "b4e55a3ba8cf8fdac675efe5fbb8b71dbcecb1bf45157753136d0c3c1b3b806d"
+        },
+        {
+          "id": "gemma4-l21-sae-2016-v2",
+          "positive_passages": 44666,
+          "inactive_passages": 41528,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "a4b7e85602c8c4b655d88fa28fed7cccb254e0e874aceadde0fefac454aae3b8"
+        },
+        {
+          "id": "gemma4-l21-sae-4946-v2",
+          "positive_passages": 10145,
+          "inactive_passages": 76049,
+          "starter_percentile": 49.99507146377526,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "9c810329e906a9b80eaaa394abfd693027d0df992590cdb906cbc4ff564d9ee9"
+        },
+        {
+          "id": "gemma4-l21-sae-65-v2",
+          "positive_passages": 54308,
+          "inactive_passages": 31886,
+          "starter_percentile": 49.996317301318406,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "0803002f47c48133de976a1c0a9bad5b437da4ed8fd6b8dc8078e50b41ebf8c2"
+        },
+        {
+          "id": "gemma4-l21-sae-19894-v2",
+          "positive_passages": 16670,
+          "inactive_passages": 69524,
+          "starter_percentile": 49.99400119976005,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 15
+          },
+          "sha256": "4d5bce41982c7616c5faa8bd87fd19a6a9f96c0bf7e3b06a2067771b1cf90ac8"
+        },
+        {
+          "id": "gemma4-l21-sae-31738-v2",
+          "positive_passages": 14599,
+          "inactive_passages": 71595,
+          "starter_percentile": 49.98972532365231,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 9
+          },
+          "sha256": "4dc7432a3f2c81f38c6dd72ce773b193802762b973a3afd27fda3d5517a3ab57"
+        },
+        {
+          "id": "gemma4-l21-sae-17132-v2",
+          "positive_passages": 10013,
+          "inactive_passages": 76181,
+          "starter_percentile": 49.99500649156097,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "498fb66411e0c9f0f348c82618b3f419302a51d477647618be80be22cb1b1ca9"
+        },
+        {
+          "id": "gemma4-l21-sae-17165-v2",
+          "positive_passages": 28246,
+          "inactive_passages": 57948,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 19
+          },
+          "sha256": "ea02b6f4bcac5e39729c45f012604157a37656501738a5fba486235d9a6e7ad8"
+        },
+        {
+          "id": "gemma4-l21-sae-32073-v2",
+          "positive_passages": 11778,
+          "inactive_passages": 74416,
+          "starter_percentile": 49.9660383766344,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 8
+          },
+          "sha256": "21a5ec80734326ea0c064b51d1e86f55b0a4c5959da0889329e9f32a292fed3a"
+        },
+        {
+          "id": "gemma4-l21-sae-29784-v2",
+          "positive_passages": 27780,
+          "inactive_passages": 58414,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 14
+          },
+          "sha256": "8c43cd58c24cad96ba9a15827b002e054c81348ae5d80a0c874a0d26dad18f6b"
+        },
+        {
+          "id": "gemma4-l21-sae-32392-v2",
+          "positive_passages": 13528,
+          "inactive_passages": 72666,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 13
+          },
+          "sha256": "b6ea349ce89d668ee86c1d46d82d6a34c8552b2aa44ac1323bab494c0b28533f"
+        },
+        {
+          "id": "gemma4-l21-sae-26886-v2",
+          "positive_passages": 12615,
+          "inactive_passages": 73579,
+          "starter_percentile": 49.996036464526355,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "a77c95d397f9ea946ea4819b11ecf8aaa9527a335cbd2aa839f3e52b187923d4"
+        },
+        {
+          "id": "gemma4-l21-sae-20591-v2",
+          "positive_passages": 13292,
+          "inactive_passages": 72902,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "e55aac720fb5f8a4e00113925878d2dd6fc43660adbf93b8a2cf2021d9923f92"
+        },
+        {
+          "id": "gemma4-l21-sae-31876-v2",
+          "positive_passages": 14160,
+          "inactive_passages": 72034,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 14
+          },
+          "sha256": "f32ccaa99883cbdfc3d84212abd4f238151f489d8d7352477ef8d71a1fd9a5a2"
+        },
+        {
+          "id": "gemma4-l21-sae-21063-v2",
+          "positive_passages": 14621,
+          "inactive_passages": 71573,
+          "starter_percentile": 49.989740783804116,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 7
+          },
+          "sha256": "84d9ab637088a0727f632f0919580f5e230a45fac2462c90f96381bf99ce9c89"
+        },
+        {
+          "id": "gemma4-l21-sae-27719-v2",
+          "positive_passages": 35806,
+          "inactive_passages": 50388,
+          "starter_percentile": 49.9888286879294,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "ccf89fb05fec213d1651bdd7077e2a7b14e504a141f420db4213e778676e40c9"
+        },
+        {
+          "id": "gemma4-l21-sae-46049-v2",
+          "positive_passages": 21108,
+          "inactive_passages": 65086,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 17
+          },
+          "sha256": "d933e02397e0c98b59c50e248fea209ccc9742f7fa2a8a95ede1eced5b14823a"
+        },
+        {
+          "id": "gemma4-l21-sae-39381-v2",
+          "positive_passages": 26548,
+          "inactive_passages": 59646,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 12
+          },
+          "sha256": "e905f9352114cad209640e9a55a08cd3f4ebae141faf85ca260df5d08d512d20"
+        },
+        {
+          "id": "gemma4-l21-sae-35670-v2",
+          "positive_passages": 14430,
+          "inactive_passages": 71764,
+          "starter_percentile": 49.993069993069994,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 7
+          },
+          "sha256": "895a6b94211b5cc6c041820f3176441bf71629610c97b3447b42427629702821"
+        },
+        {
+          "id": "gemma4-l21-sae-39056-v2",
+          "positive_passages": 31929,
+          "inactive_passages": 54265,
+          "starter_percentile": 49.9953020764822,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "7c0754c41228bd70e2ad95b9f7836858fb4d9dc971193eba82ca0be116fd3281"
+        },
+        {
+          "id": "gemma4-l21-sae-47251-v2",
+          "positive_passages": 18036,
+          "inactive_passages": 68158,
+          "starter_percentile": 49.99445553337769,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 13
+          },
+          "sha256": "4f48626c039bc764f83cf67c43ed4287732ea7f680f28e0e06668bdc694c09dd"
+        },
+        {
+          "id": "gemma4-l21-sae-37292-v2",
+          "positive_passages": 18539,
+          "inactive_passages": 67655,
+          "starter_percentile": 49.99730298290091,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 15
+          },
+          "sha256": "9f5a6e5ed9d98d671da872a0fc61d3418d60e274538ce8fb6bf8592b1187146e"
+        },
+        {
+          "id": "gemma4-l21-sae-36005-v2",
+          "positive_passages": 18638,
+          "inactive_passages": 67556,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "09c112a3179443fad1a649fe35e39f97a56e933a69ada1c76b36017fc34e04bf"
+        },
+        {
+          "id": "gemma4-l21-sae-42919-v2",
+          "positive_passages": 15954,
+          "inactive_passages": 70240,
+          "starter_percentile": 49.98746395888178,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "5552ca6d12d19dbd976b9b5dbef8001a73a8448fd828763fa55801dbda3a8270"
+        },
+        {
+          "id": "gemma4-l21-sae-43146-v2",
+          "positive_passages": 10533,
+          "inactive_passages": 75661,
+          "starter_percentile": 49.995253014335894,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "2c981c9d761ad5c91d33b617efc07173772d37c4b225f9ce31e8b6ca8ddfbb20"
+        },
+        {
+          "id": "gemma4-l21-sae-44149-v2",
+          "positive_passages": 11079,
+          "inactive_passages": 75115,
+          "starter_percentile": 49.986460871919846,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 4
+          },
+          "sha256": "a2dfdbbfe6ca27fd6abaa4347b98ddee1064e43c53b7b20b781989502b31d2a6"
+        },
+        {
+          "id": "gemma4-l21-sae-45175-v2",
+          "positive_passages": 18040,
+          "inactive_passages": 68154,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 14
+          },
+          "sha256": "bea8af2db4ca01ea0266aa50d4069fe48da69f1cc42ac451fe9218d95b95edc0"
+        },
+        {
+          "id": "gemma4-l21-sae-43263-v2",
+          "positive_passages": 13195,
+          "inactive_passages": 72999,
+          "starter_percentile": 49.99621068586586,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 11
+          },
+          "sha256": "b6fdf9151e060542be79f296c11b0092872196f98765ad665f06fcfc6b7c1728"
+        },
+        {
+          "id": "gemma4-l21-sae-58101-v2",
+          "positive_passages": 12089,
+          "inactive_passages": 74105,
+          "starter_percentile": 49.98759202580859,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 11
+          },
+          "sha256": "6827274032572dc71b32e0680e057bd36be25e719dbe5b338379a0f517988f3f"
+        },
+        {
+          "id": "gemma4-l21-sae-59639-v2",
+          "positive_passages": 33013,
+          "inactive_passages": 53181,
+          "starter_percentile": 49.99848544512768,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "eb03ad6d14b16e50ac16d5b859df488bd1f6610c27b8adfc568e1455f8ba496c"
+        },
+        {
+          "id": "gemma4-l21-sae-62637-v2",
+          "positive_passages": 18846,
+          "inactive_passages": 67348,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 12
+          },
+          "sha256": "a636cad0df74341a5548b27c45824d49c543736b7e9d9de731378cd334413fca"
+        },
+        {
+          "id": "gemma4-l21-sae-58777-v2",
+          "positive_passages": 12027,
+          "inactive_passages": 74167,
+          "starter_percentile": 49.99584268728694,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 11
+          },
+          "sha256": "e4d4870647cd53de9fe42dd118e58c9fafaf42345f21bd18d216430ded799261"
+        },
+        {
+          "id": "gemma4-l21-sae-51300-v2",
+          "positive_passages": 12608,
+          "inactive_passages": 73586,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 8
+          },
+          "sha256": "635c28781bc36423af3da15c71826303aa637ad680aac39523f40558a5223476"
+        },
+        {
+          "id": "gemma4-l21-sae-54099-v2",
+          "positive_passages": 10203,
+          "inactive_passages": 75991,
+          "starter_percentile": 49.99509948054494,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 5
+          },
+          "sha256": "832e0a998f3c9880ea5ce30164332546bd216f3397a57065e4f52751bd3fe36b"
+        },
+        {
+          "id": "gemma4-l21-sae-49482-v2",
+          "positive_passages": 11077,
+          "inactive_passages": 75117,
+          "starter_percentile": 49.986458427372035,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 8
+          },
+          "sha256": "cda349e9e1888d1d44f8d3c1927e9a26295457e8fc426043b4094b8222df3ad1"
+        },
+        {
+          "id": "gemma4-l21-sae-52482-v2",
+          "positive_passages": 29831,
+          "inactive_passages": 56363,
+          "starter_percentile": 49.994971673762194,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "f275eb9d668b04a793106c933487f8e61233a4828824a9ec7fcbeadb59ba6f7c"
+        },
+        {
+          "id": "gemma4-l21-sae-65191-v2",
+          "positive_passages": 10234,
+          "inactive_passages": 75960,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "5f5c27c631f972fa04eeae46ab4aea326894a786a978ce12523b8479cdb94337"
+        },
+        {
+          "id": "gemma4-l21-sae-60469-v2",
+          "positive_passages": 11964,
+          "inactive_passages": 74230,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 11
+          },
+          "sha256": "1da132abcbb125067044a78c1b9ca8a9f7fe5471d1e5c89baa4faf61e74ad3e1"
+        },
+        {
+          "id": "gemma4-l21-sae-54304-v2",
+          "positive_passages": 13088,
+          "inactive_passages": 73106,
+          "starter_percentile": 50.0,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 10
+          },
+          "sha256": "31ddcad949c5dc4f510a79b654788fa693eb262565d6fedf3657bafc3d23f35b"
+        },
+        {
+          "id": "gemma4-l21-sae-57055-v2",
+          "positive_passages": 10269,
+          "inactive_passages": 75925,
+          "starter_percentile": 49.98539293017821,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 8
+          },
+          "sha256": "1a840334bd9ea3710f0d64322adbfee99de57e22421a06492926a88ca0275405"
+        },
+        {
+          "id": "gemma4-l21-mlp-3520-v2",
+          "positive_passages": 67593,
+          "inactive_passages": 18601,
+          "starter_percentile": 49.98446584705517,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "ba2d80af33ad60354dddf227c1e23937e636951adac94942da1771d7a942790a"
+        },
+        {
+          "id": "gemma4-l21-mlp-4880-v2",
+          "positive_passages": 75750,
+          "inactive_passages": 10444,
+          "starter_percentile": 49.984158415841584,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "107563c1763cb5d787628bcec724b1dcf952d8fe54fc818985b5079032e51494"
+        },
+        {
+          "id": "gemma4-l21-mlp-6720-v2",
+          "positive_passages": 79792,
+          "inactive_passages": 6402,
+          "starter_percentile": 49.99624022458392,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "47cd363b350dcf9909fcfe2a3408c383f528e3f5bac7aef444f7b12e9ab635ae"
+        },
+        {
+          "id": "gemma4-l21-mlp-8880-v2",
+          "positive_passages": 80015,
+          "inactive_passages": 6179,
+          "starter_percentile": 49.95688308442167,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "b653aba042afdf3bf2cb90611f0033fa7c60684dd6a00dd4cb8e7d1bbbcb55ee"
+        },
+        {
+          "id": "gemma4-l21-mlp-2080-v2",
+          "positive_passages": 81900,
+          "inactive_passages": 4294,
+          "starter_percentile": 49.975579975579976,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "56135e9516c523682358b2a3a3ce96d0fb4d9dae680107f0dedd030d308bdc40"
+        },
+        {
+          "id": "gemma4-l21-mlp-6560-v2",
+          "positive_passages": 82923,
+          "inactive_passages": 3271,
+          "starter_percentile": 49.971660456085765,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "9d0b8c7c3e83075e113cd48c22cdb0d7149d8ab6f344455c4adce6b2f1ae8339"
+        },
+        {
+          "id": "gemma4-l21-mlp-2640-v2",
+          "positive_passages": 83641,
+          "inactive_passages": 2553,
+          "starter_percentile": 49.9444052557956,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "5a20d2b549065ee8e9e01aa24f1f966f70535f43f6b69bd32df88959ba33a722"
+        },
+        {
+          "id": "gemma4-l21-mlp-3200-v2",
+          "positive_passages": 83530,
+          "inactive_passages": 2664,
+          "starter_percentile": 49.94133844127858,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "bbcc5f0ce74847234010d21c9ba6e903b02a58d1e5878b00d5b205928d744a1f"
+        },
+        {
+          "id": "gemma4-l21-neuron-320-v2",
+          "positive_passages": 74507,
+          "inactive_passages": 11687,
+          "starter_percentile": 49.996644610573505,
+          "bands": {
+            "0": 40,
+            "50": 24,
+            "90": 24,
+            "95": 24,
+            "99": 24,
+            "99.9": 24
+          },
+          "sha256": "0075271f4e91bef31f0141a225817c683c2f87a3a6a387aff792360c4f86079f"
+        }
+      ]
+    },
     {
       "extraction": {
         "model": "google/gemma-4-E4B",
