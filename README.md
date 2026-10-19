@@ -91,7 +91,7 @@ game; it does not attempt to prevent cheating.
 
 The current rotation has **30 curated daily concepts**. Starting clues are
 reviewed against the token that actually activates, using measured passages in
-the 45th–50th percentile window so relevance can take priority over an exact
+the 45th–55th percentile window so relevance can take priority over an exact
 median. [Curation notes](data/CURATION.md) describe the review criteria.
 Its separate practice pool has
 48 experimental SAE features spread across all four quarters of the 65,536-feature

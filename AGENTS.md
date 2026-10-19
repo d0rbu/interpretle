@@ -28,7 +28,7 @@ complexity and a low bar for removing it.
 - Publish only measured activations and actual tokenizer offsets. Numerical
   fixtures belong in tests and must never be imported by application code.
 - Daily puzzles use curated SAE features. Practice may use experimental targets.
-- Preserve the six-attempt limit (preserving older saved games), two-custom limit, free clue with a reviewed score from the 45th to 50th percentile,
+- Preserve the six-attempt limit (preserving older saved games), two-custom limit, free clue with a reviewed score from the 45th to 55th percentile,
   positive-passage percentile definition, and per-token feedback.
 - Use Node 24+. Run `npm run check` and the relevant Playwright checks. UI changes
   should be inspected on desktop and mobile. Do not rent GPUs or run a full

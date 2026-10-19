@@ -202,9 +202,9 @@ def main():
         starter_index = int(np.argmin(np.where((values > 0) & (scores <= 50) & playable, 50 - scores, np.inf)))
         if clue:
             starter_index = row_ids[clue]
-        minimum = 45 if mode == 'daily' else 49.9
-        if not playable[starter_index] or not minimum <= scores[starter_index] <= 50:
-            raise ValueError(f"{target['index']}: clue must be between the {minimum}th and 50th percentiles")
+        minimum, maximum = (45, 55) if mode == 'daily' else (49.9, 50)
+        if not playable[starter_index] or not minimum <= scores[starter_index] <= maximum:
+            raise ValueError(f"{target['index']}: clue must be between the {minimum}th and {maximum}th percentiles")
         starter = passage(rows[starter_index], column, docs, args.cache, manifest, 50)
         if mode == 'daily':
             maximum = max(token['activation'] for token in starter['tokens'])
@@ -243,7 +243,7 @@ def main():
                 raise ValueError(f"{target['index']}: band {band} has only {len(unique)} distinct documents")
             counts[str(band)] = len(unique)
             chosen.extend(passage(rows[index], column, docs, args.cache, manifest, band) for index in unique)
-        version = 3 if mode == 'daily' else 2
+        version = 4 if mode == 'daily' else 2
         identity = f"gemma4-l21-{target['kind']}-{target['index']}-v{version}"
         pack = dict(id=identity, **target, reference=reference.tolist(),
                     displayScale=float(reference[min(len(reference) - 1, int(np.ceil(.999 * len(reference))))]),

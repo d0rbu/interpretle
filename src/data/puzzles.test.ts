@@ -26,7 +26,7 @@ const curated: {
   (target: { mode: string }) => target.mode === 'daily',
 )
 const curatedIds = new Set(
-  curated.map((target) => `gemma4-l21-sae-${target.index}-v3`),
+  curated.map((target) => `gemma4-l21-sae-${target.index}-v4`),
 )
 const ids = [...new Set([...Object.values(catalog.daily), ...catalog.practice])]
 const limits = new Map([
@@ -69,7 +69,7 @@ describe('published measurements', () => {
   it('pins reviewed clues and winning examples', () => {
     const scheduled = new Set(Object.values(catalog.daily))
     for (const target of curated) {
-      const id = `gemma4-l21-sae-${target.index}-v3`
+      const id = `gemma4-l21-sae-${target.index}-v4`
       expect(scheduled.has(id)).toBe(true)
       const feature: Feature = JSON.parse(
         readFileSync(`public/puzzles/${id}.json`, 'utf8'),
@@ -151,7 +151,7 @@ describe('published measurements', () => {
         scores.set(passage.id, score)
         if (maximum > 0) expect(feature.reference.includes(maximum)).toBe(true)
         if (passage.band === 0) expect(maximum).toBe(0)
-        else {
+        else if (passage !== feature.starter) {
           const [low, high] = limits.get(passage.band)!
           expect(score).toBeGreaterThanOrEqual(low)
           expect(score).toBeLessThan(high)
@@ -164,7 +164,7 @@ describe('published measurements', () => {
       expect(starter.score).toBeGreaterThanOrEqual(
         curatedIds.has(id) ? 45 : 49.9,
       )
-      expect(starter.score).toBeLessThanOrEqual(50)
+      expect(starter.score).toBeLessThanOrEqual(curatedIds.has(id) ? 55 : 50)
       expect(
         feature.passages.filter((p) => scores.get(p.id)! >= 99.9).length,
       ).toBeGreaterThanOrEqual(4)
