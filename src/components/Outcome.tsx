@@ -206,7 +206,7 @@ export default function Outcome({
           <div className="distribution-heading">
             <h3>
               {game.seed === puzzleDay()
-                ? 'Today’s plays'
+                ? 'Today’s scores'
                 : dateLabel(game.seed)}
             </h3>
             {counts && (
