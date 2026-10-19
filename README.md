@@ -233,6 +233,14 @@ time-series plots. Audience/errors cover all modes; the game filter applies to
 gameplay charts. The overview also shows attempt/option distributions, practice
 frequency, themes and devices. No external chart service is used.
 
+The flow chart places out-of-attempts games above unfinished games; unfinished
+paths are ordered with later guesses above earlier guesses. Expand “Break down
+each guess by percentile” for the same cohort split into 0%, 50%, 90%, 95%, 99%
+and 99.9% bands. Stored selections use their recorded band. Write-ins use the
+nearest band, reserving 99.9% for winning scores. Missing historical scores are
+shown as Unknown rather than inferred; games without a recorded opening remain
+excluded from both views.
+
 The local model panel records every completed or failed forward pass, plus partial
 traces for cancellations or crashed workers. Profiles include start time, elapsed
 milliseconds, token count, CPU/GPU backend, worker run number, build and thread count.

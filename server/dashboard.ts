@@ -1,7 +1,8 @@
 import { ADMIN_HEADERS, escape as e } from './admin'
-import type { ErrorSample, FlowGroup, Insights } from './insights'
+import type { ErrorSample, Insights } from './insights'
 import type { ProfileStep } from '../src/lib/model-profile'
 import type { ProfileRun } from './profiles'
+import { sankey } from './flow'
 
 const number = (n: number) => n.toLocaleString('en-US')
 const percent = (n: number, total: number) =>
@@ -71,130 +72,6 @@ function bars(
   if (!total) return empty()
   const maximum = Math.max(...rows.map((row) => row.count), 1)
   return `<div class="bars">${rows.map((row, index) => `<div class="bar-row"><span class="bar-label">${e(row.label)}</span><div class="bar-track"><div style="width:${(row.count / maximum) * 100}%;background:${row.color ?? (share ? [colors.blue, colors.purple, colors.gold, colors.green][index % 4] : color)}"></div></div><span class="bar-value">${number(row.count)}${share ? `<small>${percent(row.count, total)}</small>` : ''}</span></div>`).join('')}</div>`
-}
-
-export function flowSteps(groups: FlowGroup[]) {
-  const included = groups.filter((group) => group.fromStart)
-  const total = included.reduce((sum, group) => sum + group.count, 0)
-  const maximum = Math.max(6, ...included.map((group) => group.limit))
-  return {
-    total,
-    skipped: groups
-      .filter((group) => !group.fromStart)
-      .reduce((sum, group) => sum + group.count, 0),
-    steps: Array.from({ length: maximum + 1 }, (_, guess) => {
-      const count = (filter: (group: FlowGroup) => boolean) =>
-        included.filter(filter).reduce((sum, group) => sum + group.count, 0)
-      return {
-        guess,
-        reached: count((group) => group.guesses >= guess),
-        next: count((group) => group.guesses > guess),
-        won: count(
-          (group) => group.guesses === guess && group.outcome === 'won',
-        ),
-        lost: count(
-          (group) => group.guesses === guess && group.outcome === 'lost',
-        ),
-        open: count(
-          (group) => group.guesses === guess && group.outcome === 'open',
-        ),
-      }
-    }),
-  }
-}
-
-function sankey(groups: FlowGroup[]) {
-  const flow = flowSteps(groups)
-  if (!flow.total)
-    return empty(
-      'Newly recorded games will appear here as players open a puzzle. Older aggregate counters cannot reconstruct these paths.',
-    )
-  const sum = (key: 'won' | 'lost' | 'open') =>
-    flow.steps.reduce((n, step) => n + step[key], 0)
-  const won = sum('won'),
-    lost = sum('lost'),
-    open = sum('open')
-  const scale = 140 / flow.total,
-    width = 1120,
-    sinkX = 945
-  const spacing = (sinkX - 95) / flow.steps.length
-  const nodeY = (n: number) => 190 - (n * scale) / 2
-  const sinkY = { won: 20, open: 305, lost: 345 + open * scale }
-  const offsets = { won: 0, open: 0, lost: 0 }
-  const ribbons: string[] = [],
-    nodes: string[] = []
-  const ribbon = (
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    count: number,
-    color: string,
-    title: string,
-  ) => {
-    if (!count) return
-    const h = count * scale,
-      control = (x1 + x2) / 2
-    ribbons.push(
-      `<path d="M${x1},${y1} C${control},${y1} ${control},${y2} ${x2},${y2} L${x2},${y2 + h} C${control},${y2 + h} ${control},${y1 + h} ${x1},${y1 + h} Z" fill="${color}" fill-opacity=".24" tabindex="0" aria-label="${e(title)}"><title>${e(title)}</title></path>`,
-    )
-  }
-  for (const step of flow.steps) {
-    const x = 28 + step.guess * spacing,
-      y = nodeY(step.reached)
-    const label = step.guess ? `Guess ${step.guess}` : 'Opened'
-    nodes.push(
-      `<text x="${x + 6}" y="94" text-anchor="middle" class="node-label">${label}</text><text x="${x + 6}" y="113" text-anchor="middle">${number(step.reached)}</text>${step.reached ? `<rect x="${x}" y="${y}" width="12" height="${step.reached * scale}" rx="3" fill="${colors.blue}"><title>${e(`${label}: ${step.reached} games`)}</title></rect>` : ''}`,
-    )
-    let offset = 0
-    for (const key of ['won', 'next', 'open', 'lost'] as const) {
-      const count = step[key]
-      if (key === 'next') {
-        ribbon(
-          x + 12,
-          y + offset,
-          x + spacing,
-          nodeY(count),
-          count,
-          colors.blue,
-          `${number(count)} games continued to guess ${step.guess + 1}`,
-        )
-      } else {
-        ribbon(
-          x + 12,
-          y + offset,
-          sinkX,
-          sinkY[key] + offsets[key],
-          count,
-          key === 'won'
-            ? colors.green
-            : key === 'lost'
-              ? colors.red
-              : colors.gray,
-          `${number(count)} games ${key === 'won' ? 'solved' : key === 'lost' ? 'used every attempt' : 'remain unfinished'} ${step.guess ? `at guess ${step.guess}` : 'before guessing'}`,
-        )
-        offsets[key] += count * scale
-      }
-      offset += count * scale
-    }
-  }
-  for (const [key, label, count, color] of [
-    ['won', 'Solved', won, colors.green],
-    ['open', 'Unfinished', open, colors.gray],
-    ['lost', 'Out of attempts', lost, colors.red],
-  ] as const) {
-    const y = sinkY[key],
-      h = count * scale
-    nodes.push(
-      `<rect x="${sinkX}" y="${y}" width="12" height="${Math.max(1, h)}" rx="3" fill="${color}"/><text x="${sinkX + 24}" y="${y + Math.max(4, h / 2) - 2}" class="node-label">${label}</text><text x="${sinkX + 24}" y="${y + Math.max(4, h / 2) + 17}">${number(count)} · ${percent(count, flow.total)}</text>`,
-    )
-  }
-  return `${legend([
-    ['Continued', colors.blue],
-    ['Solved', colors.green],
-    ['Unfinished', colors.gray],
-    ['Out of attempts', colors.red],
-  ])}<p class="scroll-hint">Scroll sideways to follow every guess →</p><div class="chart-scroll flow"><svg viewBox="0 0 ${width} ${Math.max(440, sinkY.lost + lost * scale + 35)}" role="img" aria-label="Game progression: ${flow.total} opened, ${won} solved, ${open} unfinished, ${lost} out of attempts">${ribbons.join('')}${nodes.join('')}</svg></div><p class="note">One path per browser and puzzle. Unfinished means no result has arrived yet. ${flow.skipped ? `${number(flow.skipped)} restored or partial histories are excluded because their opening state was not recorded.` : 'Only games with a recorded opening state are included.'}</p>`
 }
 
 function rawLink(sample: ErrorSample, game = false) {
@@ -371,6 +248,9 @@ export async function dashboardPage(response: Response) {
       | 'writeins',
   ) => data.series.reduce((sum, row) => sum + row[key], 0)
   const raw = '/admin/raw?day=' + e(data.end)
+  const percentileFlow = data.flow.some((g) => g.fromStart && g.count)
+    ? `<details class="flow-detail"><summary>Break down each guess by percentile</summary>${sankey(data.flow, true)}</details>`
+    : ''
   const metrics = [
     [
       'Browsers',
@@ -444,7 +324,7 @@ export async function dashboardPage(response: Response) {
         { key: 'errors', label: 'Errors · all modes', color: colors.red },
       ],
     )}</section>
-<section class="panel wide"><div class="panel-head"><div><h2>From opening the puzzle to the final guess</h2><p>Follow the ribbons to see how games progress</p></div><span class="tag">${modeName}</span></div>${sankey(data.flow)}</section>
+<section class="panel wide" id="game-flow"><div class="panel-head"><div><h2>From opening the puzzle to the final guess</h2><p>Follow the ribbons to see how games progress</p></div><span class="tag">${modeName}</span></div>${sankey(data.flow)}${percentileFlow}</section>
 <section class="panel"><div class="panel-head"><div><h2>When games end</h2><p>Winning guess, or every attempt used</p></div></div>${bars(wins, colors.green)}<p class="note">Completed results in this window. Unfinished games appear in the flow above.</p></section>
 <section class="panel"><div class="panel-head"><div><h2>Which options get picked</h2><p>Suggested positions versus scored write-ins</p></div></div>${bars(data.slots, colors.purple)}<p class="note">Scored guesses, including repeated positions in later turns.</p></section>
 ${profiling(data)}
@@ -459,6 +339,7 @@ ${profiling(data)}
 }
 
 const styles = `
+.flow-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.flow-detail>summary{cursor:pointer;font-size:13px;font-weight:600;margin-bottom:20px}.band-flow svg{min-width:1200px}.band-label{font-size:10px;paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
 .profile-summary{display:flex;gap:16px;flex-wrap:wrap}.profile-summary article{flex:1;min-width:200px;background:var(--soft);border-radius:8px;padding:16px}.profile-summary h3{margin:0 0 8px}.profile-summary strong{font-size:24px;font-variant-numeric:tabular-nums}.profile-summary span{display:block;font-size:12px;color:var(--muted)}.profile-summary p{font-size:11px;margin-top:8px}.timing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}.timing-grid>div{min-width:0}.timing-bars .bar-row{grid-template-columns:minmax(110px,1.4fr) 1fr 72px}.timing-bars small,.profile-runs small,.trace-table small{display:block;font-size:10px;color:var(--muted)}.timing-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.timing-detail>summary{cursor:pointer;font-size:13px;font-weight:600}.table-scroll{overflow-x:auto;margin-top:20px}table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-size:11px;font-weight:600}.profile-runs{min-width:650px}.trace-table{min-width:680px}.trace-table td:first-child{width:43%}.trace-table td:nth-child(2){width:85px;font-variant-numeric:tabular-nums}.trace-track{position:relative;background:var(--soft);height:12px;border-radius:3px;overflow:hidden}.trace-track i{position:absolute;height:100%;border-radius:2px}@media(max-width:900px){.timing-grid{grid-template-columns:1fr;gap:12px}}
 :root{color-scheme:light dark;--bg:#f5f6f8;--panel:#fff;--text:#222938;--muted:#687286;--line:#e4e7ed;--soft:#f4f6fa;--accent:#446ba9;font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 @media(prefers-color-scheme:dark){:root{--bg:#11151d;--panel:#191e29;--text:#e8ebf2;--muted:#99a4b7;--line:#2a3242;--soft:#222938;--accent:#9ab9f0}}

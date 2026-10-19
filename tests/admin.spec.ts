@@ -86,6 +86,11 @@ const sample: Insights = {
     count: Number(count),
     limit: 6,
     fromStart: 1,
+    bands: Array.from({ length: Number(guesses) }, (_, i) =>
+      outcome === 'won' && i === Number(guesses) - 1
+        ? 99.9
+        : ([0, 50, 90, 95, 99] as const)[i % 5],
+    ),
   })),
   attempts: [1, 2, 3, 4, 5, 6].map((n) => ({
     label: String(n),
@@ -188,10 +193,18 @@ test('private dashboard charts and errors remain readable in light and dark mode
 }, info) => {
   const response = await dashboardPage(Response.json(sample))
   await page.setContent(await response.text())
+  await page
+    .getByText('Break down each guess by percentile', { exact: true })
+    .click()
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme })
     await expect(
       page.getByRole('heading', { name: 'Game overview' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('img', {
+        name: 'Game progression by percentile: 100 opened, 58 solved, 37 unfinished, 5 out of attempts',
+      }),
     ).toBeVisible()
     await expect(
       page.getByRole('img', {
@@ -207,6 +220,9 @@ test('private dashboard charts and errors remain readable in light and dark mode
     await page.screenshot({
       path: info.outputPath(`dashboard-${colorScheme}.png`),
       fullPage: true,
+    })
+    await page.locator('#game-flow').screenshot({
+      path: info.outputPath(`flow-${colorScheme}.png`),
     })
   }
   await page

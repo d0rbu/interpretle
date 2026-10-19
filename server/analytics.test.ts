@@ -11,7 +11,7 @@ import {
 import { createGame, playCustom } from '../src/lib/game'
 import { gameSnapshot } from '../src/lib/replay'
 import { runtimeReport } from '../src/lib/diagnostics'
-import { flowSteps } from './dashboard'
+import { flowSteps, layoutFlow } from './flow'
 import type { Insights } from './insights'
 import { profileFixture } from '../tests/profile-fixture'
 
@@ -399,6 +399,146 @@ it('builds a conserving game-flow cohort without inventing paths for restored hi
     total: 1,
     skipped: 0,
   })
+})
+
+it('uses recorded passage bands and nearest write-in bands without inventing missing scores', async () => {
+  const record = (
+    browser: string,
+    name: string,
+    details: object,
+    mode = 'daily',
+  ) => {
+    db.prepare(
+      `INSERT INTO event_log (id,day,at,player,event,mode,round,feature,details) VALUES (?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      crypto.randomUUID(),
+      '2026-10-18',
+      '2026-10-18T12:00:00.000Z',
+      browser,
+      name,
+      mode,
+      '2026-10-18',
+      feature,
+      JSON.stringify(details),
+    )
+  }
+  const snapshot = (scores: number[], status = 'playing') => ({
+    snapshot: {
+      status,
+      game: { maxGuesses: 6, guesses: scores.map((score) => ({ score })) },
+    },
+  })
+  const stored = crypto.randomUUID()
+  record(stored, 'puzzle_view', snapshot([]))
+  record(stored, 'guess', { attempt: 1, band: 50, ...snapshot([49.8]) })
+  record(stored, 'guess', { attempt: 1, band: 50, ...snapshot([49.81]) })
+  record(stored, 'guess', { attempt: 2, band: 0, ...snapshot([49.81, 0]) })
+  const custom = crypto.randomUUID()
+  record(custom, 'puzzle_view', snapshot([]), 'practice')
+  for (const [i, score] of [94.57, 99.88, 99.98].entries()) {
+    record(
+      custom,
+      'guess',
+      {
+        attempt: i + 1,
+        ...snapshot(
+          [94.57, 99.88, 99.98].slice(0, i + 1),
+          score >= 99.9 ? 'won' : 'playing',
+        ),
+      },
+      'practice',
+    )
+  }
+  const missing = crypto.randomUUID()
+  record(missing, 'puzzle_view', snapshot([]))
+  record(missing, 'guess', { attempt: 2 })
+  record(crypto.randomUUID(), 'guess', { attempt: 3, band: 90 })
+
+  const data = await overview()
+  expect(data.flow).toContainEqual(
+    expect.objectContaining({ count: 1, guesses: 2, bands: [50, 0] }),
+  )
+  expect(data.flow).toContainEqual(
+    expect.objectContaining({
+      count: 1,
+      guesses: 3,
+      outcome: 'won',
+      bands: [95, 99, 99.9],
+    }),
+  )
+  expect(data.flow).toContainEqual(
+    expect.objectContaining({ count: 1, guesses: 2, bands: [null, null] }),
+  )
+  expect(flowSteps(data.flow)).toMatchObject({ total: 3, skipped: 1 })
+  expect(flowSteps((await overview('game=daily')).flow).total).toBe(2)
+  const detailed = layoutFlow(data.flow, true)
+  expect(detailed.nodes.find((n) => n.id === 'guess-1-unknown')?.count).toBe(1)
+})
+
+it('orders unfinished paths by the last guess and conserves both Sankey views', () => {
+  const groups = [
+    { guesses: 0, outcome: 'open' as const, count: 4, bands: [] },
+    { guesses: 1, outcome: 'open' as const, count: 3, bands: [50 as const] },
+    {
+      guesses: 2,
+      outcome: 'open' as const,
+      count: 2,
+      bands: [0 as const, 90 as const],
+    },
+    {
+      guesses: 6,
+      outcome: 'lost' as const,
+      count: 1,
+      bands: [
+        0 as const,
+        0 as const,
+        50 as const,
+        90 as const,
+        95 as const,
+        99 as const,
+      ],
+    },
+    {
+      guesses: 3,
+      outcome: 'won' as const,
+      count: 5,
+      bands: [0 as const, 90 as const, 99.9 as const],
+    },
+  ].map((g) => ({ ...g, limit: 6, fromStart: 1 }))
+  for (const byBand of [false, true]) {
+    const flow = layoutFlow(groups, byBand)
+    expect(flow.total).toBe(15)
+    expect(flow.won + flow.lost + flow.open).toBe(15)
+    expect(flow.nodes.find((n) => n.id === 'lost')!.y).toBeLessThan(
+      flow.nodes.find((n) => n.id === 'open')!.y,
+    )
+    const open = flow.links
+      .filter((l) => l.target.id === 'open')
+      .sort((a, b) => a.source.guess - b.source.guess)
+    expect(open.map((l) => l.source.guess)).toEqual([0, 1, 2])
+    expect(open[0].targetY).toBeGreaterThan(open[1].targetY)
+    expect(open[1].targetY).toBeGreaterThan(open[2].targetY)
+    for (const node of flow.nodes) {
+      const incoming = flow.links.filter((l) => l.target === node)
+      const outgoing = flow.links.filter((l) => l.source === node)
+      if (node.id !== 'opened')
+        expect(incoming.reduce((n, l) => n + l.count, 0)).toBe(node.count)
+      if (node.kind === 'step')
+        expect(outgoing.reduce((n, l) => n + l.count, 0)).toBe(node.count)
+      for (const link of incoming) {
+        expect(link.targetY).toBeGreaterThanOrEqual(node.y)
+        expect(link.targetY + link.count * flow.scale).toBeLessThanOrEqual(
+          node.y + node.height + 1e-8,
+        )
+      }
+      for (const link of outgoing) {
+        expect(link.sourceY).toBeGreaterThanOrEqual(node.y)
+        expect(link.sourceY + link.count * flow.scale).toBeLessThanOrEqual(
+          node.y + node.height + 1e-8,
+        )
+      }
+    }
+  }
 })
 
 it('plots Pacific receipt days, unique browsers, returns and zero days using all aggregate history', async () => {

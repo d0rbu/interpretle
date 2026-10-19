@@ -1,15 +1,9 @@
 import type { Sql } from './analytics'
 import type { RuntimeReport } from '../src/lib/diagnostics'
 import { readProfiles } from './profiles'
+import { readFlow } from './flow'
 
 type Counts = { label: string; count: number }
-export type FlowGroup = {
-  guesses: number
-  limit: number
-  fromStart: number
-  outcome: 'won' | 'lost' | 'open'
-  count: number
-}
 export type ErrorSample = {
   id: string
   at: string
@@ -154,28 +148,7 @@ function readInsights(
     start,
     end,
   )
-  const flow = rows<FlowGroup>(
-    `
-    WITH games AS (
-      SELECT player, mode, round, feature,
-        MAX(COALESCE(json_array_length(json_extract(details, '$.snapshot.game.guesses')),
-          CASE WHEN event = 'guess' THEN json_extract(details, '$.attempt') END, 0)) AS guesses,
-        MAX(COALESCE(json_extract(details, '$.snapshot.game.maxGuesses'), 6)) AS "limit",
-        MAX(CASE WHEN event IN ('puzzle_view','guess_submit') AND
-          json_array_length(json_extract(details, '$.snapshot.game.guesses')) = 0 THEN 1 ELSE 0 END) AS fromStart,
-        MAX(CASE WHEN json_extract(details, '$.outcome') = 'won' OR json_extract(details, '$.snapshot.status') = 'won' THEN 1 ELSE 0 END) AS won,
-        MAX(CASE WHEN json_extract(details, '$.outcome') = 'lost' OR json_extract(details, '$.snapshot.status') = 'lost' THEN 1 ELSE 0 END) AS lost
-      FROM event_log WHERE day BETWEEN ? AND ? AND mode IS NOT NULL AND round IS NOT NULL
-        AND (? = 'all' OR mode = ?) AND event IN ('puzzle_view','guess_submit','guess','finish','game_start')
-      GROUP BY player, mode, round, feature
-    ) SELECT guesses, "limit", fromStart,
-      CASE WHEN won THEN 'won' WHEN lost THEN 'lost' ELSE 'open' END AS outcome, COUNT(*) AS count
-    FROM games GROUP BY guesses, "limit", fromStart, outcome`,
-    start,
-    end,
-    mode,
-    mode,
-  )
+  const flow = readFlow(sql, start, end, mode)
   const issues = rows<Omit<Issue, 'samples'> & { samples: string }>(
     `
     WITH errors AS (
