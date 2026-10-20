@@ -89,7 +89,8 @@ revealed when the game ends, with optional model and SAE details after a solve.
 Data and answers are inspectable in this static
 game; it does not attempt to prevent cheating.
 
-The current rotation has **30 curated daily concepts**. Starting clues are
+The upcoming rotation has **20 reviewed daily concepts**. Ten targets from the
+previous pool are held back pending a clearer endgame. Starting clues are
 reviewed against the token that actually activates, using measured passages in
 the 45th–55th percentile window so relevance can take priority over an exact
 median. [Curation notes](data/CURATION.md) describe the review criteria.

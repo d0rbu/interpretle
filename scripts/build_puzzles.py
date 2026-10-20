@@ -188,6 +188,8 @@ def main():
             continue
         if mode == 'daily' and (not clue or clue_token is None or not wins):
             raise ValueError(f"{target['index']}: daily features need a reviewed clue, its strongest token, and winning examples")
+        if mode == 'daily' and not all(str(band) in reviewed_choices for band in (90, 95, 99)):
+            raise ValueError(f"{target['index']}: daily features need reviewed choices at 90, 95, and 99")
         playable = daily_showable if mode == 'daily' else showable
         if target['kind'] == 'sae':
             column = target['index']
@@ -246,7 +248,7 @@ def main():
                 raise ValueError(f"{target['index']}: band {band} has only {len(unique)} distinct documents")
             counts[str(band)] = len(unique)
             chosen.extend(passage(rows[index], column, docs, args.cache, manifest, band) for index in unique)
-        version = 4 if mode == 'daily' else 2
+        version = 5 if mode == 'daily' else 2
         identity = f"gemma4-l21-{target['kind']}-{target['index']}-v{version}"
         pack = dict(id=identity, **target, reference=reference.tolist(),
                     displayScale=float(reference[min(len(reference) - 1, int(np.ceil(.999 * len(reference))))]),

@@ -7,7 +7,9 @@ for its highest-scoring examples. Review the starting clue, examples around 50,
 For future daily puzzles, aim closer to the difficulty of the original October
 20, 2026 months-in-dates puzzle (feature 959). The train-themed replacement
 (feature 4302) was too easy; leave that published puzzle unchanged. The clue
-should suggest a hypothesis that later highlights help refine. Prefer plausible,
+and early rounds of the original were satisfactory: the correction should focus
+on distinguishing the 90–99.9 percentile options, not simplifying the whole
+concept. The clue should suggest a hypothesis that later highlights help refine. Prefer plausible,
 related alternatives that reward learning the specific pattern over several
 guesses, while keeping the winner distinguishable from the evidence. Avoid a
 single obvious keyword among unrelated choices, or a final choice that depends
@@ -67,3 +69,21 @@ clue found in the original 45–50 window. The other retired features are 196,
 Previously published days retain their original
 packs, clues, calibration, and results. Revised daily packs use a new version;
 practice keeps its separate pool.
+
+The subsequent endgame review publishes version 5 for future dates only. It
+keeps each retained concept's starting clue and the original inactive and
+50th-percentile pools, and pins reviewed suggestions at 90, 95, 99, and 99.9.
+Scores, source context, token activations, and calibration are unchanged. For
+example, emphasized comparisons can be distinguished from ordinary comparisons;
+mineral descriptions from other chemical uses; and programming languages from
+spoken languages or software libraries. The differences must be visible in the
+passage, not just in context hidden from the player.
+
+Twenty concepts remain in the upcoming rotation. Features 7790, 6814, 4103,
+11071, 6084, 9222, 900, 41907, and 200 are held back because this review did not
+establish enough readable, distinguishable alternatives across the upper bands.
+Feature 4302 is also held back from future dates following the feedback that its
+clue and choices make it too easy. All existing version 4 packs remain intact,
+including today's train puzzle and earlier saved games. These are curation
+decisions, not claims of a measured human difficulty level; playtesting can
+still reveal a distinction that needs improvement.

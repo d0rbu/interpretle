@@ -27,8 +27,9 @@ const curated: {
   (target: { mode: string }) => target.mode === 'daily',
 )
 const curatedIds = new Set(
-  curated.map((target) => `gemma4-l21-sae-${target.index}-v4`),
+  curated.map((target) => `gemma4-l21-sae-${target.index}-v5`),
 )
+const dailyIds = new Set(Object.values(catalog.daily))
 const ids = [...new Set([...Object.values(catalog.daily), ...catalog.practice])]
 const limits = new Map([
   [50, [45, 55]],
@@ -55,7 +56,7 @@ describe('published measurements', () => {
         return feature.index
       }),
     )
-    expect(curated).toHaveLength(30)
+    expect(curated).toHaveLength(20)
     expect(daily.size).toBeGreaterThanOrEqual(curated.length)
     const practice = catalog.practice.map(read)
     expect(practice.filter((f) => f.kind === 'sae')).toHaveLength(48)
@@ -70,13 +71,14 @@ describe('published measurements', () => {
   it('pins reviewed clues and winning examples', () => {
     const scheduled = new Set(Object.values(catalog.daily))
     for (const target of curated) {
-      const id = `gemma4-l21-sae-${target.index}-v4`
+      const id = `gemma4-l21-sae-${target.index}-v5`
       expect(scheduled.has(id)).toBe(true)
       const feature: Feature = JSON.parse(
         readFileSync(`public/puzzles/${id}.json`, 'utf8'),
       )
       expect(feature.starter.id).toBe(target.clue)
       expect(typeof target.clueToken).toBe('string')
+      expect(Object.keys(target.choices ?? {})).toEqual(['90', '95', '99'])
       const maximum = Math.max(
         ...feature.starter.tokens.map((token) => token.activation),
       )
@@ -115,7 +117,7 @@ describe('published measurements', () => {
 
   it('gives the date puzzle distinct activation patterns for near-misses and winners', () => {
     const feature: Feature = JSON.parse(
-      readFileSync('public/puzzles/gemma4-l21-sae-959-v4.json', 'utf8'),
+      readFileSync('public/puzzles/gemma4-l21-sae-959-v5.json', 'utf8'),
     )
     const months = new Set(
       'January February March April May June July August September October November December'.split(
@@ -164,6 +166,19 @@ describe('published measurements', () => {
         expect(peaks(passage).every((word) => /^trains?$/.test(word))).toBe(
           true,
         )
+    }
+  })
+
+  it('keeps complete single-word U.S. state addresses out of the reviewed near-misses', () => {
+    const feature: Feature = JSON.parse(
+      readFileSync('public/puzzles/gemma4-l21-sae-671-v5.json', 'utf8'),
+    )
+    const stateAddress =
+      /,\s*(?:Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|Ohio|Oklahoma|Oregon|Pennsylvania|Tennessee|Texas|Utah|Vermont|Virginia|Washington|Wisconsin|Wyoming)\b/
+    for (const passage of feature.passages.filter(
+      (p) => p.band >= 90 && feature.choiceIds?.includes(p.id),
+    )) {
+      expect(stateAddress.test(passage.text)).toBe(passage.band === 99.9)
     }
   })
 
@@ -230,10 +245,8 @@ describe('published measurements', () => {
       expect(
         hasEncodingErrors(feature.starter.before + feature.starter.text),
       ).toBe(false)
-      expect(starter.score).toBeGreaterThanOrEqual(
-        curatedIds.has(id) ? 45 : 49.9,
-      )
-      expect(starter.score).toBeLessThanOrEqual(curatedIds.has(id) ? 55 : 50)
+      expect(starter.score).toBeGreaterThanOrEqual(dailyIds.has(id) ? 45 : 49.9)
+      expect(starter.score).toBeLessThanOrEqual(dailyIds.has(id) ? 55 : 50)
       expect(
         feature.passages.filter((p) => scores.get(p.id)! >= 99.9).length,
       ).toBeGreaterThanOrEqual(4)

@@ -8,15 +8,43 @@
     "clue": "prose:766:334-346",
     "clueToken": " color",
     "wins": [
-      "prose:3510:47-105",
-      "prose:3358:51-94",
-      "prose:1882:1-43",
-      "prose:2336:1-49",
-      "prose:2537:1-48",
+      "prose:3082:41-84",
       "prose:706:1-51",
-      "prose:1806:1-49",
-      "prose:2552:51-95"
-    ]
+      "prose:1882:1-43",
+      "prose:2400:1-49"
+    ],
+    "choices": {
+      "90": [
+        "chat:421a7097-44ef-4496-80e6-29ee77e6f3b5:58-107",
+        "prose:3579:131-142",
+        "chat:e9a9225b-2872-4a3f-9576-ae900b3b2d79:103-149",
+        "prose:2739:47-87",
+        "prose:2070:139-185",
+        "reference:4081194:332-384",
+        "reference:4072176:359-411",
+        "chat:fa2f283f-5ef3-46a2-ae75-8d37ed126f11:265-291"
+      ],
+      "95": [
+        "prose:2230:103-146",
+        "reference:4045760:365-426",
+        "prose:3819:47-94",
+        "prose:1133:94-137",
+        "reference:4048994:247-300",
+        "prose:543:97-137",
+        "prose:91:189-226",
+        "prose:840:49-96"
+      ],
+      "99": [
+        "prose:2099:1-50",
+        "reference:4052872:99-144",
+        "prose:2670:147-194",
+        "reference:4050480:479-522",
+        "prose:2201:1-43",
+        "chat:74319e57-d4a2-42d4-b4db-eff3626f4caf:53-94",
+        "prose:3207:55-95",
+        "prose:3431:46-87"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -27,32 +55,90 @@
     "clue": "chat:4e6f7b75-70cd-4f36-80b4-5d868fed3653:264-298",
     "clueToken": " cup",
     "wins": [
-      "prose:3290:98-144",
       "prose:2960:1-40",
       "chat:1ec29b81-3e8f-432b-9fd0-9c5e55ae80ef:197-244",
       "prose:3412:89-137",
-      "prose:2971:1-52",
-      "prose:2649:137-190"
-    ]
+      "prose:3290:98-144"
+    ],
+    "choices": {
+      "90": [
+        "chat:195a8087-f9d2-422f-9216-d2774a95c063:398-447",
+        "prose:2544:46-100",
+        "chat:06f11d28-fa48-4415-99a8-5c21a81ddbe3:166-197",
+        "prose:3117:43-92",
+        "reference:4052893:49-104",
+        "chat:d6228a60-c226-473f-a9ac-64ac0533e925:158-197",
+        "prose:504:93-142",
+        "reference:4076999:480-519"
+      ],
+      "95": [
+        "prose:2719:43-91",
+        "chat:b140ab75-f159-4456-8c3a-15fecc66b892:1-42",
+        "prose:360:102-144",
+        "chat:a82dbb28-c561-40ea-972c-e7a974cbc888:262-303",
+        "prose:1262:147-186",
+        "reference:4049235:321-383",
+        "reference:4045698:60-109",
+        "chat:2c1df606-5321-451a-8a06-4c7293d99872:105-152"
+      ],
+      "99": [
+        "prose:2913:1-45",
+        "chat:d1f87e4b-8536-4704-bd51-072001396945:350-399",
+        "reference:4076999:148-191",
+        "prose:1253:108-154",
+        "chat:fd680f2e-4289-455d-9dd6-9d429e117370:52-93",
+        "prose:3683:1-49",
+        "chat:929cc122-b417-46e9-8cf4-37aa74c4c91e:147-200",
+        "prose:2544:1-46"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 58,
-    "title": "Comparisons of degree",
-    "description": "Comparative words such as more, less, better, greater, and bigger stand out, especially after intensifiers such as much or far.",
+    "title": "Emphasized comparisons",
+    "description": "Strong reviewed examples highlight comparative words in phrases such as much more, far wider, and way bigger.",
     "mode": "daily",
     "clue": "prose:281:233-258",
     "clueToken": " better",
     "wins": [
-      "chat:29d376f3-328f-489c-ab30-8c47cc9333e9:241-276",
-      "reference:4084511:273-301",
-      "reference:580:440-501",
-      "chat:0456dd34-6616-4e97-bd81-cbec0691cce1:1-59",
+      "reference:2955:166-218",
       "chat:d770cfa5-939e-45f0-8ddb-5b2899cb95d5:69-121",
-      "reference:4049713:572-620",
-      "reference:1074:114-159",
-      "prose:81:146-201"
-    ]
+      "prose:382:1-44",
+      "reference:4049713:572-620"
+    ],
+    "choices": {
+      "90": [
+        "prose:2291:52-107",
+        "chat:f4332b1e-5a54-4704-86b2-3bafb1eafdd5:323-370",
+        "reference:4068047:43-76",
+        "prose:815:99-144",
+        "chat:99646786-8f7a-4093-905a-49bd8aa1581c:271-293",
+        "reference:4068564:42-91",
+        "prose:1439:1-38",
+        "chat:83d09e52-3dd6-4abd-b5ec-06b7188add1c:218-268"
+      ],
+      "95": [
+        "prose:11:99-119",
+        "reference:4065095:175-206",
+        "prose:1161:1-43",
+        "reference:4066199:407-457",
+        "chat:78fcaca8-53df-4b4d-bb46-ad99e30e9bbe:523-581",
+        "reference:5662:364-412",
+        "prose:1745:1-50",
+        "prose:274:230-255"
+      ],
+      "99": [
+        "chat:b5be6988-babd-4a9b-84c0-6063809d78e0:82-117",
+        "prose:1161:174-194",
+        "reference:4068517:1-34",
+        "chat:a8282eb6-d143-41bb-ac88-1c86cb915072:115-156",
+        "prose:267:45-99",
+        "reference:4066588:424-476",
+        "reference:4077841:187-224",
+        "chat:811076fb-833c-4488-9978-a8e700beefd9:308-338"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -63,12 +149,43 @@
     "clue": "prose:2148:1-47",
     "clueToken": " many",
     "wins": [
-      "reference:4062778:272-324",
-      "chat:c8080597-236a-43e4-8bde-94cf6448fe1b:519-563",
+      "reference:4051940:208-246",
+      "chat:3ad9b24b-3106-4453-98aa-08d9cb0ae952:113-163",
       "reference:4049677:452-500",
-      "reference:4050654:135-198",
-      "chat:94050346-0bf4-4705-a790-60c9467a0337:255-298"
-    ]
+      "chat:c8080597-236a-43e4-8bde-94cf6448fe1b:519-563"
+    ],
+    "choices": {
+      "90": [
+        "reference:4048461:102-162",
+        "chat:1e7cc968-3c0d-40e6-8ec4-7da182b09532:270-317",
+        "prose:2802:174-206",
+        "chat:809b9548-00f5-4aae-90fd-5e2504281bbc:275-318",
+        "prose:1467:145-185",
+        "reference:4049772:477-537",
+        "chat:e1a55b6f-38d1-4710-9733-83dcaf5e0745:93-116",
+        "reference:4081769:352-395"
+      ],
+      "95": [
+        "reference:4053402:54-101",
+        "prose:1937:145-173",
+        "chat:8fed13e8-9ee8-4fbf-b97e-1596f301148d:144-197",
+        "prose:3744:1-49",
+        "chat:766909f8-069f-4896-b4b2-8f22e55a78a5:113-176",
+        "prose:3290:98-144",
+        "chat:599234c0-4515-4973-a929-1f0de082dbb3:37-91",
+        "reference:4068145:217-264"
+      ],
+      "99": [
+        "reference:1508:211-252",
+        "prose:507:106-155",
+        "chat:8951dcc0-fe03-4030-8e11-afe5549abb01:59-118",
+        "reference:4063486:436-472",
+        "chat:a3364a26-3a8d-4ccb-8007-e0bbb752605a:76-108",
+        "reference:4049713:483-528",
+        "chat:0ed7e357-8c5f-4fcd-a5e4-6c16ba815486:285-337",
+        "chat:cd6f478c-400c-4ede-a930-e928abb3b9b5:221-282"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -131,143 +248,191 @@
   },
   {
     "kind": "sae",
-    "index": 7790,
-    "title": "Heavy",
-    "description": "The word heavy often activates in descriptions of weight, equipment, and heavy metal music.",
-    "mode": "daily",
-    "clue": "chat:5c1c2728-e5d6-428f-8923-12c6df291ba5:42-94",
-    "clueToken": " heavier",
-    "wins": [
-      "chat:0a5eeda7-dcf9-4f6d-8169-fe2c1e906c89:51-114",
-      "prose:3584:1-43",
-      "chat:4611dbca-fefa-4894-94be-0d184ddf94b0:184-235",
-      "reference:4057028:1-25",
-      "reference:4065310:1-56"
-    ]
-  },
-  {
-    "kind": "sae",
     "index": 671,
-    "title": "U.S. states",
-    "description": "State names such as Wisconsin, Arkansas, Missouri, and Illinois stand out in place descriptions.",
+    "title": "U.S. city-and-state addresses",
+    "description": "Reviewed winners highlight full, single-word U.S. state names after a city, such as Philadelphia, Pennsylvania, or New Haven, Connecticut.",
     "mode": "daily",
     "clue": "reference:4064905:138-185",
     "clueToken": " Utah",
     "wins": [
-      "reference:4065456:1-46",
-      "reference:4058598:1-58",
-      "reference:4068038:1-35",
-      "reference:4051408:1-44",
-      "reference:4085236:1-39",
-      "reference:4075101:1-43",
+      "reference:4045604:1-53",
       "reference:4080346:1-58",
-      "reference:4082611:1-28"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 6814,
-    "title": "Hearing something",
-    "description": "Strong examples often highlight heard when someone notices a sound, voice, or piece of news.",
-    "mode": "daily",
-    "clue": "prose:2656:54-92",
-    "clueToken": " hear",
-    "wins": [
-      "prose:2742:1-48",
-      "prose:302:46-95",
-      "chat:c754f3d9-8ffd-4525-8ccc-3e5cf1834ff2:51-110",
-      "prose:2790:51-98",
-      "prose:1653:1-51"
-    ]
+      "reference:4065456:1-46",
+      "reference:4051408:1-44"
+    ],
+    "choices": {
+      "90": [
+        "reference:4071884:1-59",
+        "chat:25cc3284-0e90-4424-a0ce-f50982298ad3:22-57",
+        "reference:4079460:1-48",
+        "reference:4059339:1-48",
+        "reference:4068279:621-675",
+        "reference:4071944:41-75",
+        "reference:4080565:97-140",
+        "reference:4048563:1-48"
+      ],
+      "95": [
+        "reference:4065041:337-373",
+        "reference:4053428:49-103",
+        "reference:4065273:119-161",
+        "reference:4069107:234-296",
+        "reference:4048619:350-393",
+        "reference:4047129:1-52",
+        "reference:4075673:1-49",
+        "reference:4066621:273-319"
+      ],
+      "99": [
+        "reference:4074866:1-59",
+        "reference:4060486:48-101",
+        "reference:4057098:38-83",
+        "reference:4085252:209-253",
+        "reference:4074084:170-197",
+        "reference:4082925:80-136",
+        "reference:4057044:186-231",
+        "reference:4062033:1-41"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 327,
-    "title": "Pleasure and enthusiasm",
-    "description": "Words such as pleased, excited, loved, and love frequently receive strong activations.",
+    "title": "Being pleased",
+    "description": "Reviewed winners highlight pleased when someone expresses satisfaction with an outcome or with someone’s work.",
     "mode": "daily",
     "clue": "chat:47b668f9-53c6-4a94-b31c-13735b26e10d:1-42",
     "clueToken": " happy",
     "wins": [
-      "chat:bab547bd-9d16-477e-8171-ac2f9668bc4d:125-173",
+      "prose:443:98-131",
+      "reference:4083761:279-329",
       "prose:414:96-140",
-      "prose:2246:1-56",
-      "prose:3422:48-100",
-      "prose:1174:140-164",
-      "prose:1562:99-144",
-      "prose:1748:99-141",
-      "reference:4083761:279-329"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 4103,
-    "title": "Marriage",
-    "description": "Married stands out in accounts of spouses and relationships, including biographical passages.",
-    "mode": "daily",
-    "clue": "reference:4073844:452-511",
-    "clueToken": " husband",
-    "wins": [
-      "reference:4064910:77-117",
-      "reference:4065018:142-169",
-      "reference:4076592:351-383",
-      "reference:4072611:384-446",
-      "reference:4064734:348-397",
-      "reference:4052643:101-154",
-      "reference:4076590:83-116",
-      "reference:2490:187-228"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 11071,
-    "title": "Going home",
-    "description": "Home stands out when someone returns, walks, or is carried back to where they live.",
-    "mode": "daily",
-    "clue": "prose:3401:148-196",
-    "clueToken": " house",
-    "wins": [
-      "prose:3253:102-138",
-      "prose:3236:167-219",
-      "prose:1975:140-168",
-      "prose:2223:97-142",
-      "prose:1093:143-164",
-      "prose:3339:147-177"
-    ]
+      "prose:1562:99-144"
+    ],
+    "choices": {
+      "90": [
+        "prose:1440:95-126",
+        "prose:3771:1-49",
+        "prose:1230:152-182",
+        "prose:720:1-45",
+        "prose:510:95-126",
+        "prose:3721:49-97",
+        "prose:1610:94-138",
+        "prose:874:105-146"
+      ],
+      "95": [
+        "prose:110:1-49",
+        "chat:4f64ca9b-c4b1-4ac1-a18f-298fd84353c9:139-186",
+        "prose:2633:50-94",
+        "chat:9ff93593-5d8a-4e9a-95ac-914e7d9480dc:434-476",
+        "prose:3984:51-95",
+        "prose:2778:221-262",
+        "prose:1444:132-177",
+        "reference:4048234:96-152"
+      ],
+      "99": [
+        "prose:3607:135-160",
+        "chat:76c95a32-2561-481e-bfd5-5ae6a121e205:386-440",
+        "prose:283:1-46",
+        "chat:034d2236-e07b-428d-9bc1-edfdab8469c3:1-43",
+        "prose:1:49-90",
+        "prose:3309:53-94",
+        "chat:28f94274-7ffc-4368-8aa9-3bc810315f69:269-320",
+        "prose:503:175-188"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 7116,
-    "title": "Rooms and bedrooms",
-    "description": "Room and bedroom stand out when characters are inside, enter, or return to a room.",
+    "title": "Bedrooms and bedtime",
+    "description": "Room and bedroom stand out in passages about beds, pillows, sleep, and taking a nap.",
     "mode": "daily",
     "clue": "prose:276:1-59",
     "clueToken": " room",
     "wins": [
-      "prose:3407:43-88",
-      "prose:3704:47-93",
+      "prose:3627:90-132",
+      "prose:411:54-100",
       "prose:3292:49-91",
-      "prose:411:54-100"
-    ]
+      "prose:3407:43-88"
+    ],
+    "choices": {
+      "90": [
+        "prose:1253:204-233",
+        "reference:4060685:279-329",
+        "chat:8af993ea-4e5f-4246-8941-0558d74deef4:1-43",
+        "prose:2947:94-143",
+        "reference:4046574:286-346",
+        "prose:3072:178-219",
+        "prose:1735:58-101",
+        "prose:3798:155-197"
+      ],
+      "95": [
+        "prose:2813:96-145",
+        "reference:4049715:139-191",
+        "chat:a342ddb3-c3cd-4fa8-b31c-38e288734a81:1-57",
+        "prose:1841:49-94",
+        "prose:1376:89-128",
+        "prose:947:250-293",
+        "prose:2066:96-141",
+        "prose:1111:45-93"
+      ],
+      "99": [
+        "prose:603:106-139",
+        "chat:d8610df2-8f19-4cff-aa0d-2f6b9ebbb553:134-178",
+        "prose:1351:139-180",
+        "prose:2358:1-45",
+        "prose:341:57-109",
+        "prose:3067:101-150",
+        "reference:4060256:404-431",
+        "prose:2966:1-49"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 859,
-    "title": "Chemical substances",
-    "description": "Names of elements and compounds, including lead, titanium, chromium, and boric acid, are prominent in strong examples.",
+    "title": "Minerals and their composition",
+    "description": "Reviewed winners describe minerals and their chemical composition, highlighting words such as titanium, lead, cadmium, and boric acid.",
     "mode": "daily",
     "clue": "chat:25af6b30-8a6c-42cb-a059-5bbbc5ae8796:1-55",
     "clueToken": " carbohydrates",
     "wins": [
-      "reference:4079234:1-51",
-      "reference:2487:602-647",
-      "chat:f21f1195-5014-4127-9467-9cf8b7801af0:118-180",
-      "reference:4079025:1-58",
       "chat:261f2bf2-03f5-413f-8f1d-813ea1da909c:1-45",
-      "reference:3251:1-47",
-      "chat:f7fff7f6-baf8-4140-af34-b45c4a457c33:49-105",
-      "reference:3093:393-437"
-    ]
+      "reference:4079025:1-58",
+      "reference:4079234:1-51",
+      "reference:2487:602-647"
+    ],
+    "choices": {
+      "90": [
+        "reference:4053381:428-481",
+        "chat:fef6f0da-b998-48d3-bb44-fa1284cf8fdd:73-111",
+        "reference:4427:689-724",
+        "reference:4050150:126-176",
+        "chat:0709d5d0-146a-4625-844a-592adc46328b:60-115",
+        "reference:2769:175-215",
+        "chat:4902e011-fc37-4735-994f-7c7c4f03b884:235-288",
+        "chat:f09460f5-37fc-42c2-b841-b76d57045b29:156-193"
+      ],
+      "95": [
+        "chat:961f892b-9e7a-42b7-97db-ab663f10ee80:305-361",
+        "reference:2955:359-413",
+        "reference:4084743:90-151",
+        "reference:4427:1-55",
+        "chat:1bdb3dda-8fb9-4f2a-87be-2bdc98a18ca5:115-152",
+        "chat:917e3454-f1b0-4809-abc1-162b8107d6d6:100-154",
+        "chat:29bce665-282e-437a-ba6c-0cb2737db71a:48-108",
+        "reference:4070831:330-382"
+      ],
+      "99": [
+        "reference:2120:153-196",
+        "reference:4072271:103-146",
+        "chat:917e3454-f1b0-4809-abc1-162b8107d6d6:1-55",
+        "chat:d497c1ff-ed7b-4e23-b699-b00e48829e0d:54-115",
+        "reference:4075308:1-55",
+        "chat:b987e040-491e-43c4-8072-823bae1974bb:119-151",
+        "reference:3982:559-614",
+        "chat:b140ab75-f159-4456-8c3a-15fecc66b892:90-132"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -278,64 +443,43 @@
     "clue": "reference:4076180:1-52",
     "clueToken": " Games",
     "wins": [
-      "reference:4063717:152-182",
-      "reference:4067005:72-123",
+      "reference:4067496:254-313",
       "reference:4051864:493-533",
-      "reference:4055023:478-518",
-      "reference:4067496:254-313"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 6084,
-    "title": "Mom",
-    "description": "Mom and mommy stand out in children talking to or about their mother.",
-    "mode": "daily",
-    "clue": "prose:3399:200-231",
-    "clueToken": " mom",
-    "wins": [
-      "prose:2684:187-230",
-      "prose:3045:97-141",
-      "prose:2387:58-101",
-      "prose:1876:1-35"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 9222,
-    "title": "Surprise and shock",
-    "description": "Surprised and shocked often stand out in reactions to an unexpected event.",
-    "mode": "daily",
-    "clue": "prose:3475:51-97",
-    "clueToken": " surprise",
-    "wins": [
-      "prose:2719:43-91",
-      "prose:3850:44-90",
-      "prose:847:80-93",
-      "prose:286:148-197",
-      "prose:3712:41-95",
-      "prose:462:52-99"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 900,
-    "title": "Parts of the body",
-    "description": "Words for body parts and organs, such as eyes, hands, stomach, heart, and brain, often light up.",
-    "mode": "daily",
-    "clue": "prose:1290:113-159",
-    "clueToken": " hand",
-    "wins": [
-      "prose:1178:92-102",
-      "chat:b5bed7a7-8c0d-4813-a0da-8327682222b1:50-108",
-      "prose:1304:166-196",
-      "prose:2443:1-52",
-      "chat:80f942c5-bdcd-40a6-8e27-7538913b3161:42-72",
-      "prose:835:53-106",
-      "chat:14a18226-061a-43d8-9176-af4e447a2b78:35-80",
-      "reference:4049718:246-308",
-      "prose:3800:42-88"
-    ]
+      "reference:4067005:72-123",
+      "reference:4063717:152-182"
+    ],
+    "choices": {
+      "90": [
+        "chat:afcbda84-8906-47a6-babd-41332f9d9c3e:135-193",
+        "reference:4068783:238-291",
+        "reference:4068486:672-712",
+        "chat:1a222cec-597d-4efe-a6a6-9a044498baf2:204-253",
+        "reference:4071545:697-741",
+        "reference:4082751:266-318",
+        "reference:4064090:1-36",
+        "reference:4046524:307-355"
+      ],
+      "95": [
+        "reference:4063594:97-138",
+        "reference:4050948:567-608",
+        "reference:4064270:1-46",
+        "reference:4084405:378-428",
+        "reference:4048555:229-284",
+        "reference:4049595:488-542",
+        "reference:4080090:45-100",
+        "reference:4054262:53-106"
+      ],
+      "99": [
+        "reference:4064192:222-277",
+        "reference:4078327:38-72",
+        "reference:4049595:450-488",
+        "reference:4071545:207-250",
+        "reference:4048147:1-49",
+        "reference:4066485:128-183",
+        "reference:4055133:324-376",
+        "reference:4057122:394-448"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -346,100 +490,184 @@
     "clue": "prose:2314:370-399",
     "clueToken": " snacks",
     "wins": [
+      "prose:721:549-574",
       "chat:53067607-0542-42e3-b6af-d671e2411c91:151-200",
-      "prose:1033:45-90",
       "prose:3195:145-162",
-      "prose:721:549-574"
-    ]
+      "prose:1033:45-90"
+    ],
+    "choices": {
+      "90": [
+        "prose:2425:44-89",
+        "prose:1934:86-126",
+        "prose:3778:100-136",
+        "prose:3834:1-46",
+        "prose:3990:204-233",
+        "prose:3540:140-171",
+        "prose:1709:38-85",
+        "prose:1770:48-97"
+      ],
+      "95": [
+        "chat:aaf748c7-b104-4010-ac22-fa52eabe9978:346-372",
+        "prose:1429:1-45",
+        "chat:c8080597-236a-43e4-8bde-94cf6448fe1b:463-519",
+        "prose:3721:1-49",
+        "prose:3172:139-165",
+        "prose:1221:55-94",
+        "prose:3759:164-188",
+        "prose:2408:124-145"
+      ],
+      "99": [
+        "prose:1904:1-49",
+        "chat:234e81e1-47ab-4296-a6a5-6b08489ba1ba:519-580",
+        "prose:1303:1-52",
+        "prose:3417:106-150",
+        "prose:570:88-115",
+        "prose:2285:326-349",
+        "chat:2e8b082e-be97-4727-86eb-837589a3b749:204-251",
+        "prose:2563:1-50"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 545,
-    "title": "Choices and decisions",
-    "description": "The feature often highlights choice and decision when describing options or actions people decide to take.",
+    "title": "Choosing between options",
+    "description": "Choice and choices stand out when weighing alternatives against requirements, needs, or preferences.",
     "mode": "daily",
     "clue": "prose:1879:1-58",
     "clueToken": " decided",
     "wins": [
-      "chat:83d1152a-a533-4e90-9856-0f6ac1896c60:241-263",
+      "chat:c5578a36-a2fe-45d4-af87-c90bd962c618:385-416",
       "chat:885793c3-fda0-4e68-970a-f84ae9814be9:352-389",
-      "chat:f747d7f9-2ba2-4c56-9898-8fe243623332:164-210",
-      "chat:dd0b3978-b912-4a36-9a4e-8eb7be5c4d04:313-343",
-      "chat:78eb0fea-17af-43b6-bd83-7af4ad4fbccc:331-357",
-      "reference:4062914:245-292",
-      "chat:8a1fe26c-9bfd-4523-b5ea-56d2ca023866:323-346",
-      "chat:32409857-5ad8-4c13-b10c-2c0e0b5d6435:449-494"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 41907,
-    "title": "Accidents and mistakes",
-    "description": "Accidentally and mistake often light up when someone knocks over, breaks, or does something unintentionally.",
-    "mode": "daily",
-    "clue": "prose:605:212-230",
-    "clueToken": " wrong",
-    "wins": [
-      "prose:688:150-194",
-      "prose:2353:51-103",
-      "prose:1306:110-151",
-      "prose:1701:49-100"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 200,
-    "title": "Code indentation",
-    "description": "Runs of spaces used to indent code are especially strong examples. Whitespace is a model token too.",
-    "mode": "daily",
-    "clue": "code:32:105-149",
-    "clueToken": "    ",
-    "wins": [
-      "chat:ef78f6b6-f763-4f94-8070-2f435791c226:254-307",
-      "chat:62abc52f-16b7-48b3-a118-9f49c9dbe73e:95-143",
-      "chat:bcee7eac-a82a-4636-8929-61a74425ff2e:156-199",
-      "chat:83974640-3d3f-4e9e-9082-8b243f704441:243-293",
-      "chat:abc1fbe7-08e6-462f-a454-429e899304e1:45-93",
-      "chat:7aabb4ab-6ff2-43ac-81e5-50bb383aabaa:148-195",
-      "chat:c90ea391-0d96-41cc-a1da-9e2d47b87c21:48-96",
-      "chat:2ca9b123-ad7d-4dc4-9dca-206cd80c01b0:159-205"
-    ]
+      "chat:83d1152a-a533-4e90-9856-0f6ac1896c60:241-263",
+      "chat:f747d7f9-2ba2-4c56-9898-8fe243623332:164-210"
+    ],
+    "choices": {
+      "90": [
+        "reference:4056695:145-180",
+        "prose:126:191-219",
+        "reference:3004:193-229",
+        "chat:6d5a90d0-ca25-4eff-88f2-dbbc4e0a5cc6:103-145",
+        "prose:3033:51-99",
+        "chat:09c70ecf-9395-428a-9bca-2cd4384635fc:334-390",
+        "reference:4068185:201-261",
+        "chat:df99d6aa-73bf-4322-b0e9-f13adc370438:47-108"
+      ],
+      "95": [
+        "prose:317:130-175",
+        "reference:4052977:257-318",
+        "chat:65a4bba9-19f7-482e-b439-86460ba6cc5e:164-221",
+        "reference:4047747:136-173",
+        "reference:4048034:514-562",
+        "chat:8536a784-044d-4116-850a-acf7dbd965de:227-290",
+        "reference:1949:228-268",
+        "chat:8a50bb6e-8494-4de9-8a2d-d5059b9c1834:248-277"
+      ],
+      "99": [
+        "prose:2201:224-256",
+        "chat:b0c8af41-cbc7-499f-837f-2acb25065ca3:214-272",
+        "chat:69716ff7-45c0-4cda-8f8c-dbefa7003c4c:1-60",
+        "prose:2158:279-310",
+        "reference:4058036:832-880",
+        "chat:7b202c4d-7f6a-4337-b103-bce5459c661e:93-150",
+        "reference:4046608:256-295",
+        "reference:925:122-170"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 11995,
-    "title": "Meal time",
-    "description": "Dinner and lunch stand out when someone is called to eat, with weaker related examples about food and meals.",
+    "title": "Called in for a meal",
+    "description": "Lunch and dinner stand out when someone is called to come in and eat, often interrupting a child’s play.",
     "mode": "daily",
     "clue": "chat:8c51cc97-222c-4028-936b-bd239ec79e99:95-151",
     "clueToken": " lunch",
     "wins": [
-      "prose:868:54-93",
-      "prose:895:48-91",
       "prose:3967:1-46",
+      "prose:895:48-91",
       "prose:3546:97-141",
-      "prose:2430:95-139"
-    ]
+      "prose:868:54-93"
+    ],
+    "choices": {
+      "90": [
+        "prose:1957:138-161",
+        "chat:f0cd505a-0f09-43c8-a4c5-ec2e105347f1:129-150",
+        "prose:1611:1-42",
+        "prose:2096:1-52",
+        "prose:2099:50-100",
+        "prose:180:1-43",
+        "prose:3144:94-120",
+        "prose:3669:182-205"
+      ],
+      "95": [
+        "prose:2947:1-43",
+        "prose:3951:141-161",
+        "prose:581:1-42",
+        "chat:a14411d5-e0ad-4bd4-ae6b-4a1a5f1ee0f3:400-449",
+        "prose:3656:127-156",
+        "prose:270:179-212",
+        "prose:1650:149-166",
+        "prose:2491:98-153"
+      ],
+      "99": [
+        "prose:542:94-141",
+        "chat:e29fb19f-ea5a-42fe-ac02-842f636ec1d5:283-325",
+        "prose:1727:146-190",
+        "prose:2067:155-201",
+        "prose:3695:1-59",
+        "prose:1112:48-91",
+        "prose:459:139-191",
+        "prose:3637:99-146"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 480,
-    "title": "Measurable quantities",
-    "description": "Words naming quantities, such as concentration, frequency, temperature, height, and length, stand out.",
+    "title": "Physical quantities",
+    "description": "Reviewed winners highlight physical properties such as temperature, pressure, concentration, and speed.",
     "mode": "daily",
     "clue": "chat:22034c53-fbfc-48be-af9d-2ccc3f896f84:95-132",
     "clueToken": " temperature",
     "wins": [
-      "reference:4066199:206-258",
-      "reference:4073095:358-406",
-      "chat:809b9548-00f5-4aae-90fd-5e2504281bbc:177-232",
-      "chat:b140ab75-f159-4456-8c3a-15fecc66b892:90-132",
-      "chat:db834475-977d-4c38-b2e7-a202311c0cfd:36-99",
-      "chat:7c588a62-575a-4581-b374-39bfd843d5b5:185-231",
-      "code:262:1-52",
       "chat:f4be5bd7-3b3e-4444-a113-e306ac3d960f:99-138",
-      "chat:42fb9286-5ec3-42cf-8b1d-676e2154a196:55-99"
-    ]
+      "reference:4066199:62-108",
+      "chat:42fb9286-5ec3-42cf-8b1d-676e2154a196:55-99",
+      "reference:4076999:519-567"
+    ],
+    "choices": {
+      "90": [
+        "chat:cbefe819-18c7-4671-9656-4605f2a8a2d4:38-88",
+        "reference:4071959:141-195",
+        "prose:2739:179-229",
+        "reference:4048100:667-715",
+        "chat:3974ca71-e335-42ec-9fae-00afe89e75d1:223-267",
+        "reference:2330:384-431",
+        "chat:2aa54e3c-ed79-45fb-a8a3-238bf928f746:1-43",
+        "chat:05b7d8cf-fed1-4d12-8adb-fe4e5e7d7abb:208-267"
+      ],
+      "95": [
+        "chat:04a2efad-b942-4f4b-8710-f7113d134b86:144-195",
+        "reference:3805:1-58",
+        "chat:811076fb-833c-4488-9978-a8e700beefd9:338-393",
+        "reference:4085805:79-128",
+        "chat:f2362350-72e3-427f-8674-ddba1ecfa2a6:112-155",
+        "reference:3808:1-61",
+        "chat:b5442d9d-4160-4d08-b9bc-8a88984c21ac:180-232",
+        "reference:4067582:155-212"
+      ],
+      "99": [
+        "prose:2278:96-141",
+        "chat:0642b54a-a01e-40a1-8d13-1bd82e5b8765:339-386",
+        "reference:4060676:97-133",
+        "chat:12fa4bd1-e406-4f9b-87e8-cbcabbd6b080:1-44",
+        "chat:f747d7f9-2ba2-4c56-9898-8fe243623332:116-164",
+        "reference:4059380:348-405",
+        "chat:b50527cc-cd72-4f3e-a787-9c8ffad92e4e:1-35",
+        "reference:4067109:257-301"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -450,194 +678,231 @@
     "clue": "chat:1f4f0781-92a5-4422-9198-f7479317d6e5:109-151",
     "clueToken": " language",
     "wins": [
-      "chat:707f4ba0-1678-4de0-807b-d204e21461ec:107-163",
-      "chat:d76ec373-b03d-4a96-85a7-e2204367ee42:1-51",
-      "chat:bcbf50a6-199f-472b-ba60-430feb759cae:422-458",
-      "chat:116584f3-efd8-415a-8414-593e35796773:43-92",
       "chat:1e60b04a-e8d0-4f46-a8d8-a29558d98a08:54-88",
-      "chat:6e336ce7-0def-4d76-931d-055d3bfbe746:105-156"
-    ]
+      "chat:707f4ba0-1678-4de0-807b-d204e21461ec:107-163",
+      "chat:116584f3-efd8-415a-8414-593e35796773:43-92",
+      "chat:d76ec373-b03d-4a96-85a7-e2204367ee42:1-51"
+    ],
+    "choices": {
+      "90": [
+        "reference:4068416:407-463",
+        "chat:ebc75fd5-3026-4595-a3f1-ed2db9e373b3:49-106",
+        "reference:4825:1-60",
+        "chat:961ca217-7e1a-4c93-a0dc-3b82ad092f3e:1-48",
+        "reference:4081771:618-659",
+        "chat:19c0e75e-bd31-455e-897a-46cb4735a4d5:155-196",
+        "chat:19f2442c-750c-446b-ae3d-390f0a2ad7ed:188-229",
+        "chat:7b3207cc-6398-4af9-80ce-ec8f321faa3f:296-356"
+      ],
+      "95": [
+        "chat:76345179-1352-4efc-a5c3-8499aadd422e:215-241",
+        "chat:f04afb41-f257-4c5b-bb72-a012c92c0f92:1-63",
+        "chat:108bb4eb-b9c5-4e17-bd3d-46f112e6a7ff:141-184",
+        "chat:d76ec373-b03d-4a96-85a7-e2204367ee42:147-194",
+        "chat:61dcfebf-d9db-44b0-85e6-864d451a92b4:103-143",
+        "chat:1380466c-0fa0-4420-9192-f90fc67be788:41-100",
+        "reference:4072211:42-97",
+        "chat:a47ec770-bc86-4912-9dc7-1162e73d4336:97-126"
+      ],
+      "99": [
+        "chat:a36c1804-2f12-4366-b457-2e4ada4df1a4:189-243",
+        "chat:4b715f16-2f0c-47d1-9f6e-49a7f2210375:147-186",
+        "chat:eb0d12f9-5228-4d02-95b4-9f5e300f3ca7:84-103",
+        "chat:e1480477-3149-48e0-a3ad-a866a4beb1be:238-293",
+        "chat:c7ca4a39-9555-4f1d-a8c0-c3769b9dfa6c:110-158",
+        "chat:390e1841-2856-4f38-9809-d2e801d6b6a6:1-54",
+        "chat:0c952b4b-0b26-4230-a2a0-963cb098f9a5:243-286",
+        "chat:a47ec770-bc86-4912-9dc7-1162e73d4336:45-97"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 1877,
     "title": "A little bit",
-    "description": "Little and a bit stand out when describing a small amount or degree, such as a little easier, worried, or closer.",
+    "description": "Little and bit stand out when describing a small change in degree, such as a little easier, a little more, or a little bit better.",
     "mode": "daily",
     "clue": "reference:4084326:516-561",
     "clueToken": " little",
     "wins": [
-      "chat:34fec068-b7e9-463c-b632-3b926396a298:24-40",
+      "chat:63b4df13-cdf3-4333-97ee-3cc75e16ceb3:102-157",
       "reference:4057446:677-715",
-      "prose:1052:1-49",
-      "prose:1223:151-183",
-      "prose:2254:232-275",
-      "prose:634:44-97",
-      "chat:1fd36b36-027c-4f14-b5a6-af4aa44aca6d:28-49",
       "prose:554:144-189",
-      "chat:63b4df13-cdf3-4333-97ee-3cc75e16ceb3:102-157"
-    ]
+      "chat:1fd36b36-027c-4f14-b5a6-af4aa44aca6d:28-49"
+    ],
+    "choices": {
+      "90": [
+        "chat:fef6f0da-b998-48d3-bb44-fa1284cf8fdd:1-40",
+        "prose:3961:150-187",
+        "reference:4047648:294-336",
+        "reference:4082279:231-290",
+        "chat:3438dff2-fec2-4ddb-abd9-9d0ba69dc3f1:260-311",
+        "prose:2238:49-87",
+        "chat:ee279f61-4c42-448f-b65a-d4c09f0211d4:190-244",
+        "reference:4048455:284-335"
+      ],
+      "95": [
+        "chat:794e9e9e-4127-4f30-aa5b-7acdab725152:313-373",
+        "chat:b7bf844e-7870-4190-bfe8-b1c77d1412b2:185-214",
+        "reference:4050100:428-473",
+        "chat:86c61e60-104a-47dc-9558-e993c8a1fdde:1-62",
+        "prose:1219:135-164",
+        "prose:3817:177-210",
+        "reference:4082972:29-84",
+        "reference:4071545:292-323"
+      ],
+      "99": [
+        "chat:974dfa8e-e187-4d53-9367-23e17ba79553:300-339",
+        "reference:4063249:371-423",
+        "chat:411d099c-0aaf-4d1d-97ab-6212614c2a15:1-50",
+        "chat:b30bc4a4-3b93-44d3-9d77-723b8ad6fd2c:1-55",
+        "prose:1779:93-130",
+        "reference:4052344:231-282",
+        "prose:516:177-190",
+        "reference:4076849:557-605"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 5398,
-    "title": "Where something is located",
-    "description": "Located and situated stand out in descriptions of where a place or building can be found.",
+    "title": "Where places are located",
+    "description": "Located and situated stand out in descriptions of the geographical location of a building, settlement, or landmark.",
     "mode": "daily",
     "clue": "chat:ed44ecbb-3d02-47bb-9a5b-c9a92bb54cb2:105-154",
     "clueToken": " location",
     "wins": [
-      "reference:4072575:439-498",
-      "reference:4082279:49-96",
       "reference:4045953:50-107",
-      "reference:4057640:334-387",
-      "reference:4050858:477-521",
       "reference:4069037:295-343",
-      "reference:4068941:195-246",
-      "reference:4079075:645-705"
-    ]
+      "reference:4082279:49-96",
+      "reference:4068941:195-246"
+    ],
+    "choices": {
+      "90": [
+        "reference:788:242-290",
+        "prose:3503:1-48",
+        "chat:157844fe-65fc-4a14-a7ca-2e25b9929407:302-346",
+        "reference:4077589:1-52",
+        "chat:42c9c67d-633d-432e-a931-9bb53ebed35d:157-194",
+        "reference:4055262:608-652",
+        "chat:822ffa8c-ae2c-4e06-b3ef-2566ab87a9f6:355-410",
+        "reference:4068740:191-228"
+      ],
+      "95": [
+        "chat:90c4ee8a-96f8-45de-ba73-b4b5478ef343:56-108",
+        "prose:131:1-53",
+        "reference:4050781:49-90",
+        "prose:801:140-178",
+        "chat:7e508301-a11d-42be-9231-6fb23b34bf23:45-98",
+        "reference:4084870:613-662",
+        "reference:4057100:38-89",
+        "reference:4461:225-283"
+      ],
+      "99": [
+        "prose:557:1-44",
+        "chat:4beda6b0-70c2-4f20-bd66-ac9a469174dd:556-590",
+        "prose:2911:53-94",
+        "reference:4055688:43-94",
+        "prose:74:55-108",
+        "reference:4082973:133-156",
+        "reference:4068414:233-280",
+        "prose:1635:1-46"
+      ]
+    }
   },
   {
     "kind": "sae",
     "index": 127,
-    "title": "Effects and contributions",
-    "description": "Words such as contribute, help, impact, and affect stand out when something changes an outcome. The effect can be helpful or harmful.",
+    "title": "Helping and contributing",
+    "description": "Reviewed winners highlight help, helped, aid, and contribute when describing a beneficial effect.",
     "mode": "daily",
     "clue": "prose:407:158-205",
     "clueToken": " helping",
     "wins": [
       "reference:4061360:459-511",
-      "chat:34d8caf5-d3a9-4680-8a6a-ef6ffc55e8cb:141-204",
       "prose:1111:144-175",
-      "chat:b74a7009-3742-4861-af29-1477cea71d85:505-527",
       "chat:ed5dbe6a-a40e-43e8-b4ca-9e7eecc28002:1-49",
-      "chat:81045447-dfca-4777-a67c-876155f46575:1-50",
-      "chat:44c2e2ba-712b-4f82-bcff-229eb4ec97e1:190-213",
-      "chat:77e8fada-ae99-4b80-a101-710c746c622d:69-122"
-    ]
-  },
-  {
-    "kind": "sae",
-    "index": 4302,
-    "title": "Trains and rail travel",
-    "description": "Train and trains often activate in descriptions of journeys and rail transport.",
-    "mode": "daily",
-    "clue": "reference:4048244:148-202",
-    "clueToken": " locomotive",
-    "wins": [
-      "reference:4082516:23-68",
-      "reference:4082368:1-62",
-      "reference:4082622:1-57",
-      "reference:4051843:137-172",
-      "reference:4068856:487-525",
-      "reference:4052783:387-450",
-      "reference:4053617:100-145",
-      "reference:4083705:208-260"
+      "chat:b01b9878-0306-48e1-8103-8dc70bdd863c:52-108"
     ],
     "choices": {
-      "0": [
-        "prose:397:233-259",
-        "prose:3270:208-225",
-        "chat:1d44231d-5965-4265-bacc-a1b23caf9e4e:342-385",
-        "chat:af338126-4928-4e1c-bb43-37a301f3239b:145-187",
-        "chat:89020bd8-50d6-43f2-a9c4-0fb37f8b4466:183-223",
-        "chat:0d0c9e0f-3731-4798-b1d1-fb535068195b:63-91",
-        "prose:810:157-172",
-        "prose:614:103-130",
-        "prose:1317:140-174",
-        "chat:55f0c92b-69fc-4c18-a75a-564c53a96b0d:136-164",
-        "chat:2c5f883c-34a7-4626-b609-c372dccc60c0:1-55",
-        "code:408:245-274",
-        "chat:d051ebfa-e16b-4355-8a47-d447979e5af2:99-154",
-        "chat:9f823679-857b-4d03-9cb4-bd54b2a58d36:1-49",
-        "reference:4061697:463-509",
-        "chat:79d90eb1-f04c-46d0-b1d8-287f70c0d784:201-250",
-        "reference:3700:1-42",
-        "reference:4047648:573-627",
-        "chat:c3f34009-46fc-4c43-81dc-83f8ad10f24b:131-177",
-        "prose:3605:53-95",
-        "chat:51227d1a-c859-4161-a7a5-69768db06851:171-214",
-        "chat:3bd372d3-dcf7-4a23-bb60-069c75794a1e:126-178",
-        "chat:4682ff8d-a90c-4829-828b-075d7ee0c43c:40-84",
-        "reference:4084785:411-436",
-        "reference:4051052:422-473",
-        "prose:1236:173-183",
-        "reference:4083495:92-131",
-        "chat:d07ae836-b373-4f92-b3d1-a028c7df5d6f:61-96"
-      ],
-      "50": [
-        "chat:148b4556-09d4-4b25-bd16-c35f8f3970ae:367-418",
-        "prose:3001:1-45",
-        "chat:a961a841-6890-4418-a467-8702368d6cb5:46-105",
-        "reference:4070265:616-665",
-        "prose:3284:104-147",
-        "prose:3166:49-97",
-        "prose:806:180-207",
-        "chat:930ad5de-0a8e-44cd-8e2c-b47318735c62:92-148",
-        "chat:be268ef0-4622-4256-8fab-e762cddbe0d6:131-165",
-        "prose:3009:49-95",
-        "prose:1434:157-179",
-        "prose:2564:141-188",
-        "reference:2389:456-492",
-        "chat:35824a85-73c2-4dac-9d97-e790a95a81b7:39-83",
-        "reference:3649:271-327",
-        "reference:4085515:121-175",
-        "reference:4068484:208-258",
-        "reference:4080457:230-279",
-        "reference:3417:196-248"
-      ],
       "90": [
-        "prose:1607:1-49",
-        "prose:532:133-149",
-        "prose:1311:148-190",
-        "chat:bf896838-8b8c-41f4-a1e7-d9445620275d:55-88",
-        "chat:b167fa3c-4945-437c-bc72-a31277d6b588:61-94",
-        "chat:b274aee8-4ab6-4187-9242-fc7f7a4f423b:47-85",
-        "reference:4082645:1-49",
-        "reference:4060494:594-638",
-        "chat:04b87ccc-f7be-4cf5-8ca0-9f1032123be7:245-270",
-        "prose:1030:55-111",
-        "chat:f5482168-3fbc-4a15-a6e0-8660cea70f37:742-790",
-        "chat:367ba97e-e9f5-4037-b0f1-1b63253a383a:138-197"
+        "chat:c0e946a7-ef24-4d4a-b791-94e0c9de86d4:248-305",
+        "prose:3089:190-202",
+        "reference:4083705:208-260",
+        "prose:2311:242-292",
+        "reference:4079336:270-305",
+        "chat:ab9c436e-f79c-4378-8383-6feecb0903d2:53-86",
+        "chat:db9d89c2-ff5e-4970-8bc0-f331bf8ecabf:278-311",
+        "prose:223:1-42"
       ],
       "95": [
-        "prose:1252:148-188",
-        "prose:3790:92-133",
-        "chat:9b42fb97-93c1-48b8-8258-29cdd11cc913:96-149",
-        "reference:4055133:771-819",
-        "reference:4052855:183-220",
-        "reference:4071944:41-75",
-        "chat:807f59b5-d9d1-4485-b6c0-da1d328207f5:58-108",
-        "prose:179:54-109"
+        "chat:d95e55d3-720a-4669-9b99-11f06ece3947:576-622",
+        "prose:2385:50-98",
+        "reference:4050692:140-182",
+        "chat:74df3889-cfe1-48fc-95d1-d83cca25eac0:429-480",
+        "prose:1350:49-101",
+        "chat:ce883fc7-c3ea-4401-aa9c-d8d0696a5833:221-257",
+        "chat:5b5c2593-8d70-43d1-b38d-146b355ee3af:234-273",
+        "reference:4073083:714-770"
       ],
       "99": [
-        "prose:3014:1-49",
-        "reference:4053834:153-204",
-        "reference:4064757:799-838",
-        "prose:3157:49-93",
-        "prose:2939:54-107",
-        "reference:4047748:1-53",
-        "reference:4049531:192-242",
-        "reference:4053037:252-291"
+        "prose:1389:208-223",
+        "reference:4070255:403-450",
+        "prose:793:141-192",
+        "chat:31eade47-aecd-4dac-b743-5e7a2e39f74c:98-134",
+        "reference:4077833:62-125",
+        "chat:3e46f2fb-5143-4611-bb0d-ac42b2179061:41-96",
+        "prose:2443:52-95",
+        "chat:30c0b974-fc6a-4ad1-8d05-249bff6ec4c4:176-227"
       ]
     }
   },
   {
     "kind": "sae",
     "index": 5858,
-    "title": "Tools and implements",
-    "description": "Strong examples highlight tools such as shovels, axes, spades, scissors, and measuring tape. Other implements, including looms, can activate too.",
+    "title": "Digging and chopping tools",
+    "description": "Reviewed winners highlight tools such as a shovel, spade, or axe used to work with soil and wood.",
     "mode": "daily",
     "clue": "reference:3403:253-299",
     "clueToken": " looms",
     "wins": [
-      "prose:886:209-236",
+      "prose:2203:1-45",
       "prose:1561:1-42",
-      "prose:2115:53-96",
-      "prose:357:46-98",
-      "prose:2050:1-46",
-      "prose:2203:1-45"
-    ]
+      "prose:886:209-236",
+      "prose:357:46-98"
+    ],
+    "choices": {
+      "90": [
+        "reference:4075105:149-211",
+        "prose:3699:148-179",
+        "chat:812addd9-b83b-49bb-8faf-8d8f8f12f0cb:93-137",
+        "prose:2584:94-117",
+        "chat:1e7cc968-3c0d-40e6-8ec4-7da182b09532:95-147",
+        "reference:4075466:175-223",
+        "prose:2237:104-158",
+        "chat:be94a630-2128-4ecb-8e84-fece73d662e9:59-107"
+      ],
+      "95": [
+        "prose:210:43-93",
+        "chat:690d18dd-ea23-4498-b381-3bcad836deaf:214-258",
+        "reference:4046586:258-311",
+        "chat:7fd44318-b639-4f03-a64a-a3faea3c44d9:181-204",
+        "reference:4047137:85-113",
+        "prose:2711:165-185",
+        "chat:1340b57c-e082-43dd-bbab-72fa5f4a5cb8:135-180",
+        "prose:65:1-50"
+      ],
+      "99": [
+        "chat:8b77ea67-ad53-4822-883d-27ccd81825ad:272-330",
+        "reference:4079734:103-144",
+        "chat:36719c87-ac63-436f-8305-0259b8e12a29:215-255",
+        "prose:1269:53-99",
+        "chat:9198e61a-cd00-414c-8296-e6db4959bd86:199-243",
+        "prose:247:1-42",
+        "prose:442:50-95",
+        "chat:2d84f3e0-2a92-48d3-a72f-c3b2b197c491:274-320"
+      ]
+    }
   },
   {
     "kind": "sae",
@@ -648,15 +913,43 @@
     "clue": "reference:5482:296-336",
     "clueToken": " Civil",
     "wins": [
-      "reference:4049366:137-193",
-      "reference:4073139:325-388",
-      "reference:4077333:116-171",
       "reference:4072894:80-133",
-      "reference:4069107:336-393",
       "reference:4055079:318-360",
-      "reference:4046770:273-308",
-      "reference:4050297:461-501"
-    ]
+      "reference:4073139:325-388",
+      "reference:4077333:116-171"
+    ],
+    "choices": {
+      "90": [
+        "chat:2b6ad1f0-6f7d-4026-81c7-9ae5ed31881d:150-211",
+        "reference:4065630:1-48",
+        "chat:d95e55d3-720a-4669-9b99-11f06ece3947:576-622",
+        "reference:4050863:459-507",
+        "reference:4067179:144-191",
+        "reference:4085083:627-680",
+        "reference:4083994:278-337",
+        "reference:4065067:1-49"
+      ],
+      "95": [
+        "chat:6bbd5bd2-afac-4086-8e5c-7ddbf9658095:90-135",
+        "reference:4073616:144-196",
+        "chat:86accb9d-d32d-471e-ba6c-e43420bd81cd:83-140",
+        "reference:4059282:577-619",
+        "reference:4074553:47-100",
+        "reference:4085387:198-253",
+        "reference:4052460:1-49",
+        "reference:4195:257-300"
+      ],
+      "99": [
+        "reference:4069306:609-650",
+        "reference:4051048:53-106",
+        "reference:4059278:46-80",
+        "reference:4082702:464-504",
+        "reference:4053357:136-193",
+        "reference:4060581:92-140",
+        "reference:4057500:355-403",
+        "reference:4047711:299-344"
+      ]
+    }
   },
   {
     "kind": "sae",
