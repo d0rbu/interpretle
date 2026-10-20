@@ -236,12 +236,8 @@ export function dashboardData(sql: Sql, params: URLSearchParams, end: string) {
   const flowDay = params.get('flowDay') ?? end
   const flowSelection = {
     day: flowDay,
-    daily: params.has('flowDay')
-      ? params.get('flowDaily') === '1'
-      : mode !== 'practice',
-    practice: params.has('flowDay')
-      ? params.get('flowPractice') === '1'
-      : mode !== 'daily',
+    daily: !params.has('flowDay') || params.get('flowDaily') === '1',
+    practice: params.has('flowDay') && params.get('flowPractice') === '1',
   }
   const validDay = (day: string) =>
     /^\d{4}-\d{2}-\d{2}$/.test(day) &&

@@ -389,7 +389,9 @@ it('builds a conserving game-flow cohort without inventing paths for restored hi
   seed(6, 'lost')
   seed(4, 'open', false)
   seed(8, 'won', true, 8, 'practice')
-  const data = await overview('days=7')
+  const data = await overview(
+    'days=7&flowDay=2026-10-18&flowDaily=1&flowPractice=1',
+  )
   const flow = flowSteps(data.flow)
   expect(flow).toMatchObject({ total: 5, skipped: 1 })
   expect(flow.steps[0]).toMatchObject({ reached: 5, next: 4, open: 1 })
@@ -399,7 +401,11 @@ it('builds a conserving game-flow cohort without inventing paths for restored hi
   expect(flow.steps[8].won).toBe(1)
   for (const step of flow.steps)
     expect(step.reached).toBe(step.next + step.won + step.lost + step.open)
-  expect(flowSteps((await overview('game=practice')).flow)).toMatchObject({
+  expect(
+    flowSteps(
+      (await overview('game=practice&flowDay=2026-10-18&flowPractice=1')).flow,
+    ),
+  ).toMatchObject({
     total: 1,
     skipped: 0,
   })
@@ -458,7 +464,7 @@ it('uses recorded passage bands and nearest write-in bands without inventing mis
   record(missing, 'guess', { attempt: 2 })
   record(crypto.randomUUID(), 'guess', { attempt: 3, band: 90 })
 
-  const data = await overview()
+  const data = await overview('flowDay=2026-10-18&flowDaily=1&flowPractice=1')
   expect(data.flow).toContainEqual(
     expect.objectContaining({ count: 1, guesses: 2, bands: [50, 0] }),
   )
@@ -514,9 +520,12 @@ it('filters both Sankey views by their own Pacific date and independent game tog
   expect(defaultFlow.flowSelection).toEqual({
     day: '2026-10-18',
     daily: true,
-    practice: true,
+    practice: false,
   })
-  expect(defaultFlow.flow.map((g) => g.guesses).sort()).toEqual([3, 4])
+  expect(defaultFlow.flow.map((g) => g.guesses)).toEqual([4])
+  expect((await overview('game=practice')).flowSelection).toEqual(
+    defaultFlow.flowSelection,
+  )
 
   const query = 'days=7&game=daily&flowDay=2026-10-17'
   for (const [toggles, expected] of [

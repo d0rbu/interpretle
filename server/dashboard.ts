@@ -306,13 +306,72 @@ export async function dashboardPage(response: Response) {
       : data.mode === 'daily'
         ? 'Daily'
         : 'Practice'
-  const flowName = data.flowSelection.daily
-    ? data.flowSelection.practice
-      ? 'Daily + practice'
-      : 'Daily'
-    : data.flowSelection.practice
-      ? 'Practice'
-      : 'No games selected'
+  const filterScript = `
+const form = document.querySelector('.flow-controls')
+const chart = document.querySelector('.flow-charts')
+const status = document.querySelector('.flow-status')
+let pending
+async function update() {
+  if (!form.checkValidity()) return
+  pending?.abort()
+  const request = pending = new AbortController()
+  const url = new URL(form.action)
+  url.search = new URLSearchParams(new FormData(form)).toString()
+  chart.setAttribute('aria-busy', 'true')
+  status.textContent = ''
+  try {
+    const response = await fetch(url, { signal: request.signal })
+    if (!response.ok) throw new Error('Request failed (' + response.status + ').')
+    const page = new DOMParser().parseFromString(await response.text(), 'text/html')
+    const next = page.querySelector('.flow-charts')
+    if (!next) throw new Error('The response did not contain a chart.')
+    if (request.signal.aborted) return
+    const detail = next.querySelector('details')
+    if (detail) detail.open = chart.querySelector('details')?.open ?? false
+    chart.replaceChildren(...next.childNodes)
+    document.querySelector('.flow-head p').textContent = page.querySelector('.flow-head p').textContent
+    const overview = document.querySelector('.page-heading form')
+    overview.querySelectorAll('input[type=hidden]').forEach(input => input.remove())
+    overview.prepend(...page.querySelectorAll('.page-heading input[type=hidden]'))
+    for (const link of document.querySelectorAll('#profiling a')) {
+      const target = new URL(link.href)
+      if (target.pathname !== '/admin') continue
+      for (const key of ['flowDay', 'flowDaily', 'flowPractice']) {
+        target.searchParams.delete(key)
+        if (url.searchParams.has(key)) target.searchParams.set(key, url.searchParams.get(key))
+      }
+      link.href = target.href
+    }
+    history.replaceState(null, '', url)
+  } catch (error) {
+    if (!request.signal.aborted) status.textContent = 'Could not update the chart. ' + error.message
+  } finally {
+    if (pending === request) chart.removeAttribute('aria-busy')
+  }
+}
+form.addEventListener('change', update)
+form.addEventListener('submit', event => {
+  event.preventDefault()
+  update()
+})
+for (const button of form.querySelectorAll('[data-mode]')) {
+  button.addEventListener('click', () => {
+    const input = form.elements.namedItem(button.dataset.mode)
+    input.disabled = !input.disabled
+    button.setAttribute('aria-pressed', String(!input.disabled))
+    update()
+  })
+}`
+  const scriptHash = btoa(
+    String.fromCharCode(
+      ...new Uint8Array(
+        await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(filterScript),
+        ),
+      ),
+    ),
+  )
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Analytics · interpretle</title><style>${styles}</style></head><body><main>
 <header><a class="brand" href="/admin"><i aria-hidden="true"></i>interpretle<span>analytics</span></a><nav aria-label="Admin"><a href="${raw}">Raw data ↗</a><a href="/">Open game ↗</a></nav></header>
@@ -344,9 +403,9 @@ export async function dashboardPage(response: Response) {
         { key: 'errors', label: 'Errors · all modes', color: colors.red },
       ],
     )}</section>
-<section class="panel wide" id="game-flow"><div class="panel-head"><div><h2>From opening the puzzle to the final guess</h2><p>Recorded activity on ${e(data.flowSelection.day)} · Pacific time</p></div><span class="tag">${flowName}</span></div>
-<form class="flow-controls" action="/admin#game-flow" aria-label="Game progression filters">${hiddenInputs({ day: data.end, days: String(data.days), game: data.mode, runtime: data.profiles.runtime })}<label>Pacific date<input type="date" name="flowDay" value="${e(data.flowSelection.day)}" required></label><label class="flow-switch"><input type="checkbox" role="switch" name="flowDaily" value="1"${data.flowSelection.daily ? ' checked' : ''}>Daily games</label><label class="flow-switch"><input type="checkbox" role="switch" name="flowPractice" value="1"${data.flowSelection.practice ? ' checked' : ''}>Practice games</label><button>Apply</button></form>
-${data.flowSelection.daily || data.flowSelection.practice ? sankey(data.flow) : empty('Select Daily games, Practice games, or both.')}${percentileFlow}</section>
+<section class="panel wide" id="game-flow"><div class="panel-head flow-head"><div><h2>From opening the puzzle to the final guess</h2><p>Recorded activity on ${e(data.flowSelection.day)} · Pacific time</p></div>
+<form class="flow-controls" action="/admin#game-flow" aria-label="Game progression filters">${hiddenInputs({ day: data.end, days: String(data.days), game: data.mode, runtime: data.profiles.runtime })}<label class="flow-date">Pacific date<input type="date" name="flowDay" value="${e(data.flowSelection.day)}" required></label><input type="hidden" name="flowDaily" value="1"${data.flowSelection.daily ? '' : ' disabled'}><button class="flow-mode" type="button" data-mode="flowDaily" aria-pressed="${data.flowSelection.daily}">Daily games</button><input type="hidden" name="flowPractice" value="1"${data.flowSelection.practice ? '' : ' disabled'}><button class="flow-mode" type="button" data-mode="flowPractice" aria-pressed="${data.flowSelection.practice}">Practice games</button></form></div>
+<p class="flow-status" role="status"></p><div class="flow-charts">${data.flowSelection.daily || data.flowSelection.practice ? sankey(data.flow) : empty('Select Daily games, Practice games, or both.')}${percentileFlow}</div></section>
 <section class="panel"><div class="panel-head"><div><h2>When games end</h2><p>Winning guess, or every attempt used</p></div></div>${bars(wins, colors.green)}<p class="note">Completed results matching the overview's date window and game filter.</p></section>
 <section class="panel"><div class="panel-head"><div><h2>Which options get picked</h2><p>Suggested positions versus scored write-ins</p></div></div>${bars(data.slots, colors.purple)}<p class="note">Scored guesses, including repeated positions in later turns.</p></section>
 ${profiling(data)}
@@ -355,13 +414,20 @@ ${profiling(data)}
 <section class="panel"><div class="panel-head"><div><h2>Appearance preferences</h2><p>Selected setting / displayed theme</p></div></div>${bars(data.themes, colors.purple, true)}<p class="note">A visit can use more than one setting. These are setting observations, not unique people.</p></section>
 <section class="panel wide"><div class="panel-head"><div><h2>Devices</h2><p>Browser-reported device type on recorded visits</p></div></div>${bars(data.devices, colors.gold, true)}<p class="note">Device detail and game flows start ${data.coverage.historySince ? e(utc(data.coverage.historySince)) : 'with the new event history'}. Earlier aggregate traffic remains in the charts above.</p></section></div>
 <footer>Private, first-party analytics. Browser IDs and IPs are not unique people. Times are server receipts unless labeled otherwise. <a href="${raw}">Explore individual games and exports ↗</a></footer>
-</main></body></html>`,
-    { headers: ADMIN_HEADERS },
+</main><script>${filterScript}</script></body></html>`,
+    {
+      headers: {
+        ...ADMIN_HEADERS,
+        'Content-Security-Policy': `${ADMIN_HEADERS['Content-Security-Policy']}; script-src 'sha256-${scriptHash}'; connect-src 'self'`,
+      },
+    },
   )
 }
 
 const styles = `
-.flow-controls{gap:16px;margin-bottom:20px}.flow-switch{flex-direction:row;align-items:center;align-self:center;gap:8px;font-size:12px;cursor:pointer}.flow-switch input{appearance:none;width:34px;height:20px;padding:0;margin:0;position:relative;border-radius:12px;background:var(--line);cursor:pointer}.flow-switch input::before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;border-radius:50%;background:var(--muted);transition:transform .15s}.flow-switch input:checked{background:var(--accent);border-color:var(--accent)}.flow-switch input:checked::before{background:var(--panel);transform:translateX(14px)}
+.flow-head{flex-wrap:wrap}.flow-controls{gap:16px;margin-left:auto;max-width:100%;justify-content:flex-end}.flow-mode{background:var(--panel);color:var(--muted);border-color:var(--line);transition:background .15s,color .15s,border-color .15s}.flow-mode[aria-pressed=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.flow-status{font-size:12px;margin-bottom:16px}.flow-status:empty{display:none}.flow-charts{transition:opacity .15s}.flow-charts[aria-busy=true]{opacity:.6}
+@media(max-width:700px){.flow-date{flex-basis:100%;align-items:flex-end}}
 .flow-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.flow-detail>summary{cursor:pointer;font-size:13px;font-weight:600;margin-bottom:20px}.band-flow svg{min-width:1200px}.band-label{font-size:10px;paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
 .profile-summary{display:flex;gap:16px;flex-wrap:wrap}.profile-summary article{flex:1;min-width:200px;background:var(--soft);border-radius:8px;padding:16px}.profile-summary h3{margin:0 0 8px}.profile-summary strong{font-size:24px;font-variant-numeric:tabular-nums}.profile-summary span{display:block;font-size:12px;color:var(--muted)}.profile-summary p{font-size:11px;margin-top:8px}.timing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}.timing-grid>div{min-width:0}.timing-bars .bar-row{grid-template-columns:minmax(110px,1.4fr) 1fr 72px}.timing-bars small,.profile-runs small,.trace-table small{display:block;font-size:10px;color:var(--muted)}.timing-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.timing-detail>summary{cursor:pointer;font-size:13px;font-weight:600}.table-scroll{overflow-x:auto;margin-top:20px}table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-size:11px;font-weight:600}.profile-runs{min-width:650px}.trace-table{min-width:680px}.trace-table td:first-child{width:43%}.trace-table td:nth-child(2){width:85px;font-variant-numeric:tabular-nums}.trace-track{position:relative;background:var(--soft);height:12px;border-radius:3px;overflow:hidden}.trace-track i{position:absolute;height:100%;border-radius:2px}@media(max-width:900px){.timing-grid{grid-template-columns:1fr;gap:12px}}
 :root{color-scheme:light dark;--bg:#f5f6f8;--panel:#fff;--text:#222938;--muted:#687286;--line:#e4e7ed;--soft:#f4f6fa;--accent:#446ba9;font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}

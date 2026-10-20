@@ -10,7 +10,7 @@ const sample: Insights = {
   end: '2026-10-18',
   days: 14,
   mode: 'all',
-  flowSelection: { day: '2026-10-18', daily: true, practice: true },
+  flowSelection: { day: '2026-10-18', daily: true, practice: false },
   profiles: {
     runtime: 'all',
     expanded: false,
@@ -302,7 +302,7 @@ test('private dashboard makes missing historical paths and empty reports explici
   )
 })
 
-test('Sankey date and Daily/Practice switches submit independently and persist across dashboard filters', async ({
+test('Sankey filters update in place with Daily selected by default and persist across dashboard filters', async ({
   page,
 }) => {
   await page.route('**/admin?**', async (route) => {
@@ -311,7 +311,7 @@ test('Sankey date and Daily/Practice switches submit independently and persist a
     const flowSelection = {
       day: params.get('flowDay') ?? sample.end,
       daily: !custom || params.has('flowDaily'),
-      practice: !custom || params.has('flowPractice'),
+      practice: custom && params.has('flowPractice'),
     }
     const response = await dashboardPage(
       Response.json({
@@ -333,38 +333,52 @@ test('Sankey date and Daily/Practice switches submit independently and persist a
     })
   })
   await page.goto('/admin?day=2026-10-18&days=14&game=all&runtime=gpu')
+  await page.locator('.metrics').evaluate((element) => {
+    element.setAttribute('data-preserved', 'true')
+  })
+  await page.locator('.flow-detail summary').click()
   const filters = page.getByRole('form', { name: 'Game progression filters' })
-  const daily = filters.getByRole('switch', {
+  const daily = filters.getByRole('button', {
     name: 'Daily games',
     exact: true,
   })
-  const practice = filters.getByRole('switch', {
+  const practice = filters.getByRole('button', {
     name: 'Practice games',
     exact: true,
   })
-  await expect(daily).toBeChecked()
-  await expect(practice).toBeChecked()
+  await expect(daily).toHaveAttribute('aria-pressed', 'true')
+  await expect(practice).toHaveAttribute('aria-pressed', 'false')
+  await expect(filters.getByRole('button', { name: 'Apply' })).toHaveCount(0)
   await filters.getByLabel('Pacific date').fill('2026-10-17')
-  await daily.uncheck()
-  await filters.getByRole('button', { name: 'Apply' }).click()
+  await expect(page).toHaveURL(/flowDay=2026-10-17&flowDaily=1#game-flow$/)
+  await practice.click()
+  await expect(page).toHaveURL(
+    /flowDay=2026-10-17&flowDaily=1&flowPractice=1#game-flow$/,
+  )
+  await daily.click()
   await expect(page).toHaveURL(/flowDay=2026-10-17&flowPractice=1#game-flow$/)
   expect(new URL(page.url()).searchParams.get('game')).toBe('all')
   expect(new URL(page.url()).searchParams.get('days')).toBe('14')
   expect(new URL(page.url()).searchParams.get('runtime')).toBe('gpu')
-  await expect(daily).not.toBeChecked()
-  await expect(practice).toBeChecked()
+  await expect(daily).toHaveAttribute('aria-pressed', 'false')
+  await expect(practice).toHaveAttribute('aria-pressed', 'true')
   await expect(filters.getByLabel('Pacific date')).toHaveValue('2026-10-17')
+  await expect(page.locator('.metrics')).toHaveAttribute(
+    'data-preserved',
+    'true',
+  )
+  await expect(page.locator('.flow-detail')).toHaveAttribute('open', '')
 
-  await practice.uncheck()
-  await filters.getByRole('button', { name: 'Apply' }).click()
+  await practice.click()
+  await expect(page).toHaveURL(/flowDay=2026-10-17#game-flow$/)
   await expect(page.locator('#game-flow')).toContainText(
     'Select Daily games, Practice games, or both.',
   )
   await expect(page.locator('#game-flow svg')).toHaveCount(0)
-  await daily.check()
-  await filters.getByRole('button', { name: 'Apply' }).click()
-  await expect(daily).toBeChecked()
-  await expect(practice).not.toBeChecked()
+  await daily.click()
+  await expect(page).toHaveURL(/flowDay=2026-10-17&flowDaily=1#game-flow$/)
+  await expect(daily).toHaveAttribute('aria-pressed', 'true')
+  await expect(practice).toHaveAttribute('aria-pressed', 'false')
 
   await page
     .getByRole('combobox', { name: 'Window', exact: true })
@@ -375,6 +389,6 @@ test('Sankey date and Daily/Practice switches submit independently and persist a
     .click()
   await expect(page).toHaveURL(/flowDay=2026-10-17&flowDaily=1/)
   await expect(filters.getByLabel('Pacific date')).toHaveValue('2026-10-17')
-  await expect(daily).toBeChecked()
-  await expect(practice).not.toBeChecked()
+  await expect(daily).toHaveAttribute('aria-pressed', 'true')
+  await expect(practice).toHaveAttribute('aria-pressed', 'false')
 })
