@@ -4,6 +4,15 @@ The daily rotation must work as a guessing game, not just have a plausible name
 for its highest-scoring examples. Review the starting clue, examples around 50,
 90, 95 and 99, and multiple winning passages before admitting a feature.
 
+For future daily puzzles, aim closer to the difficulty of the original October
+20, 2026 months-in-dates puzzle (feature 959). The train-themed replacement
+(feature 4302) was too easy; leave that published puzzle unchanged. The clue
+should suggest a hypothesis that later highlights help refine. Prefer plausible,
+related alternatives that reward learning the specific pattern over several
+guesses, while keeping the winner distinguishable from the evidence. Avoid a
+single obvious keyword among unrelated choices, or a final choice that depends
+on hidden context.
+
 - The clue's strongest highlighted token must give a useful hint about the
   pattern. Mentioning the topic elsewhere in a passage does not count.
 - Prefer a clear, readable clue near the 50th percentile. The allowed window is
