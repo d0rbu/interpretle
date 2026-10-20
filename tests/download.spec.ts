@@ -89,15 +89,18 @@ test.beforeEach(async () => {
             const put = cache.put.bind(cache);
             cache.put = async (...args) => {
               writeAttempts++;
-              if (writeAttempts <= (data.failWrites || 0))
-                throw new TypeError(writeAttempts === 1 ? 'Internal error' : 'Failed writing data to the file system');
+              if (writeAttempts <= (data.failWrites || 0)) {
+                const error = new TypeError(writeAttempts === 1 ? 'Internal error' : 'Failed writing data to the file system');
+                if (data.stackless) error.stack = undefined;
+                throw error;
+              }
               return put(...args);
             };
             if (data.file) await cachedFile(cache, data.file);
             else await downloadWeights(cache, [data.source],
               (message, fraction) => postMessage({ fraction }));
             postMessage({ done: true, writeAttempts });
-          } catch (error) { postMessage({ error: String(error) }); }
+          } catch (error) { postMessage({ error: String(error), report: error.report }); }
         };`)
     } else if (path.startsWith('/part/')) {
       const index = Number(path.slice('/part/'.length))
@@ -174,6 +177,40 @@ test.afterEach(async () => {
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   )
+})
+
+test('captures the original download caller when native storage errors have no stack', async ({
+  page,
+}) => {
+  hold = false
+  await page.goto(origin)
+  const result = await page.evaluate(
+    (file) =>
+      new Promise<{
+        error: string
+        report: {
+          stack?: string
+          operationStack: string
+          captureStack: string
+          storageAttempts: number
+        }
+      }>((resolve) => {
+        const worker = new Worker('/worker.js', { type: 'module' })
+        worker.onmessage = ({ data }) => {
+          if (data.error) {
+            worker.terminate()
+            resolve(data)
+          }
+        }
+        worker.postMessage({ file, failWrites: 3, stackless: true })
+      }),
+    { url: '/tokenizer.gz', bytes: compressed.length },
+  )
+  expect(result.error).toContain('Failed writing data to the file system')
+  expect(result.report.stack).toBeUndefined()
+  expect(result.report.storageAttempts).toBe(3)
+  expect(result.report.operationStack).toMatch(/cacheWrite[\s\S]*cachedFile/)
+  expect(result.report.captureStack).toContain('runtimeReport')
 })
 
 test('retains partial downloads after reload and decodes gzip with real browser storage', async ({

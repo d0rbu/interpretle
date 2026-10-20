@@ -406,6 +406,26 @@ it('does not retry a Firefox disk-space failure while downloading the tokenizer'
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 
+it('retains the write caller when Safari returns no native exception stack', async () => {
+  const data = new Uint8Array([9, 8, 7])
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(data)))
+  cache.put = vi
+    .fn()
+    .mockRejectedValue(
+      Object.assign(new TypeError('Internal error'), { stack: undefined }),
+    )
+  await expect(cachedFile(cache, chunk(data))).rejects.toMatchObject({
+    report: {
+      operationStack: expect.stringMatching(
+        /CacheStorage\.put requested here[\s\S]*cacheWrite[\s\S]*cachedFile/,
+      ),
+      captureStack: expect.stringContaining('original stack unavailable'),
+      storageOperation: 'CacheStorage.put',
+      storageAttempts: 3,
+    },
+  })
+})
+
 it('does not mistake a storage read failure for a corrupt cached tokenizer', async () => {
   const error = new DOMException('', 'NS_ERROR_FILE_NO_DEVICE_SPACE')
   const saved = new Response('valid cached tokenizer')

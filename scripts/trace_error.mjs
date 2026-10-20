@@ -28,47 +28,64 @@ for (const report of reports) {
   console.log(
     `\n${report.name}: ${report.message}\n${report.stage} · ${report.release}`,
   )
-  if (!report.stack)
-    console.log('Original stack unavailable; showing the capture location.')
-  const stack = [
-    report.stack || report.captureStack || '',
-    `${report.filename ?? ''}:${report.line ?? 0}:${report.column ?? 0}`,
-  ].join('\n')
-  for (const line of stack.split('\n')) {
-    console.log(line)
-    const frame = /((?:https?:\/\/|\/assets\/)[^\s)]+):(\d+):(\d+)/.exec(line)
-    if (!frame) continue
-    const name = basename(new URL(frame[1], 'https://interpretle.com').pathname)
-    let map
-    try {
-      map = new TraceMap(
-        JSON.parse(
-          await readFile(
-            join('artifacts/releases', report.release, 'assets', name + '.map'),
-            'utf8',
+  if (!report.stack) console.log('Original exception stack unavailable.')
+  const stacks = [
+    ['Recorded exception stack', report.stack],
+    ['Operation caller before queueing', report.operationStack],
+    ['Capture location', report.captureStack],
+    ['Caused by', report.cause],
+    [
+      'Reported location',
+      report.filename &&
+        `${report.filename}:${report.line ?? 0}:${report.column ?? 0}`,
+    ],
+  ]
+  for (const [label, stack] of stacks) {
+    if (!stack) continue
+    console.log(`\n${label}:`)
+    for (const line of stack.split('\n')) {
+      console.log(line)
+      const frame = /((?:https?:\/\/|\/assets\/)[^\s)]+):(\d+):(\d+)/.exec(line)
+      if (!frame) continue
+      const name = basename(
+        new URL(frame[1], 'https://interpretle.com').pathname,
+      )
+      let map
+      try {
+        map = new TraceMap(
+          JSON.parse(
+            await readFile(
+              join(
+                'artifacts/releases',
+                report.release,
+                'assets',
+                name + '.map',
+              ),
+              'utf8',
+            ),
           ),
-        ),
-      )
-    } catch {
-      console.log('  Source map unavailable for this frame/build.')
-      continue
-    }
-    const original = originalPositionFor(map, {
-      line: Number(frame[2]),
-      column: Math.max(0, Number(frame[3]) - 1),
-    })
-    if (!original.source || !original.line) continue
-    console.log(
-      `  → ${original.source}:${original.line}:${(original.column ?? 0) + 1}${original.name ? ` (${original.name})` : ''}`,
-    )
-    const source = sourceContentFor(map, original.source, true)?.split('\n')
-    for (
-      let i = Math.max(0, original.line - 3);
-      source && i < Math.min(source.length, original.line + 2);
-      i++
-    )
+        )
+      } catch {
+        console.log('  Source map unavailable for this frame/build.')
+        continue
+      }
+      const original = originalPositionFor(map, {
+        line: Number(frame[2]),
+        column: Math.max(0, Number(frame[3]) - 1),
+      })
+      if (!original.source || !original.line) continue
       console.log(
-        `  ${i + 1 === original.line ? '>' : ' '} ${String(i + 1).padStart(4)}  ${source[i]}`,
+        `  → ${original.source}:${original.line}:${(original.column ?? 0) + 1}${original.name ? ` (${original.name})` : ''}`,
       )
+      const source = sourceContentFor(map, original.source, true)?.split('\n')
+      for (
+        let i = Math.max(0, original.line - 3);
+        source && i < Math.min(source.length, original.line + 2);
+        i++
+      )
+        console.log(
+          `  ${i + 1 === original.line ? '>' : ' '} ${String(i + 1).padStart(4)}  ${source[i].slice(0, 500)}`,
+        )
+    }
   }
 }

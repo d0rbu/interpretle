@@ -46,7 +46,12 @@ it('does not present a recovery wrapper as a missing browser stack', () => {
     cause,
     'Saving model download to browser storage',
     'model',
-    { storageOperation: 'CacheStorage.put', storageAttempts: 3 },
+    {
+      storageOperation: 'CacheStorage.put',
+      storageAttempts: 3,
+      operationStack:
+        'Error: CacheStorage.put requested here\n at downloadAsset (https://interpretle.com/assets/worker.js:20:4)',
+    },
   )
   expect(original.stack).toBeUndefined()
   expect(original.captureStack).toBeTruthy()
@@ -57,7 +62,17 @@ it('does not present a recovery wrapper as a missing browser stack', () => {
   expect(forwarded).toMatchObject(original)
   expect(forwarded.stack).toBeUndefined()
   expect(forwarded.captureStack).toBe(original.captureStack)
+  expect(forwarded.operationStack).toBe(original.operationStack)
   expect(validReport(JSON.parse(JSON.stringify(forwarded)))).toBe(true)
+})
+
+it('retains longer original call chains within the report size limit', () => {
+  function descend(depth: number): Error {
+    return depth ? descend(depth - 1) : new Error('Deep failure')
+  }
+  const report = runtimeReport(descend(24), 'Runtime', 'model')
+  expect(report.stack?.match(/at descend/g)?.length).toBe(25)
+  expect(validReport(report)).toBe(true)
 })
 
 it('bounds payloads, strips URL credentials/query strings, and keeps no arbitrary error properties', () => {
@@ -67,11 +82,17 @@ it('bounds payloads, strips URL credentials/query strings, and keeps no arbitrar
     ),
     { stack: 'x'.repeat(20000), draft: 'Never inspect this property' },
   )
-  const report = runtimeReport(cause, 'startup', 'window', { elapsedMs: 1.2 })
+  const report = runtimeReport(cause, 'startup', 'window', {
+    elapsedMs: 1.2,
+    operationStack:
+      'https://user:password@example.com/model?token=secret#private\n' +
+      'x'.repeat(20000),
+  })
   expect(report.message).toBe(
     'Read https://example.com/model Bearer [redacted]',
   )
   expect(report.stack).toHaveLength(12000)
+  expect(report.operationStack).toHaveLength(12000)
   expect(JSON.stringify(report)).not.toMatch(
     /password|token=|secret-key|Never inspect/,
   )
@@ -139,6 +160,7 @@ it('rejects malformed diagnostics and unbounded fields', () => {
     { release: '' },
     { extra: 'not allowed' },
     { stack: 'x'.repeat(12001) },
+    { operationStack: 'x'.repeat(12001) },
     { line: -1 },
     { threads: 1.5 },
     { tokens: 10001 },

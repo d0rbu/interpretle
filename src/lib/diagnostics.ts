@@ -2,6 +2,15 @@
 declare const __APP_BUILD__: string
 export const appBuild =
   typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : 'development'
+// Retain longer call chains when the engine exposes a configurable limit.
+const errorConstructor = Error as ErrorConstructor & {
+  stackTraceLimit?: number
+}
+if (typeof errorConstructor.stackTraceLimit === 'number')
+  errorConstructor.stackTraceLimit = Math.max(
+    errorConstructor.stackTraceLimit,
+    50,
+  )
 export const REPORT_SOURCES = [
   'model',
   'weights',
@@ -13,6 +22,7 @@ export const REPORT_TEXT_LIMITS = {
   name: 120,
   message: 2000,
   stack: 12000,
+  operationStack: 12000,
   captureStack: 6000,
   cause: 3000,
   stage: 240,
@@ -42,6 +52,7 @@ export type RuntimeReport = {
   stage: string
   release: string
   stack?: string
+  operationStack?: string
   captureStack?: string
   cause?: string
   filename?: string

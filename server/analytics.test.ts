@@ -264,6 +264,8 @@ it('stores bounded original exceptions privately, groups retries correctly, and 
   )
   report.stack =
     'TypeError: cache failed\n at read (https://interpretle.com/assets/worker-abcdefgh.js:2:5)'
+  report.operationStack =
+    'Error: CacheStorage.put requested here\n at cachedFile (https://interpretle.com/assets/worker-abcdefgh.js:12:5)'
   const payload = event('model_error', {
     problem: 'runtime',
     code: 'runtime',
@@ -308,6 +310,8 @@ it('stores bounded original exceptions privately, groups retries correctly, and 
   expect(page.status).toBe(200)
   const html = await page.text()
   expect(html).toContain('Original exception')
+  expect(html).toContain('Operation caller · before queueing')
+  expect(html).toContain('at cachedFile')
   expect(html).toContain('&lt;script&gt;unsafe()&lt;/script&gt;')
   expect(html).not.toContain('<script>unsafe()')
   expect(html).toContain('/admin/raw?browser=')

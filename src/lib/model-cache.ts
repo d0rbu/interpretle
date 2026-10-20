@@ -5,6 +5,9 @@ import { runtimeReport } from './diagnostics'
 // Retry transient filesystem failures using the bytes already in memory.
 let writes = Promise.resolve()
 function cacheWrite(cache: Cache, url: string, bytes: Uint8Array<ArrayBuffer>) {
+  // Native storage errors can be stackless. Preserve the caller before the
+  // serial write queue crosses another asynchronous boundary.
+  const operation = new Error('CacheStorage.put requested here')
   const write = writes.then(async () => {
     for (let attempt = 1; ; attempt++) {
       try {
@@ -32,6 +35,7 @@ function cacheWrite(cache: Cache, url: string, bytes: Uint8Array<ArrayBuffer>) {
           'model',
           {
             storageOperation: 'CacheStorage.put',
+            operationStack: operation.stack,
             asset: new URL(url, location.origin).pathname,
             assetBytes: bytes.byteLength,
             storageAttempts: attempt,
