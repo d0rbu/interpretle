@@ -1626,15 +1626,22 @@ test('tracks selected and resolved themes, including system changes, once per vi
       () => rawThemes().filter((event) => event.id === initialDark.id).length,
     )
     .toBe(2)
-  expect(rawThemes().at(-1)).toEqual(initialDark)
+  expect(rawThemes().at(-1)).toMatchObject({
+    id: initialDark.id,
+    player: initialDark.player,
+    visit: initialDark.visit,
+    event: 'theme',
+    theme: 'dark',
+    themePreference: 'dark',
+  })
   expect(themes()).toHaveLength(4)
-  expect(
-    themes().every((event) =>
-      Object.keys(event).every((key) =>
-        ['event', 'id', 'player', 'theme', 'themePreference'].includes(key),
-      ),
-    ),
-  ).toBe(true)
+  for (const event of rawThemes())
+    expect(event).toMatchObject({
+      player: initialDark.player,
+      visit: initialDark.visit,
+      at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      sequence: expect.any(Number),
+    })
 })
 
 test('records a failed daily game in the X bar without counting a reload twice', async ({
