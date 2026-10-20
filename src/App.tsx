@@ -156,9 +156,6 @@ function Instructions({ close }: { close: () => void }) {
         concept activated in different parts of the passage, and you can also
         write in your own option up to twice in one game.
       </p>
-      <small className="privacy-note">
-        Game activity and submitted write-ins are saved for analytics.
-      </small>
       <button className="primary" onClick={close} autoFocus>
         Play
       </button>

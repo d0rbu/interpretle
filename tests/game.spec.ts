@@ -35,9 +35,6 @@ test('opens instructions once and shows a compact dated header', async ({
 }) => {
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator('dialog p')).toHaveCount(1)
-  await expect(page.locator('dialog .privacy-note')).toHaveText(
-    'Game activity and submitted write-ins are saved for analytics.',
-  )
   await expect(page.getByText('About the model and data')).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Data provenance' })).toHaveCount(
     0,
