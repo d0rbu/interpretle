@@ -30,6 +30,8 @@ export interface Feature {
   displayScale: number
   starter: Passage
   passages: Passage[]
+  // Earlier suggestions stay in passages so existing guesses can be restored.
+  choiceIds?: string[]
   encoder?: { weight: number[]; bias: number; threshold: number }
 }
 

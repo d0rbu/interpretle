@@ -99,8 +99,10 @@ export const hasEncodingErrors = (text: string) =>
 
 export function choices(game: Game, feature: Feature): Passage[] {
   if (status(game) !== 'playing') return []
+  const reviewed = feature.choiceIds && new Set(feature.choiceIds)
   const passages = feature.passages.filter(
     (p) =>
+      (!reviewed || reviewed.has(p.id)) &&
       p.tokens.length <= MAX_PASSAGE_TOKENS &&
       sentenceCount(p.text) <= 3 &&
       !hasEncodingErrors(p.before + p.text),

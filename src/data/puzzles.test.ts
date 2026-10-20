@@ -22,6 +22,7 @@ const curated: {
   clue: string
   clueToken: string
   wins: string[]
+  choices?: Record<string, string[]>
 }[] = JSON.parse(readFileSync('data/features.json', 'utf8')).filter(
   (target: { mode: string }) => target.mode === 'daily',
 )
@@ -94,8 +95,49 @@ describe('published measurements', () => {
         new Set(wins.map((passage) => passage.id.replace(/:\d+-\d+$/, '')))
           .size,
       ).toBe(wins.length)
+      if (target.choices) {
+        const selected = feature.passages.filter((p) =>
+          feature.choiceIds?.includes(p.id),
+        )
+        expect(new Set(feature.choiceIds).size).toBe(feature.choiceIds?.length)
+        expect(selected).toHaveLength(feature.choiceIds!.length)
+        for (const [band, expected] of Object.entries(target.choices)) {
+          const actual = selected.filter((p) => p.band === Number(band))
+          expect(new Set(actual.map((p) => p.id))).toEqual(new Set(expected))
+          expect(
+            new Set(actual.map((p) => p.id.replace(/:\d+-\d+$/, ''))).size,
+          ).toBeGreaterThanOrEqual(8)
+        }
+      }
     }
     expect(curated.some((target) => target.index === 9475)).toBe(false)
+  })
+
+  it('gives the date puzzle distinct activation patterns for near-misses and winners', () => {
+    const feature: Feature = JSON.parse(
+      readFileSync('public/puzzles/gemma4-l21-sae-959-v4.json', 'utf8'),
+    )
+    const months = new Set(
+      'January February March April May June July August September October November December'.split(
+        ' ',
+      ),
+    )
+    const monthDate = new RegExp(
+      `\\bin (?:${[...months].join('|')}) \\d{4}\\b`,
+      'i',
+    )
+    for (const passage of feature.passages.filter(
+      (p) => feature.choiceIds?.includes(p.id) && p.band >= 90,
+    )) {
+      const maximum = Math.max(...passage.tokens.map((t) => t.activation))
+      const peaks = passage.tokens
+        .filter((t) => t.activation === maximum)
+        .map((t) => passage.text.slice(t.start, t.end).trim())
+      if (passage.band === 99.9)
+        expect(peaks.some((text) => months.has(text))).toBe(true)
+      // The winning format can be distinguished from the visible text alone.
+      expect(monthDate.test(passage.text)).toBe(passage.band === 99.9)
+    }
   })
 
   for (const id of ids) {

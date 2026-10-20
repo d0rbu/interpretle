@@ -130,6 +130,7 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('public/puzzles'))
     parser.add_argument('--discover', action='store_true')
     parser.add_argument('--daily-only', action='store_true', help='Keep existing practice packs unchanged')
+    parser.add_argument('--refresh-choices', action='store_true', help='Update reviewed suggestions, preserving every published measurement and saved passage')
     args = parser.parse_args()
     manifest = json.loads((args.cache / 'manifest.json').read_text())
     docs = [json.loads(line) for line in (args.cache / 'documents.jsonl').read_text().splitlines()]
@@ -177,6 +178,7 @@ def main():
         clue = target.pop('clue', None)
         clue_token = target.pop('clueToken', None)
         wins = target.pop('wins', None)
+        reviewed_choices = target.pop('choices', {})
         mode = target.pop('mode', 'daily' if target['kind'] == 'sae' else 'practice')
         if args.daily_only and mode == 'practice':
             identity = f"gemma4-l21-{target['kind']}-{target['index']}-v2"
@@ -220,10 +222,11 @@ def main():
         for band, (low, high) in bands.items():
             eligible = np.flatnonzero(values == 0) if band == 0 else np.flatnonzero((scores >= low) & (scores < high) & (values > 0))
             eligible = eligible[(eligible != starter_index) & playable[eligible]]
-            if band == 99.9 and wins is not None:
-                reviewed = np.array([row_ids[identity] for identity in wins])
-                if len(set(wins)) != len(wins) or not np.isin(reviewed, eligible).all():
-                    raise ValueError(f"{target['index']}: reviewed wins must be distinct, playable passages scoring at least 99.9")
+            review = wins if band == 99.9 else reviewed_choices.get(str(band))
+            if review is not None:
+                reviewed = np.array([row_ids[identity] for identity in review])
+                if len(set(review)) != len(review) or not np.isin(reviewed, eligible).all():
+                    raise ValueError(f"{target['index']}: reviewed band {band} needs distinct, playable passages within its measured score range")
                 eligible = reviewed
             rng.shuffle(eligible)
             # Different source documents make the options more informative.
@@ -238,7 +241,7 @@ def main():
                     unique.append(index)
                 if len(unique) >= (40 if band == 0 else 24):
                     break
-            required = 4 if band == 99.9 else 12
+            required = 4 if band == 99.9 else 8 if review is not None and band >= 90 else 12
             if len(unique) < required:
                 raise ValueError(f"{target['index']}: band {band} has only {len(unique)} distinct documents")
             counts[str(band)] = len(unique)
@@ -253,10 +256,26 @@ def main():
                 pack['encoder'] = dict(weight=file.get_slice('W_enc')[:, column:column + 1].reshape(-1).tolist(),
                                        bias=float(file.get_tensor('b_enc')[column]),
                                        threshold=float(file.get_tensor('threshold')[column]))
-        content = json.dumps(pack, ensure_ascii=False, separators=(',', ':')) + '\n'
         path = args.output / f'{identity}.json'
+        if reviewed_choices:
+            pack['choiceIds'] = [p['id'] for p in chosen]
+            if path.exists():
+                old = json.loads(path.read_text())
+                # A curation correction changes the available choices, never
+                # the concept, calibration, clue, or any saved passage's scores.
+                metadata = lambda value: {k: v for k, v in value.items() if k not in ('passages', 'choiceIds')}
+                if metadata(old) != metadata(pack):
+                    raise ValueError(f'{identity}: a choice refresh cannot change published measurements')
+                archived = {p['id']: p for p in old['passages']}
+                for item in chosen:
+                    if item['id'] in archived and item != archived[item['id']]:
+                        raise ValueError(f"{identity}: published passage {item['id']} changed")
+                    archived[item['id']] = item
+                pack['passages'] = list(archived.values())
+        content = json.dumps(pack, ensure_ascii=False, separators=(',', ':')) + '\n'
         if identity in frozen_ids and path.read_text() != content:
-            raise ValueError(f'{identity}: already published; use a new pack version to change its measurements.')
+            if not (args.refresh_choices and reviewed_choices):
+                raise ValueError(f'{identity}: already published; use a new pack version for measurements or --refresh-choices for reviewed suggestions.')
         path.write_text(content)
         if mode == 'practice':
             ids.append(identity)

@@ -258,6 +258,27 @@ describe('measured game', () => {
     )
   })
 
+  it('refreshes suggestions without changing saved guesses or their scores', () => {
+    const first = choices(initial(), feature).find((p) => p.band === 90)!
+    const game = playPassage(initial(), feature, first.id)
+    const updated = {
+      ...feature,
+      choiceIds: feature.passages
+        .filter((p) => p.id !== first.id)
+        .map((p) => p.id),
+    }
+    expect(restoreGame(serializeGame(game), initial(), updated)).toEqual(game)
+    expect(choices(game, updated).some((p) => p.id === first.id)).toBe(false)
+    expect(choices(initial(), updated).some((p) => p.id === first.id)).toBe(
+      false,
+    )
+    expect(
+      choices(game, updated)
+        .map((p) => p.band)
+        .sort((a, b) => a - b),
+    ).toEqual(bandsForScore(90))
+  })
+
   it('retains which custom scores used the approximate model across reloads', () => {
     const game = playCustom(
       initial(),

@@ -78,6 +78,46 @@
     "mode": "daily",
     "clue": "reference:4049045:99-153",
     "clueToken": " August",
+    "choices": {
+      "90": [
+        "reference:4059402:1-58",
+        "reference:4056992:1-56",
+        "reference:4068153:1-44",
+        "reference:4061586:1-41",
+        "reference:4048762:1-57",
+        "reference:4084884:145-200",
+        "reference:4054817:1-41",
+        "reference:4081474:62-107",
+        "reference:4047979:1-59",
+        "reference:4070060:1-55",
+        "reference:4060139:181-241",
+        "reference:4082368:111-166"
+      ],
+      "95": [
+        "reference:4077182:38-91",
+        "reference:4085104:44-94",
+        "reference:4062434:147-183",
+        "reference:4073346:189-242",
+        "reference:4068922:47-98",
+        "reference:4055308:1-38",
+        "reference:4066485:355-409",
+        "reference:4046182:289-339",
+        "reference:4064734:348-397",
+        "reference:4075259:398-453",
+        "reference:4073165:486-543",
+        "reference:4053532:82-134"
+      ],
+      "99": [
+        "chat:aae62bd7-1601-4b02-9194-7f231bb74533:298-328",
+        "reference:4079317:233-276",
+        "reference:4068939:286-340",
+        "reference:4081745:290-341",
+        "reference:4054504:231-266",
+        "reference:4053815:672-720",
+        "reference:4047717:423-477",
+        "reference:4055624:687-730"
+      ]
+    },
     "wins": [
       "reference:4045607:156-212",
       "reference:4058470:133-188",
