@@ -34,14 +34,22 @@ visibly different patterns, so the feedback helps distinguish the winner.
 documents per reviewed non-winning band at 90 and above (enough for older
 eight-attempt saves). Other bands retain their existing sampling requirements.
 
-The October 20 correction reviews bands 90, 95, and 99 for feature 959 together.
-The near-misses use full dates, weekdays, or an unspecified year; the winners
+Feature 959's reviewed near-misses use full dates, weekdays, or an unspecified year; the winners
 highlight month names in the month-and-year form seen in the strongest examples.
 This is a playable contrast in the selected examples, not a claim that the model
 always separates those formats perfectly.
 `--refresh-choices` publishes that selection without changing the feature ID,
 clue, calibration, or any existing passage. Old passages stay in the pack for
 saved games; `choiceIds` limits only the suggestions offered in future rounds.
+
+The October 20 daily assignment is replaced with feature 4302, a different
+concept: trains and rail travel. The starting clue highlights "locomotive";
+the reviewed winners highlight "train" or "trains" in descriptions of rail
+journeys and services. Its near-misses include other transport, without a
+competing train example. The review also removes broken fragments and navigation
+lists from its suggested options. Every score, token, and calibration value is
+unchanged. The old target and its saved games remain available in storage;
+the replacement starts a separate game under its own feature ID.
 
 The October 2026 review replaces six daily targets, including feature 9475: its
 weak examples include names and similar spellings, with no useful pain-related

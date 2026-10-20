@@ -140,6 +140,33 @@ describe('published measurements', () => {
     }
   })
 
+  it('replaces October 20 with a different concept and a distinguishable endgame', () => {
+    const id = catalog.daily['2026-10-20']
+    expect(id).toBe('gemma4-l21-sae-4302-v4')
+    const feature: Feature = JSON.parse(
+      readFileSync(`public/puzzles/${id}.json`, 'utf8'),
+    )
+    const peaks = (passage: Feature['starter']) => {
+      const maximum = Math.max(...passage.tokens.map((t) => t.activation))
+      return passage.tokens
+        .filter((t) => t.activation === maximum)
+        .map((t) => passage.text.slice(t.start, t.end).trim())
+    }
+    expect(peaks(feature.starter)).toContain('locomotive')
+    const selected = feature.passages.filter((p) =>
+      feature.choiceIds?.includes(p.id),
+    )
+    for (const passage of selected.filter((p) => p.band >= 90)) {
+      expect(
+        /\b(?:trains?|railway|railroad|locomotive)\b/i.test(passage.text),
+      ).toBe(passage.band === 99.9)
+      if (passage.band === 99.9)
+        expect(peaks(passage).every((word) => /^trains?$/.test(word))).toBe(
+          true,
+        )
+    }
+  })
+
   for (const id of ids) {
     const feature: Feature = JSON.parse(
       readFileSync(`public/puzzles/${id}.json`, 'utf8'),
