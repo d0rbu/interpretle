@@ -38,6 +38,28 @@ it('keeps original errors, causes and worker locations through serialization', (
   expect(forwarded).toEqual(report)
 })
 
+it('does not present a recovery wrapper as a missing browser stack', () => {
+  const cause = Object.assign(new TypeError('Internal error'), {
+    stack: undefined,
+  })
+  const original = runtimeReport(
+    cause,
+    'Saving model download to browser storage',
+    'model',
+    { storageOperation: 'CacheStorage.put', storageAttempts: 3 },
+  )
+  expect(original.stack).toBeUndefined()
+  expect(original.captureStack).toBeTruthy()
+  const wrapped = Object.assign(new Error(cause.message, { cause }), {
+    report: original,
+  })
+  const forwarded = runtimeReport(wrapped, 'Model initialization', 'model')
+  expect(forwarded).toMatchObject(original)
+  expect(forwarded.stack).toBeUndefined()
+  expect(forwarded.captureStack).toBe(original.captureStack)
+  expect(validReport(JSON.parse(JSON.stringify(forwarded)))).toBe(true)
+})
+
 it('bounds payloads, strips URL credentials/query strings, and keeps no arbitrary error properties', () => {
   const cause = Object.assign(
     new Error(

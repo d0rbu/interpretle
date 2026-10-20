@@ -110,7 +110,11 @@ export function runtimeReport(
     message: String(message),
     stage,
     release: appBuild,
-    ...(typeof error.stack === 'string' ? { stack: error.stack } : {}),
+    // A forwarded report owns the original stack, even when none was supplied.
+    // Do not replace that absence with the stack of a recovery wrapper.
+    ...(typeof error.stack === 'string' && !value.report
+      ? { stack: error.stack }
+      : {}),
     ...(error.cause !== undefined
       ? {
           cause:

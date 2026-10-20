@@ -28,6 +28,8 @@ for (const report of reports) {
   console.log(
     `\n${report.name}: ${report.message}\n${report.stage} · ${report.release}`,
   )
+  if (!report.stack)
+    console.log('Original stack unavailable; showing the capture location.')
   const stack = [
     report.stack || report.captureStack || '',
     `${report.filename ?? ''}:${report.line ?? 0}:${report.column ?? 0}`,
