@@ -235,7 +235,9 @@ shows games reaching each guess and then solving, exhausting attempts or remaini
 unfinished. It only includes histories with a recorded opening state. Restored or
 partial games are counted separately, and older aggregate activity remains in the
 time-series plots. Audience/errors cover all modes; the game filter applies to
-gameplay charts. The overview also shows attempt/option distributions, practice
+gameplay charts. The Sankey has its own Pacific date and independent Daily and
+Practice switches, shared by its overview and percentile breakdown; these do not
+change the dashboard's broader date window or other charts. The overview also shows attempt/option distributions, practice
 frequency, themes and devices. No external chart service is used.
 
 The flow chart places out-of-attempts games above unfinished games; unfinished

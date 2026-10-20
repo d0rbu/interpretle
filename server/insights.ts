@@ -32,6 +32,7 @@ type Issue = {
   lastAt: string
   samples: ErrorSample[]
 }
+type FlowSelection = { day: string; daily: boolean; practice: boolean }
 
 function readInsights(
   sql: Sql,
@@ -39,6 +40,7 @@ function readInsights(
   days: number,
   mode: string,
   runtime: string,
+  flowSelection: FlowSelection,
   profile?: string,
 ) {
   const start = new Date(Date.parse(end + 'T12:00:00Z') - (days - 1) * 86400000)
@@ -148,7 +150,15 @@ function readInsights(
     start,
     end,
   )
-  const flow = readFlow(sql, start, end, mode)
+  const flowMode = flowSelection.daily
+    ? flowSelection.practice
+      ? 'all'
+      : 'daily'
+    : 'practice'
+  const flow =
+    flowSelection.daily || flowSelection.practice
+      ? readFlow(sql, flowSelection.day, flowSelection.day, flowMode)
+      : []
   const issues = rows<Omit<Issue, 'samples'> & { samples: string }>(
     `
     WITH errors AS (
@@ -184,6 +194,7 @@ function readInsights(
     series,
     people,
     flow,
+    flowSelection,
     issues,
     coverage,
     attempts: rows<Counts>(
@@ -222,16 +233,36 @@ export function dashboardData(sql: Sql, params: URLSearchParams, end: string) {
   const mode = params.get('game') ?? 'all'
   const runtime = params.get('runtime') ?? 'all'
   const profile = params.get('pass') ?? undefined
+  const flowDay = params.get('flowDay') ?? end
+  const flowSelection = {
+    day: flowDay,
+    daily: params.has('flowDay')
+      ? params.get('flowDaily') === '1'
+      : mode !== 'practice',
+    practice: params.has('flowDay')
+      ? params.get('flowPractice') === '1'
+      : mode !== 'daily',
+  }
+  const validDay = (day: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+    Number.isFinite(Date.parse(day + 'T12:00:00Z')) &&
+    new Date(day + 'T12:00:00Z').toISOString().slice(0, 10) === day
   if (
     ![1, 7, 14, 30, 90].includes(days) ||
     !['all', 'daily', 'practice'].includes(mode) ||
     !['all', 'gpu', 'cpu'].includes(runtime) ||
     (profile !== undefined && !/^[a-f0-9]{64}$/.test(profile)) ||
-    !Number.isFinite(Date.parse(end + 'T12:00:00Z')) ||
-    new Date(end + 'T12:00:00Z').toISOString().slice(0, 10) !== end
+    !validDay(end) ||
+    !validDay(flowDay) ||
+    ['flowDaily', 'flowPractice'].some(
+      (key) => params.has(key) && params.get(key) !== '1',
+    )
   )
     return Response.json({ error: 'Invalid dashboard range.' }, { status: 400 })
-  return Response.json(readInsights(sql, end, days, mode, runtime, profile), {
-    headers: { 'Cache-Control': 'private, no-store, no-transform' },
-  })
+  return Response.json(
+    readInsights(sql, end, days, mode, runtime, flowSelection, profile),
+    {
+      headers: { 'Cache-Control': 'private, no-store, no-transform' },
+    },
+  )
 }

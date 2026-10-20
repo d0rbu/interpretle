@@ -479,6 +479,74 @@ it('uses recorded passage bands and nearest write-in bands without inventing mis
   expect(detailed.nodes.find((n) => n.id === 'guess-1-unknown')?.count).toBe(1)
 })
 
+it('filters both Sankey views by their own Pacific date and independent game toggles', async () => {
+  const record = (day: string, mode: string, guesses: number) => {
+    const browser = crypto.randomUUID()
+    const round = mode === 'daily' ? day : crypto.randomUUID()
+    for (const count of [0, guesses])
+      db.prepare(
+        `INSERT INTO event_log (id,day,at,player,event,mode,round,feature,details) VALUES (?,?,?,?,?,?,?,?,?)`,
+      ).run(
+        crypto.randomUUID(),
+        day,
+        day + 'T20:00:00.000Z',
+        browser,
+        count ? 'guess' : 'puzzle_view',
+        mode,
+        round,
+        feature,
+        JSON.stringify({
+          attempt: count || undefined,
+          band: count ? 90 : undefined,
+          snapshot: {
+            status: 'playing',
+            game: { maxGuesses: 6, guesses: Array(count).fill({ score: 90 }) },
+          },
+        }),
+      )
+  }
+  record('2026-10-17', 'daily', 2)
+  record('2026-10-17', 'practice', 1)
+  record('2026-10-18', 'daily', 4)
+  record('2026-10-18', 'practice', 3)
+
+  const defaultFlow = await overview('days=7')
+  expect(defaultFlow.flowSelection).toEqual({
+    day: '2026-10-18',
+    daily: true,
+    practice: true,
+  })
+  expect(defaultFlow.flow.map((g) => g.guesses).sort()).toEqual([3, 4])
+
+  const query = 'days=7&game=daily&flowDay=2026-10-17'
+  for (const [toggles, expected] of [
+    ['&flowDaily=1&flowPractice=1', [1, 2]],
+    ['&flowDaily=1', [2]],
+    ['&flowPractice=1', [1]],
+    ['', []],
+  ] as const) {
+    const data = await overview(query + toggles)
+    expect(data).toMatchObject({
+      start: '2026-10-12',
+      end: '2026-10-18',
+      days: 7,
+      mode: 'daily',
+    })
+    expect(data.flow.map((g) => g.guesses).sort()).toEqual(expected)
+    expect(flowSteps(data.flow).total).toBe(expected.length)
+    expect(layoutFlow(data.flow, true).total).toBe(expected.length)
+  }
+  for (const invalid of [
+    'flowDay=2026-02-31',
+    'flowDay=not-a-date',
+    'flowDay=2026-10-17&flowDaily=false',
+    'flowDay=2026-10-17&flowPractice=all',
+  ])
+    expect(
+      (await request(undefined, '/admin?' + invalid, { headers: auth })).status,
+    ).toBe(400)
+})
+
 it('orders unfinished paths by the last guess and conserves both Sankey views', () => {
   const groups = [
     { guesses: 0, outcome: 'open' as const, count: 4, bands: [] },

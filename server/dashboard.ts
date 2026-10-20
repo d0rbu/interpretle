@@ -8,6 +8,18 @@ const number = (n: number) => n.toLocaleString('en-US')
 const percent = (n: number, total: number) =>
   total ? `${Math.round((n / total) * 100)}%` : '—'
 const utc = (at: string) => at.replace('T', ' ').replace(/Z$/, ' UTC')
+const flowParams = (data: Insights): Record<string, string> => ({
+  flowDay: data.flowSelection.day,
+  ...(data.flowSelection.daily ? { flowDaily: '1' } : {}),
+  ...(data.flowSelection.practice ? { flowPractice: '1' } : {}),
+})
+const hiddenInputs = (values: Record<string, string>) =>
+  Object.entries(values)
+    .map(
+      ([name, value]) =>
+        `<input type="hidden" name="${e(name)}" value="${e(value)}">`,
+    )
+    .join('')
 const colors = {
   blue: '#7097ed',
   green: '#65b897',
@@ -206,6 +218,7 @@ function profiling(data: Insights) {
         game: data.mode,
         runtime: p.runtime,
         pass: id,
+        ...flowParams(data),
       }).toString(),
     ) +
     '#profiling'
@@ -293,10 +306,17 @@ export async function dashboardPage(response: Response) {
       : data.mode === 'daily'
         ? 'Daily'
         : 'Practice'
+  const flowName = data.flowSelection.daily
+    ? data.flowSelection.practice
+      ? 'Daily + practice'
+      : 'Daily'
+    : data.flowSelection.practice
+      ? 'Practice'
+      : 'No games selected'
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Analytics · interpretle</title><style>${styles}</style></head><body><main>
 <header><a class="brand" href="/admin"><i aria-hidden="true"></i>interpretle<span>analytics</span></a><nav aria-label="Admin"><a href="${raw}">Raw data ↗</a><a href="/">Open game ↗</a></nav></header>
-<section class="page-heading"><div><span class="eyebrow">Private dashboard</span><h1>Game overview</h1><p>How people play, where they stop, and what breaks.</p></div><form action="/admin"><label>Ending on<input type="date" name="day" value="${e(data.end)}"></label><label>Window<select name="days">${[1, 7, 14, 30, 90].map((n) => `<option value="${n}"${n === data.days ? ' selected' : ''}>${n === 1 ? 'One day' : `${n} days`}</option>`).join('')}</select></label><label>Games<select name="game">${[
+<section class="page-heading"><div><span class="eyebrow">Private dashboard</span><h1>Game overview</h1><p>How people play, where they stop, and what breaks.</p></div><form action="/admin">${hiddenInputs(flowParams(data))}<label>Ending on<input type="date" name="day" value="${e(data.end)}"></label><label>Window<select name="days">${[1, 7, 14, 30, 90].map((n) => `<option value="${n}"${n === data.days ? ' selected' : ''}>${n === 1 ? 'One day' : `${n} days`}</option>`).join('')}</select></label><label>Games<select name="game">${[
       ['all', 'Daily + practice'],
       ['daily', 'Daily'],
       ['practice', 'Practice'],
@@ -324,8 +344,10 @@ export async function dashboardPage(response: Response) {
         { key: 'errors', label: 'Errors · all modes', color: colors.red },
       ],
     )}</section>
-<section class="panel wide" id="game-flow"><div class="panel-head"><div><h2>From opening the puzzle to the final guess</h2><p>Follow the ribbons to see how games progress</p></div><span class="tag">${modeName}</span></div>${sankey(data.flow)}${percentileFlow}</section>
-<section class="panel"><div class="panel-head"><div><h2>When games end</h2><p>Winning guess, or every attempt used</p></div></div>${bars(wins, colors.green)}<p class="note">Completed results in this window. Unfinished games appear in the flow above.</p></section>
+<section class="panel wide" id="game-flow"><div class="panel-head"><div><h2>From opening the puzzle to the final guess</h2><p>Recorded activity on ${e(data.flowSelection.day)} · Pacific time</p></div><span class="tag">${flowName}</span></div>
+<form class="flow-controls" action="/admin#game-flow" aria-label="Game progression filters">${hiddenInputs({ day: data.end, days: String(data.days), game: data.mode, runtime: data.profiles.runtime })}<label>Pacific date<input type="date" name="flowDay" value="${e(data.flowSelection.day)}" required></label><label class="flow-switch"><input type="checkbox" role="switch" name="flowDaily" value="1"${data.flowSelection.daily ? ' checked' : ''}>Daily games</label><label class="flow-switch"><input type="checkbox" role="switch" name="flowPractice" value="1"${data.flowSelection.practice ? ' checked' : ''}>Practice games</label><button>Apply</button></form>
+${data.flowSelection.daily || data.flowSelection.practice ? sankey(data.flow) : empty('Select Daily games, Practice games, or both.')}${percentileFlow}</section>
+<section class="panel"><div class="panel-head"><div><h2>When games end</h2><p>Winning guess, or every attempt used</p></div></div>${bars(wins, colors.green)}<p class="note">Completed results matching the overview's date window and game filter.</p></section>
 <section class="panel"><div class="panel-head"><div><h2>Which options get picked</h2><p>Suggested positions versus scored write-ins</p></div></div>${bars(data.slots, colors.purple)}<p class="note">Scored guesses, including repeated positions in later turns.</p></section>
 ${profiling(data)}
 <section class="panel wide" id="errors"><div class="panel-head"><div><h2>Exceptions & failures</h2><p>Grouped issues, original stacks and the steps before failure</p></div><a href="${raw}#model-errors">All records ↗</a></div><p class="note">${number(total('errors'))} error events · ${number(data.coverage.errorRecords)} diagnostic records · ${number(data.coverage.exceptions)} original exceptions. Older events cannot be reconstructed into stack traces. Expand an issue to investigate.</p>${issues(data)}</section>
@@ -339,6 +361,7 @@ ${profiling(data)}
 }
 
 const styles = `
+.flow-controls{gap:16px;margin-bottom:20px}.flow-switch{flex-direction:row;align-items:center;align-self:center;gap:8px;font-size:12px;cursor:pointer}.flow-switch input{appearance:none;width:34px;height:20px;padding:0;margin:0;position:relative;border-radius:12px;background:var(--line);cursor:pointer}.flow-switch input::before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;border-radius:50%;background:var(--muted);transition:transform .15s}.flow-switch input:checked{background:var(--accent);border-color:var(--accent)}.flow-switch input:checked::before{background:var(--panel);transform:translateX(14px)}
 .flow-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.flow-detail>summary{cursor:pointer;font-size:13px;font-weight:600;margin-bottom:20px}.band-flow svg{min-width:1200px}.band-label{font-size:10px;paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
 .profile-summary{display:flex;gap:16px;flex-wrap:wrap}.profile-summary article{flex:1;min-width:200px;background:var(--soft);border-radius:8px;padding:16px}.profile-summary h3{margin:0 0 8px}.profile-summary strong{font-size:24px;font-variant-numeric:tabular-nums}.profile-summary span{display:block;font-size:12px;color:var(--muted)}.profile-summary p{font-size:11px;margin-top:8px}.timing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}.timing-grid>div{min-width:0}.timing-bars .bar-row{grid-template-columns:minmax(110px,1.4fr) 1fr 72px}.timing-bars small,.profile-runs small,.trace-table small{display:block;font-size:10px;color:var(--muted)}.timing-detail{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}.timing-detail>summary{cursor:pointer;font-size:13px;font-weight:600}.table-scroll{overflow-x:auto;margin-top:20px}table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-size:11px;font-weight:600}.profile-runs{min-width:650px}.trace-table{min-width:680px}.trace-table td:first-child{width:43%}.trace-table td:nth-child(2){width:85px;font-variant-numeric:tabular-nums}.trace-track{position:relative;background:var(--soft);height:12px;border-radius:3px;overflow:hidden}.trace-track i{position:absolute;height:100%;border-radius:2px}@media(max-width:900px){.timing-grid{grid-template-columns:1fr;gap:12px}}
 :root{color-scheme:light dark;--bg:#f5f6f8;--panel:#fff;--text:#222938;--muted:#687286;--line:#e4e7ed;--soft:#f4f6fa;--accent:#446ba9;font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}

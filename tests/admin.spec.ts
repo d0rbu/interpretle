@@ -10,6 +10,7 @@ const sample: Insights = {
   end: '2026-10-18',
   days: 14,
   mode: 'all',
+  flowSelection: { day: '2026-10-18', daily: true, practice: true },
   profiles: {
     runtime: 'all',
     expanded: false,
@@ -299,4 +300,81 @@ test('private dashboard makes missing historical paths and empty reports explici
     'href',
     '/admin/raw?day=2026-10-18',
   )
+})
+
+test('Sankey date and Daily/Practice switches submit independently and persist across dashboard filters', async ({
+  page,
+}) => {
+  await page.route('**/admin?**', async (route) => {
+    const params = new URL(route.request().url()).searchParams
+    const custom = params.has('flowDay')
+    const flowSelection = {
+      day: params.get('flowDay') ?? sample.end,
+      daily: !custom || params.has('flowDaily'),
+      practice: !custom || params.has('flowPractice'),
+    }
+    const response = await dashboardPage(
+      Response.json({
+        ...sample,
+        days: Number(params.get('days') ?? sample.days),
+        mode: params.get('game') ?? sample.mode,
+        profiles: {
+          ...sample.profiles,
+          runtime: params.get('runtime') ?? sample.profiles.runtime,
+        },
+        flowSelection,
+        flow: flowSelection.daily || flowSelection.practice ? sample.flow : [],
+      }),
+    )
+    await route.fulfill({
+      status: response.status,
+      headers: Object.fromEntries(response.headers),
+      body: await response.text(),
+    })
+  })
+  await page.goto('/admin?day=2026-10-18&days=14&game=all&runtime=gpu')
+  const filters = page.getByRole('form', { name: 'Game progression filters' })
+  const daily = filters.getByRole('switch', {
+    name: 'Daily games',
+    exact: true,
+  })
+  const practice = filters.getByRole('switch', {
+    name: 'Practice games',
+    exact: true,
+  })
+  await expect(daily).toBeChecked()
+  await expect(practice).toBeChecked()
+  await filters.getByLabel('Pacific date').fill('2026-10-17')
+  await daily.uncheck()
+  await filters.getByRole('button', { name: 'Apply' }).click()
+  await expect(page).toHaveURL(/flowDay=2026-10-17&flowPractice=1#game-flow$/)
+  expect(new URL(page.url()).searchParams.get('game')).toBe('all')
+  expect(new URL(page.url()).searchParams.get('days')).toBe('14')
+  expect(new URL(page.url()).searchParams.get('runtime')).toBe('gpu')
+  await expect(daily).not.toBeChecked()
+  await expect(practice).toBeChecked()
+  await expect(filters.getByLabel('Pacific date')).toHaveValue('2026-10-17')
+
+  await practice.uncheck()
+  await filters.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.locator('#game-flow')).toContainText(
+    'Select Daily games, Practice games, or both.',
+  )
+  await expect(page.locator('#game-flow svg')).toHaveCount(0)
+  await daily.check()
+  await filters.getByRole('button', { name: 'Apply' }).click()
+  await expect(daily).toBeChecked()
+  await expect(practice).not.toBeChecked()
+
+  await page
+    .getByRole('combobox', { name: 'Window', exact: true })
+    .selectOption('7')
+  await page
+    .locator('.page-heading')
+    .getByRole('button', { name: 'Apply' })
+    .click()
+  await expect(page).toHaveURL(/flowDay=2026-10-17&flowDaily=1/)
+  await expect(filters.getByLabel('Pacific date')).toHaveValue('2026-10-17')
+  await expect(daily).toBeChecked()
+  await expect(practice).not.toBeChecked()
 })
