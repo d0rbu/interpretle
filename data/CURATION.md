@@ -79,6 +79,14 @@ mineral descriptions from other chemical uses; and programming languages from
 spoken languages or software libraries. The differences must be visible in the
 passage, not just in context hidden from the player.
 
+The October 21 puzzle (feature 671, U.S. city-and-state addresses) was also
+reported as a little easy. Leave that published puzzle unchanged. For future
+reviews, increase the challenge modestly: the starting clue should support
+several plausible hypotheses, and later highlights should help narrow them.
+Keep the upper-band distinctions readable; do not add difficulty by making
+equally relevant passages differ only in their measured scores. This is one
+player's calibration feedback, not a measured difficulty estimate.
+
 Twenty concepts remain in the upcoming rotation. Features 7790, 6814, 4103,
 11071, 6084, 9222, 900, 41907, and 200 are held back because this review did not
 establish enough readable, distinguishable alternatives across the upper bands.

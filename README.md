@@ -269,6 +269,10 @@ bytes; quota errors stop immediately. Saved files/pieces survive a failed write.
 If writing still fails, its private report includes the original exception, exact
 cache operation/file, write size/attempt count and storage usage/quota when exposed
 by the browser. A generic filesystem failure does not prove the disk is full.
+If Chromium reports a `NotFoundError` while saving a file during startup, preparation
+restarts once in a fresh worker to reopen an invalidated cache handle. The original
+failure stays in private telemetry; quota and other storage errors do not trigger
+this restart.
 
 The detailed tables and exports live at [/admin/raw](https://interpretle.com/admin/raw).
 Existing `/admin?browser=...` and JSON links still work.
@@ -299,7 +303,11 @@ The existing daily solve histogram remains separate and excludes practice.
 Production builds archive hidden source maps under the ignored
 `artifacts/releases/<build-id>/` directory, and remove them from `dist` before
 deployment. Preserve that directory alongside deployed builds. The deploy check
-rejects public source maps. To resolve a downloaded private event export to original
+rejects public source maps. The same archive also holds each build's public
+JavaScript and CSS bundles; builds retain seven days of those bundles in `dist`
+so resumed tabs can still load their original workers after a deployment.
+Only `.js` and `.css` files are copied back, never source maps or reports.
+To resolve a downloaded private event export to original
 source lines and code excerpts, run:
 
 ```sh

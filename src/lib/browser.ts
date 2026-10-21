@@ -135,6 +135,7 @@ function reportFailure(
 // restarting the worker from the pieces already committed to CacheStorage.
 async function prepareWhenActive(model: BrowserModel, job: Preparation) {
   const signal = job.controller.signal
+  let retriedCacheReset = false
   const active = () => !document.hidden && navigator.onLine !== false
   const watch = (callback: () => void) => {
     document.addEventListener('visibilitychange', callback)
@@ -176,6 +177,20 @@ async function prepareWhenActive(model: BrowserModel, job: Preparation) {
       )
       return
     } catch (cause) {
+      const report = (cause as { report?: RuntimeReport } | null)?.report
+      // Chromium invalidates open cache handles when site storage is cleared.
+      // The failed worker is already terminated; restart once to reopen storage.
+      if (
+        !signal.aborted &&
+        !attempt.signal.aborted &&
+        !retriedCacheReset &&
+        report?.storageOperation === 'CacheStorage.put' &&
+        report.name === 'NotFoundError'
+      ) {
+        retriedCacheReset = true
+        reportFailure(cause, 'Model startup')
+        continue
+      }
       if (!attempt.signal.aborted || signal.aborted) throw cause
     } finally {
       unwatch()

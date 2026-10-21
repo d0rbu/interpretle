@@ -99,6 +99,91 @@ it('waits for a connection and allows cancellation while offline without restart
   expect(workers).toHaveLength(0)
 })
 
+const cacheReset = {
+  error: 'The browser could not save the model files.',
+  diagnostics: {
+    code: 'storage_unavailable',
+    phase: 'storage',
+    backend: 'cpu',
+  },
+  report: {
+    source: 'model',
+    name: 'NotFoundError',
+    message: "Failed to execute 'put' on 'Cache': Entry was not found.",
+    stage: 'Saving model download to browser storage',
+    release: 'test-build',
+    storageOperation: 'CacheStorage.put',
+  },
+}
+
+it('reopens model storage in a fresh worker after a cleared cache, retaining the original report', async () => {
+  const { prepareBrowserModel, browserModelReady } = await import('./browser')
+  const preparation = prepareBrowserModel(
+    model,
+    () => {},
+    new AbortController().signal,
+  )
+  await vi.waitFor(() => expect(workers).toHaveLength(1))
+  workers[0].onmessage?.({ data: cacheReset })
+  await vi.waitFor(() => expect(workers).toHaveLength(2))
+  expect(workers[0].terminate).toHaveBeenCalledOnce()
+  expect(workers[1].postMessage).toHaveBeenCalledWith({
+    type: 'prepare',
+    manifest: model.manifest,
+  })
+  workers[1].complete()
+  await preparation
+  expect(browserModelReady()).toBe(true)
+  const failures = telemetry.track.mock.calls.filter(
+    ([event]) => event === 'model_error',
+  )
+  expect(failures).toEqual([
+    ['model_error', expect.objectContaining({ report: cacheReset.report })],
+  ])
+  expect(telemetry.track).toHaveBeenCalledWith('model_ready')
+})
+
+it('stops after one cache-reset retry instead of looping on broken storage', async () => {
+  const { prepareBrowserModel, browserModelReady } = await import('./browser')
+  const preparation = prepareBrowserModel(
+    model,
+    () => {},
+    new AbortController().signal,
+  )
+  const rejected = expect(preparation).rejects.toThrow(cacheReset.error)
+  await vi.waitFor(() => expect(workers).toHaveLength(1))
+  workers[0].onmessage?.({ data: cacheReset })
+  await vi.waitFor(() => expect(workers).toHaveLength(2))
+  workers[1].onmessage?.({ data: cacheReset })
+  await rejected
+  expect(workers).toHaveLength(2)
+  expect(browserModelReady()).toBe(false)
+  expect(telemetry.track).not.toHaveBeenCalledWith('model_ready')
+  expect(
+    telemetry.track.mock.calls.filter(([event]) => event === 'model_error'),
+  ).toHaveLength(2)
+})
+
+it.each(['QuotaExceededError', 'TypeError'])(
+  'does not restart preparation for other storage errors: %s',
+  async (name) => {
+    const { prepareBrowserModel } = await import('./browser')
+    const preparation = prepareBrowserModel(
+      model,
+      () => {},
+      new AbortController().signal,
+    )
+    const rejected = expect(preparation).rejects.toThrow(cacheReset.error)
+    await vi.waitFor(() => expect(workers).toHaveLength(1))
+    workers[0].onmessage?.({
+      data: { ...cacheReset, report: { ...cacheReset.report, name } },
+    })
+    await rejected
+    expect(workers).toHaveLength(1)
+    expect(workers[0].terminate).toHaveBeenCalledOnce()
+  },
+)
+
 it('resumes a disconnected download but does not resume after the user cancels it', async () => {
   const { prepareBrowserModel } = await import('./browser')
   const controller = new AbortController()
