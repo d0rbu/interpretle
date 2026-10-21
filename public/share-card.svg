@@ -8,28 +8,28 @@
   <g text-anchor="middle" font-family="DejaVu Sans, sans-serif">
     <text
       x="600"
-      y="250"
+      y="305"
       fill="#edf2e9"
-      font-size="120"
+      font-size="200"
       font-weight="bold"
-      letter-spacing="-6"
+      letter-spacing="-10"
     >
       interpretle
     </text>
   </g>
   <g fill="#965514">
-    <rect x="617" y="320" width="194" height="64" opacity="0.65" />
-    <rect x="240" y="400" width="265" height="64" opacity="0.3" />
-    <rect x="505" y="400" width="192" height="64" opacity="0.6" />
-    <rect x="697" y="400" width="263" height="64" opacity="0.95" />
+    <rect x="621" y="364" width="242" height="80" opacity="0.65" />
+    <rect x="150" y="459" width="331" height="80" opacity="0.3" />
+    <rect x="481" y="459" width="240" height="80" opacity="0.6" />
+    <rect x="721" y="459" width="329" height="80" opacity="0.95" />
   </g>
   <g
     text-anchor="middle"
     font-family="DejaVu Sans, sans-serif"
-    font-size="56"
+    font-size="70"
     fill="#edf2e9"
   >
-    <text x="600" y="368">Find the secret</text>
-    <text x="600" y="448">language model concept.</text>
+    <text x="600" y="425">Find the secret</text>
+    <text x="600" y="520">language model concept.</text>
   </g>
 </svg>
